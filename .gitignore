@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build
+backend/dist/
+frontend/dist/
+
+# Secrets & local config
+backend/.env
+.env
+.env.local
+
+# Chrome automation profiles (large, machine-specific)
+backend/.orange_chrome_automation/
+backend/.green_chrome_automation/
+
+# Uploaded resumes
+backend/uploads/
+
+# Logs & OS
+*.log
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+!.vscode/extensions.json
+
+# Nested clone — track files in parent repo, not separate git history
+Auto_job_applier_linkedIn/.git/
