@@ -5,23 +5,23 @@ import { config } from '../config';
 import { cleanJobDescriptionForResume } from './cleanJobDescription';
 
 const CANDIDATE = {
-  name: 'Shaik Amreen Kousar',
+  name: 'Karthik Kovi',
   school: 'California State University, Long Beach',
-  degree: 'MS Computer Science (graduating January 2028)',
-  focus: 'Summer 2027 software engineering internships',
+  degree: 'MS Computer Science (graduating January 2027)',
+  focus: 'full-time software engineering roles',
 };
 
 function fallbackRecruiterMessage(title: string, company: string, recruiterName?: string): string {
   const greeting = recruiterName ? `Hi ${recruiterName.split(' ')[0]}` : 'Hi';
-  return `${greeting} — I am applying for the ${title} role at ${company}. I am an MS CS student at CSULB (grad Jan 2028) targeting Summer 2027 internships. I would love to connect and share why I am excited about the team.`;
+  return `${greeting} — I am currently pursuing my M.S. in Computer Science at California State University, Long Beach and have 3+ years of professional full-stack software engineering experience. I am actively looking for full-time Software Engineer opportunities beginning around my graduation in January 2027. I would love to connect and learn more about the ${title} role at ${company}. Thank you!`;
 }
 
 function fallbackCoverLetter(title: string, company: string): string {
   return `Dear Hiring Team at ${company},
 
-I am writing to express my interest in the ${title} position. I am pursuing an MS in Computer Science at California State University, Long Beach (graduating January 2028) and am seeking a Summer 2027 software engineering internship where I can contribute full-stack and backend skills while learning from strong engineering teams.
+I am writing to express my interest in the ${title} position. I am pursuing an MS in Computer Science at California State University, Long Beach (graduating January 2027) and am seeking a full-time Software Engineer role where I can contribute full-stack and backend skills on production systems.
 
-My experience includes web development at ASI at CSULB, software engineering at Origem India, and projects aligned with modern stacks (React, Node.js, Python, cloud). I am excited about ${company}'s work and would welcome the opportunity to discuss how I can add value to your team.
+Through professional experience at Associated Students, Inc. at CSULB and Infobell IT Solutions, I have built production web and mobile applications serving thousands of users while improving accessibility, performance, and deployment automation. I am excited about ${company}'s work and would welcome the opportunity to discuss how I can add value to your team.
 
 Thank you for your time and consideration.
 
@@ -33,13 +33,13 @@ function fallbackContacts(company: string, title: string): ContactSuggestion[] {
   return [
     {
       title: 'Technical Recruiter',
-      linkedinSearchQuery: `${company} technical recruiter software intern`,
+      linkedinSearchQuery: `${company} technical recruiter software engineer`,
       notes: 'Search on LinkedIn and connect with a short note after applying.',
     },
     {
       title: 'University Recruiting / Early Career',
-      linkedinSearchQuery: `${company} university recruiting software engineering`,
-      notes: 'Early-career recruiters often prioritize intern pipelines.',
+      linkedinSearchQuery: `${company} university recruiting new grad software engineering`,
+      notes: 'Early-career recruiters often prioritize new-grad / university hire pipelines.',
     },
     {
       title: 'Hiring Manager (Engineering)',
@@ -122,7 +122,7 @@ Output only the cover letter text, no markdown fences.`
   try {
     const message = await callOllamaForText(
       system,
-      `Write a short LinkedIn connection note (under 280 characters if possible, max 400) to a recruiter at ${job.company} about the ${job.title} role. Mention MS CS at CSULB and Summer 2027 internship interest. Output only the message text.`
+      `Write a short LinkedIn connection note (under 280 characters if possible, max 400) to a recruiter at ${job.company} about the ${job.title} role. Mention MS CS at CSULB, 3+ years full-stack experience, and full-time Software Engineer interest starting around January 2027 graduation. Output only the message text.`
     );
     job.recruiterMessageDraft =
       message || fallbackRecruiterMessage(job.title, job.company, job.recruiterName);
@@ -156,7 +156,7 @@ Output only the cover letter text, no markdown fences.`
     try {
       const contactsRaw = await callOllamaForText(
         system,
-        `Suggest 3 people to contact at ${job.company} for the ${job.title} internship (recruiter, university recruiting, engineering manager). Return ONLY a JSON array like [{"title":"...","linkedinSearchQuery":"...","notes":"..."}] — no markdown.`
+        `Suggest 3 people to contact at ${job.company} for the ${job.title} full-time software role (recruiter, university recruiting / early career, engineering manager). Return ONLY a JSON array like [{"title":"...","linkedinSearchQuery":"...","notes":"..."}] — no markdown.`
       );
       job.contactSuggestions = parseContactJson(contactsRaw);
     } catch {

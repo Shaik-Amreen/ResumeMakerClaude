@@ -149,7 +149,7 @@ export async function reviseResumeWithClaudeCode(
     'Revise this amazon.pdf-style resume.',
     instruction,
     'OUTPUT RULES: Start at \\section{\\textbf{Education}}. Do NOT output \\documentclass or preamble.',
-    'Keep name Amreen Kousar only. No fontspec. No invented people.',
+    'Keep name KARTHIK KOVI only. No fontspec. No invented people.',
     'Output ONLY Education → Certifications section LaTeX.',
     '',
     'CURRENT BODY:',

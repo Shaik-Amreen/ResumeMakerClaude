@@ -1,40 +1,23 @@
 PROJECT POOL — pick Featured Projects ONLY from this list (Rule 7).
-There are 23+ verified projects. NEVER invent a project outside this pool.
+NEVER invent a project outside this pool.
 Select exactly the TOP 5 strongest for THIS JD.
 HARD REQUIREMENT: at least 3 of the 5 MUST be LINKED (use the exact URL with \href{URL}{\uline{\textbf{title}}}).
 The other 0–2 may be NO-LINK (plain \textbf{title} only — do not invent URLs).
 Prefer JD skill fit first; among equal fits, prefer LINKED projects.
 
 === LINKED PROJECTS (have live URLs — prefer these for the required 3+) ===
-1. NativeNest — https://nativenest.in — React, React Native, Node, GraphQL, Redis, PostgreSQL, AWS, Docker, CI/CD, e-commerce
-2. Origem India — https://www.origemindia.com — Next.js, Tailwind, Node, MongoDB, AWS, Stripe/Razorpay, jewellery e-commerce
-3. B4IGO — https://www.b4igo.com — React, React Native, Node, MongoDB, Blockchain, AWS, MFA/vaults
-4. ASI ADP Job Alerts — https://adp-scraper-vercel.vercel.app/ — scraping, alerts, automation, Vercel
-5. Upturn — https://www.upturn.io — Angular, React Native, Firebase, AI stock advisor
-6. Arikya — https://arikya.com — Angular, React Native, Node, MongoDB, AWS, AI, recruitment/training
+1. NativeNest — https://nativenest.in — React, React Native, GraphQL, Node.js, MongoDB, AWS — grocery commerce, 30K+ users
+2. Origem India — https://origemindia.com — Next.js, Redis, Node.js, Tailwind, Magento, Razorpay — jewellery e-commerce
+3. FutureU — https://www.asicsulb.org/corporate/discover/futureu — React Native, Node.js, AWS — CSULB student engagement
+4. ARIKYA — https://arikya.in — Angular, React Native, Node.js, AWS — training/placement SaaS
+5. Booking Bee — https://bookingbee.ai — Angular, NestJS, MongoDB, Dasha AI — AI appointment booking
 
 === NO-LINK PROJECTS (valid; use when they best match the JD; max 2 of the 5) ===
-7. AI-Assisted Technology Review Workflow (AWS AI Summer Camp, Cal Poly / AWS) — Bedrock, LangGraph, Lambda, API Gateway, DynamoDB, S3, CloudFront, Cognito, React, TypeScript, Python — agents / LLM / policy review
-8. Benchmark Automation (AMD) — React, Node, GitLab, AWS, Jira — enterprise process automation
-9. GSI Sales and Advisory (AMD) — React, Python/Node, GitLab, Jira — sales consulting platform
-10. NextZen ERP HRMS — React Native, Node, MongoDB, AWS — HRMS + Accounting + Warehouse
-11. Nova Physician Wellness Center — React Native, Firebase — diet/exercise tracking, messaging
-12. Buzz Staff Women — React, Redux — NGO platform
-13. BookingBee — Angular, Material-UI, AI — appointment scheduling
-14. Dynamic Ecommerce App — React Native — dynamic UI e-commerce
-15. College ERP — React, Node, MongoDB — college digitization
-16. College Feedback & Task Management — Angular, Node, MongoDB, AWS
-17. AI Slum Control (Smart India Hackathon) — Angular, Node, MongoDB, AI image segmentation
-18. Online Exam Fee Payment — Angular, Node, MongoDB, payment gateway
-19. Digital Library — Angular, Node, MongoDB, quizzes/materials
-20. Digital Admission Process — Angular, Node, MongoDB
-21. Recruitment Process app — React, Node, MongoDB — internship/event hiring
-22. Agri-Farm (Smart India Hackathon) — React Native, Node, MongoDB
-23. Exam Hall Seating / Timetable / Leave-Salary / Task Forz / MS Teams attendance / Event Accounting / Exam reports / BGMI Tournaments — pick only if uniquely strongest for the JD
+6. MirrorMate — C#, Miracast — Windows screen casting
+7. AI Based Slum Control (Smart India Hackathon) — Angular, Node.js, Twilio — AI platform
 
 SELECTION ALGORITHM (mandatory):
 1. Rank ALL pool projects by relevance to THIS JD's required skills/responsibilities.
 2. Take the best 5. If fewer than 3 LINKED are in those 5, swap in the next-best LINKED projects until ≥3 have URLs.
-3. For AI / agents / LLM / Co-Pilot / ML / data-science JDs: AWS AI Summer Camp (#7) MUST be among the 5 (still keep ≥3 LINKED overall).
-4. Cover 100% of JD tech keywords with evidenced bullets across Experience + these 5 projects (Rule 1).
-5. Never invent URLs. Never change existing URLs. Never add GitHub links.
+3. Cover 100% of JD tech keywords with evidenced bullets across Experience + these 5 projects (Rule 1).
+4. Never invent URLs. Never change existing URLs. Never add GitHub links.

@@ -199,7 +199,7 @@ export function shouldSkipJobDescription(
   if (looksIntern && !isInternGraduationEligible(title, description)) {
     return {
       skip: true,
-      reason: 'Graduation window incompatible with Dec 2027 / Jan 2028',
+      reason: 'Graduation window incompatible with January 2027',
     };
   }
 

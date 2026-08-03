@@ -26,9 +26,9 @@ import {
 } from './utils/jobFilters';
 
 const WINDOW_LABELS: Record<string, string> = {
-  internship_cycle: '24/7 · Summer 2027 (Jobright → LinkedIn → Google → resumes → Easy Apply)',
-  night_faang_mango: '11 PM–8 AM · FAANG + MANGOES internships',
-  morning_faang_mango: '9–11 AM · FAANG + MANGOES internships',
+  internship_cycle: '24/7 · Full-time / new-grad (Jobright → LinkedIn → Indeed → resumes → Easy Apply)',
+  night_faang_mango: '11 PM–8 AM · FAANG + MANGOES full-time',
+  morning_faang_mango: '9–11 AM · FAANG + MANGOES full-time',
   fulltime_jobs: '8–9 AM & 11 AM–11 PM · full-time',
   idle: 'Idle / cooldown',
 };
@@ -74,7 +74,7 @@ function App() {
   const [scheduler, setScheduler] = useState<SchedulerStatus | null>(null);
   const [filters, setFilters] = useState<JobFilters>(DEFAULT_FILTERS);
   const [panelBusy, setPanelBusy] = useState(false);
-  const [jobType, setJobType] = useState<JobType>('internship');
+  const [jobType, setJobType] = useState<JobType>('fulltime');
 
   const loadJobs = useCallback(async () => {
     try {
@@ -185,12 +185,12 @@ function App() {
                 disabled={controlsBusy}
                 className="rounded-xl bg-white border border-teal-200 px-4 py-2 text-sm text-ink shadow-sm focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 min-w-[220px]"
               >
-                <option value="internship">Summer internships 2027</option>
-                <option value="fulltime">Full-time</option>
+                <option value="fulltime">Full-time / new grad</option>
+                <option value="internship">Internships (legacy)</option>
               </select>
             </div>
             <p className="text-primary-500 text-sm font-medium tracking-widest uppercase mb-1">
-              Amreen · Job Command Center
+              Karthik · Job Command Center
             </p>
             <h1 className="text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-ink via-primary-500 to-sky-500">
               AI Job Tracker

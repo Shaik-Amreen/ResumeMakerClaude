@@ -17,7 +17,7 @@ export const config = {
       process.env.CHATGPT_URL ||
       'https://chatgpt.com/g/g-p-6a26fbe080bc8191b6dfecd57dc7054e/c/6a26fc87-0070-8330-ba08-527437041530',
     profileDirectory: process.env.GREEN_PROFILE_DIR || 'Profile 16',
-    accountEmail: process.env.GREEN_ACCOUNT_EMAIL || 'amreenshaikkousar@gmail.com',
+    accountEmail: process.env.GREEN_ACCOUNT_EMAIL || 'karthikkovik@gmail.com',
     debugPort: Number(process.env.GREEN_DEBUG_PORT) || 9224,
     userDataDir: path.join(backendRoot, '.green_chrome_automation'),
     headless: process.env.GREEN_HEADLESS === 'true',
@@ -89,35 +89,34 @@ export const config = {
 
   linkedin: {
     profileDirectory: process.env.ORANGE_PROFILE_DIR || 'Profile 26',
-    accountEmail: process.env.ORANGE_ACCOUNT_EMAIL || 'shaikamreenkousar@gmail.com',
+    accountEmail: process.env.ORANGE_ACCOUNT_EMAIL || 'karthikkovik@gmail.com',
     debugPort: Number(process.env.ORANGE_DEBUG_PORT) || 9333,
     userDataDir: path.join(backendRoot, '.orange_chrome_automation'),
     headless: process.env.ORANGE_HEADLESS === 'false' ? false : process.env.ORANGE_HEADLESS === 'true',
-    /** Summer 2027 software internship searches only (full-time paused until this is solid). */
+    /** Legacy internship searches (deprioritized — primary mode is full-time). */
     internshipSearches: (
       process.env.LINKEDIN_INTERN_SEARCH_URLS ||
       [
-        // geoId=103644278 = United States
-        'https://www.linkedin.com/jobs/search/?keywords=summer%202027%20software%20engineering%20internship&f_E=1&geoId=103644278&location=United%20States&sortBy=DD',
-        'https://www.linkedin.com/jobs/search/?keywords=summer%202027%20internship%20software%20developer&f_E=1&geoId=103644278&location=United%20States&sortBy=DD',
-        'https://www.linkedin.com/jobs/search/?keywords=summer%202027%20computer%20science%20internship&f_E=1&geoId=103644278&location=United%20States&sortBy=DD',
-        'https://www.linkedin.com/jobs/search/?keywords=summer%202027%20SWE%20intern&f_E=1&geoId=103644278&location=United%20States&sortBy=DD',
-        'https://www.linkedin.com/jobs/search/?keywords=summer%202027%20full%20stack%20internship&f_E=1&geoId=103644278&location=United%20States&sortBy=DD',
-        'https://www.linkedin.com/jobs/search/?keywords=software%20engineering%20intern%20summer%202027&f_E=1&geoId=103644278&location=United%20States&sortBy=DD',
+        'https://www.linkedin.com/jobs/search/?keywords=software%20engineering%20intern&f_E=1&geoId=103644278&location=United%20States&sortBy=DD',
       ].join('|')
     )
       .split('|')
       .map((u) => u.trim())
       .filter(Boolean),
+    /** Full-time / new-grad SWE searches (primary). f_E=2,3 = Entry + Associate. */
     fullTimeSearches: (
       process.env.LINKEDIN_FT_SEARCH_URLS ||
       [
-        'https://www.linkedin.com/jobs/search/?keywords=new%20grad%20software%20engineer%202027&f_E=2%2C3&geoId=103644278&location=United%20States&sortBy=DD',
-        'https://www.linkedin.com/jobs/search/?keywords=entry%20level%20software%20developer%202027&f_E=2%2C3&geoId=103644278&location=United%20States&sortBy=DD',
-        'https://www.linkedin.com/jobs/search/?keywords=software%20engineer%201-3%20years%20experience&f_E=2%2C3&geoId=103644278&location=United%20States&sortBy=DD',
-        'https://www.linkedin.com/jobs/search/?keywords=software%20engineer%203%20years%20experience&f_E=2%2C3&geoId=103644278&location=United%20States&sortBy=DD',
-        'https://www.linkedin.com/jobs/search/?keywords=associate%20software%20engineer&f_E=2%2C3&geoId=103644278&location=United%20States&sortBy=DD',
-        'https://www.linkedin.com/jobs/search/?keywords=new%20grad%20full%20stack%20developer%202027&f_E=2%2C3&geoId=103644278&location=United%20States&sortBy=DD',
+        'https://www.linkedin.com/jobs/search/?keywords=Software%20Engineer%20New%20Grad&f_E=2%2C3&geoId=103644278&location=United%20States&sortBy=DD',
+        'https://www.linkedin.com/jobs/search/?keywords=Software%20Development%20Engineer%20I&f_E=2%2C3&geoId=103644278&location=United%20States&sortBy=DD',
+        'https://www.linkedin.com/jobs/search/?keywords=Full%20Stack%20Software%20Engineer&f_E=2%2C3&geoId=103644278&location=United%20States&sortBy=DD',
+        'https://www.linkedin.com/jobs/search/?keywords=Entry%20Level%20Software%20Engineer&f_E=2%2C3&geoId=103644278&location=United%20States&sortBy=DD',
+        'https://www.linkedin.com/jobs/search/?keywords=Backend%20Software%20Engineer%20JavaScript%20Node.js&f_E=2%2C3&geoId=103644278&location=United%20States&sortBy=DD',
+        'https://www.linkedin.com/jobs/search/?keywords=Frontend%20Engineer%20React&f_E=2%2C3&geoId=103644278&location=United%20States&sortBy=DD',
+        'https://www.linkedin.com/jobs/search/?keywords=React%20Native%20Software%20Engineer&f_E=2%2C3&geoId=103644278&location=United%20States&sortBy=DD',
+        'https://www.linkedin.com/jobs/search/?keywords=Full%20Time%20Software%20Engineer%202027&f_E=2%2C3&geoId=103644278&location=United%20States&sortBy=DD',
+        'https://www.linkedin.com/jobs/search/?keywords=New%20Grad%20SWE&f_E=2%2C3&geoId=103644278&location=United%20States&sortBy=DD',
+        'https://www.linkedin.com/jobs/search/?keywords=Software%20Engineer%20University%20Graduate&f_E=2%2C3&geoId=103644278&location=United%20States&sortBy=DD',
       ].join('|')
     )
       .split('|')
@@ -131,26 +130,11 @@ export const config = {
   jobright: {
     searchUrl:
       process.env.JOBRIGHT_SEARCH_URL ||
-      'https://jobright.ai/jobs/search?value=Summer+2027+Internship+Software&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title&jobTaxonomyList=%5B%7B%22taxonomyId%22%3A%2200-00-00%22%2C%22title%22%3A%22Summer+2027+Internship+Software%22%7D%5D',
+      'https://jobright.ai/jobs/search?value=New+Grad+Software+Engineer&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title',
     searches: (
       process.env.JOBRIGHT_SEARCH_URLS ||
       [
-        // sortCondition 1 = match, 0 / 2 = alternate order for fresh batches
-        'https://jobright.ai/jobs/search?value=Summer+2027+Internship+Software&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title',
-        'https://jobright.ai/jobs/search?value=Summer+2027+Internship+Software&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=0&searchType=job_title',
-        'https://jobright.ai/jobs/search?value=Summer+2027+Internship+Software&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=2&searchType=job_title',
-        'https://jobright.ai/jobs/search?value=Software+Engineering+Intern+Summer+2027&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title',
-        'https://jobright.ai/jobs/search?value=Software+Developer+Intern+Summer+2027&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=2&searchType=job_title',
-        'https://jobright.ai/jobs/search?value=SWE+Intern+2027&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title',
-        'https://jobright.ai/jobs/search?value=Full+Stack+Intern+Summer+2027&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title',
-        'https://jobright.ai/jobs/search?value=Backend+Intern+Summer+2027&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title',
-        'https://jobright.ai/jobs/search?value=Frontend+Intern+Summer+2027&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title',
-        'https://jobright.ai/jobs/search?value=Platform+Engineering+Intern+2027&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title',
-        'https://jobright.ai/jobs/search?value=Mobile+Intern+Summer+2027&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title',
-        'https://jobright.ai/jobs/search?value=Cloud+Intern+Summer+2027&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title',
-        'https://jobright.ai/jobs/search?value=Java+Intern+Summer+2027&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title',
-        'https://jobright.ai/jobs/search?value=Python+Intern+Summer+2027&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title',
-        'https://jobright.ai/jobs/search?value=Computer+Science+Intern+Summer+2027&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=2&searchType=job_title',
+        'https://jobright.ai/jobs/search?value=Software+Engineering+Intern&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title',
       ].join('|')
     )
       .split('|')
@@ -163,9 +147,12 @@ export const config = {
       process.env.JOBRIGHT_FT_SEARCH_URLS ||
       [
         'https://jobright.ai/jobs/search?value=New+Grad+Software+Engineer&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title',
-        'https://jobright.ai/jobs/search?value=Entry+Level+Software+Developer&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title',
-        'https://jobright.ai/jobs/search?value=Software+Engineer+3+Years+Experience&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title',
-        'https://jobright.ai/jobs/search?value=1-3+Years+Software+Engineer&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title',
+        'https://jobright.ai/jobs/search?value=Entry+Level+Software+Engineer&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title',
+        'https://jobright.ai/jobs/search?value=Software+Engineer+New+Graduate&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title',
+        'https://jobright.ai/jobs/search?value=Full+Stack+Engineer+Full+Time&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title',
+        'https://jobright.ai/jobs/search?value=Software+Developer+Entry+Level&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title',
+        'https://jobright.ai/jobs/search?value=Backend+Software+Engineer&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title',
+        'https://jobright.ai/jobs/search?value=Software+Engineer+University+Graduate&country=US&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=false&refresh=true&position=0&sortCondition=1&searchType=job_title',
       ].join('|')
     )
       .split('|')
@@ -178,11 +165,7 @@ export const config = {
     searches: (
       process.env.INDEED_SEARCH_URLS ||
       [
-        'https://www.indeed.com/jobs?q=summer+2027+software+engineering+intern&l=United+States&sort=date',
-        'https://www.indeed.com/jobs?q=summer+2027+software+developer+intern&l=United+States&sort=date',
-        'https://www.indeed.com/jobs?q=summer+2027+computer+science+internship&l=United+States&sort=date',
-        'https://www.indeed.com/jobs?q=summer+2027+full+stack+intern&l=United+States&sort=date',
-        'https://www.indeed.com/jobs?q=summer+2027+SWE+intern&l=United+States&sort=date',
+        'https://www.indeed.com/jobs?q=software+engineering+intern&l=United+States&sort=date',
       ].join('|')
     )
       .split('|')
@@ -191,12 +174,12 @@ export const config = {
     fullTimeSearches: (
       process.env.INDEED_FT_SEARCH_URLS ||
       [
-        'https://www.indeed.com/jobs?q=new+grad+software+engineer+2027&l=United+States&sort=date',
-        'https://www.indeed.com/jobs?q=entry+level+software+developer+2027&l=United+States&sort=date',
-        'https://www.indeed.com/jobs?q=software+engineer+1-3+years+experience&l=United+States&sort=date',
-        'https://www.indeed.com/jobs?q=software+engineer+3+years+experience&l=United+States&sort=date',
-        'https://www.indeed.com/jobs?q=associate+software+engineer&l=United+States&sort=date',
-        'https://www.indeed.com/jobs?q=new+grad+full+stack+developer&l=United+States&sort=date',
+        'https://www.indeed.com/jobs?q=Entry+Level+Software+Engineer&l=United+States&sort=date',
+        'https://www.indeed.com/jobs?q=Software+Engineer+New+Graduate&l=United+States&sort=date',
+        'https://www.indeed.com/jobs?q=Full+Stack+Engineer+Full+Time&l=United+States&sort=date',
+        'https://www.indeed.com/jobs?q=Software+Developer+Entry+Level&l=United+States&sort=date',
+        'https://www.indeed.com/jobs?q=Backend+Software+Engineer&l=United+States&sort=date',
+        'https://www.indeed.com/jobs?q=New+Grad+Software+Engineer+2027&l=United+States&sort=date',
       ].join('|')
     )
       .split('|')
@@ -212,9 +195,9 @@ export const config = {
     publicKey: process.env.EMAILJS_PUBLIC_KEY || 'jz9yQYm-QSbfpTR9D',
     privateKey: process.env.EMAILJS_PRIVATE_KEY || '',
     fromName: process.env.EMAILJS_FROM_NAME || 'AI Job Tracker',
-    toName: process.env.EMAILJS_TO_NAME || 'Shaik Amreen Kousar',
-    fromEmail: process.env.EMAILJS_FROM_EMAIL || 'amreenshaik40@gmail.com',
-    toEmail: process.env.EMAILJS_TO_EMAIL || 'amreenkousarshaik@gmail.com',
+    toName: process.env.EMAILJS_TO_NAME || 'Karthik Kovi',
+    fromEmail: process.env.EMAILJS_FROM_EMAIL || 'karthikkovik@gmail.com',
+    toEmail: process.env.EMAILJS_TO_EMAIL || 'karthikkovik@gmail.com',
   },
 
   approval: {
@@ -233,12 +216,12 @@ export const config = {
     searches: (
       process.env.GOOGLE_JOBS_SEARCH_URLS ||
       [
-        'https://www.google.com/search?q=summer+2027+software+engineering+internship&udm=8&hl=en&gl=us',
-        'https://www.google.com/search?q=software+engineering+intern+summer+2027&udm=8&hl=en&gl=us',
-        'https://www.google.com/search?q=computer+science+internship+summer+2027&udm=8&hl=en&gl=us',
-        'https://www.google.com/search?q=SWE+intern+summer+2027&udm=8&hl=en&gl=us',
-        'https://www.google.com/search?q=full+stack+intern+summer+2027&udm=8&hl=en&gl=us',
-        'https://www.google.com/search?ibp=htl;jobs&q=summer+2027+software+engineering+internship&hl=en&gl=us',
+        'https://www.google.com/search?q=new+grad+software+engineer+2027&udm=8&hl=en&gl=us',
+        'https://www.google.com/search?q=entry+level+software+engineer&udm=8&hl=en&gl=us',
+        'https://www.google.com/search?q=software+engineer+university+graduate&udm=8&hl=en&gl=us',
+        'https://www.google.com/search?q=full+stack+software+engineer+full+time&udm=8&hl=en&gl=us',
+        'https://www.google.com/search?q=backend+software+engineer+entry+level&udm=8&hl=en&gl=us',
+        'https://www.google.com/search?ibp=htl;jobs&q=new+grad+software+engineer&hl=en&gl=us',
       ].join('|')
     )
       .split('|')
@@ -288,7 +271,7 @@ export const config = {
     timezone: process.env.SCHEDULER_TIMEZONE || 'America/Los_Angeles',
     /** How often to check for window changes (ms). Scrape runs once per window. */
     checkIntervalMs: Number(process.env.SCHEDULER_CHECK_MS) || 60 * 1000,
-    /** 0 = scrape all Summer 2027 matches from career portals overnight */
+    /** 0 = scrape all full-time / new-grad matches from career portals overnight */
     nightScrapeCap: Number(process.env.SCHEDULER_NIGHT_CAP) || 0,
     priorityScrapeCap: Number(process.env.SCHEDULER_PRIORITY_CAP) || 0,
   },
@@ -309,6 +292,8 @@ export const config = {
       'Embedded Programming',
       'FPGA',
       'CNC',
+      // Full-time targeting: skip senior/staff titles when they appear as hard filters in JD text.
+      // Intern/Senior title filtering is also handled in eligibility.ts.
     ]),
     aboutCompanyBadWords: parseEnvList(process.env.SKIP_COMPANY_BAD_WORDS, ['Crossover', 'Staffing']),
     aboutCompanyGoodWords: parseEnvList(process.env.SKIP_COMPANY_GOOD_WORDS, []),

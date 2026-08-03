@@ -1,64 +1,74 @@
 /**
- * Base resume profile extracted from Shaik_Amreen_Kousar_Resume (6).pdf and (7).pdf.
+ * Base resume profile for Karthik Kovi.
  * Used as source context when tailoring LaTeX resumes to job descriptions.
  */
 export const resumeProfile = {
-  name: 'Shaik Amreen Kousar',
-  headline: 'Full Stack Engineer — Web Applications & Cloud — MS Computer Science, CSULB',
-  email: 'AmreenKousar.Shaik01@student.csulb.edu',
-  phone: '+1 562-269-6008',
+  name: 'Karthik Kovi',
+  /** Exact LaTeX header name (pipeline-locked). */
+  preferredResumeName: 'KARTHIK KOVI',
+  headline:
+    'Software Engineer | Full Stack Developer | React, React Native, Node.js, GraphQL, AWS | M.S. Computer Science Candidate, CSULB',
+  email: 'karthikkovik@gmail.com',
+  phone: '+1 562-284-0297',
   location: 'Long Beach, California',
-  linkedin: 'https://linkedin.com/in/shaikamreenkousar',
-  portfolio: 'https://shaik-amreen-kousar.onrender.com',
+  linkedin: 'https://www.linkedin.com/in/karthikkovi',
+  portfolio: 'https://karthikkovi.com',
   education: [
     {
       degree: 'Master of Science in Computer Science',
       school: 'California State University, Long Beach (CSULB)',
-      dates: 'Jan 2026 – May 2027 (expected)',
-      graduation: 'May 2027 (full-time) / Jan 2028 (internship eligibility)',
-      coursework:
-        'Software Engineering, Algorithms, Distributed Systems, Programming Languages, Data Structures, OOP, Operating Systems, Database Systems, Computer Networks',
+      dates: 'Jan 2025 – Jan 2027 (expected)',
+      graduation: 'January 2027',
+      gpa: '3.67',
     },
     {
-      degree: 'B.Tech in Computer Science (GPA: 3.69/4.0)',
-      school: 'JNTU Anantapur – MITS',
+      degree: 'Bachelor of Technology in Computer Science (GPA: 3.60/4.0)',
+      school: 'Madanapalle Institute of Technology and Science (JNTU Anantapur)',
       dates: 'Aug 2019 – May 2023',
     },
   ],
   experience: [
-    'Web Developer — Associated Students Inc. (ASI), CSULB (Apr 2026 – Present): responsive web apps, reusable interfaces, backend integrations, cross-functional delivery.',
-    'Senior Software Engineer — AMD / Infobell IT Solutions (Mar 2024 – Dec 2025): full-stack apps for 100K+ users, React.js, Node.js, REST APIs, CI/CD (GitLab/AWS), 35% faster APIs, 40% faster deploys, Cloudflare CDN, Agile/Jira.',
-    'Full Stack Web & Mobile Developer — Infobell IT Solutions (Jan 2023 – Mar 2024): React.js, Redux, React Native, Node.js, Firebase, MongoDB, App Store/Play Store deployments.',
-    'MEAN Stack Developer Intern — Redbee 365 Studio (Sep – Dec 2022): Angular, Node.js, Express, MongoDB, 25% API improvement.',
-    'React Native Developer Intern — Earthetic (Jul – Oct 2022): React Native CLI, iOS/Android.',
-    'MERN Stack Developer Intern — Yes Real Technologies (Jan – Jun 2022): college ERP system.',
-    'Backend Developer Intern — Hirecraft (Jul – Aug 2020): Node.js, MongoDB, multi-language support.',
+    'Software Developer — Associated Students, Inc. (ASI), CSULB (Feb 2025 – Present): FutureU Mobile App and 22WestMedia website for 12,000+ monthly users; WCAG 2.1/2.2 AA; campus SSO and audio streaming SDK; GitHub Actions CI/CD (−40% deploy effort); WordPress publishing (+50% efficiency); AWS LightSail/S3 (−30% page load).',
+    'Full Stack Developer — Infobell IT Solutions Pvt Ltd, Bengaluru (Jul 2023 – Jan 2025): Led 4-engineer team on NativeNest (30,000+ users); GraphQL APIs (−30% checkout latency); Origem Next.js/Redis storefront; MirrorMate Windows Miracast app (C#); mentored interns; six Agile releases.',
+    'Full Stack Developer Intern — Infobell IT Solutions Pvt Ltd, Bengaluru (Jan 2023 – Jun 2023): Angular dashboards, REST APIs, Jest coverage to 80%, Swagger docs.',
+    'Full Stack Developer (Contract & Intern) — Redbee 365 Studio / Vasukam / Yes Real Technologies (Feb 2021 – Dec 2022): 5+ production MEAN/MERN projects; SQL reporting 2x faster.',
   ],
   skills: {
-    languages: 'JavaScript, TypeScript, Python, Java, SQL, Go, PHP, C++, HTML5, CSS3',
-    frontend:
-      'React.js, Next.js, Angular, Vue.js, Redux, React Native, Tailwind CSS, Bootstrap, Material-UI, WCAG, performance optimization, SEO',
-    backend: 'Node.js, Express.js, Nest.js, Spring Boot, REST APIs, GraphQL, Microservices',
-    databases: 'MongoDB, PostgreSQL, MySQL, Redis, Firebase',
-    cloud: 'AWS (EC2, S3, CloudFront), Docker, Kubernetes, GitHub Actions, GitLab CI/CD, Cloudflare CDN',
+    languages: 'JavaScript, TypeScript, Python, Java, C, C++, C#',
+    frontend: 'React, React Native, Angular, Next.js, HTML, CSS, Bootstrap, Tailwind CSS',
+    backend: 'Node.js, Express.js, NestJS, Flask, PHP, GraphQL, REST APIs',
+    databases: 'MongoDB, PostgreSQL, MySQL, Redis',
+    cloud:
+      'AWS (EC2, S3, Lambda, LightSail), Docker, GitHub Actions, GitOps, CI/CD',
     practices:
-      'Software architecture, system design, SDLC, Agile/SCRUM, Git, code reviews, testing, debugging, security, performance optimization',
+      'Data Structures, Algorithms, OOP, Agile, WCAG Accessibility, JWT, SonarQube, Swagger, Postman, Jest, Jira, WordPress, Elementor, SEO, Performance Optimization',
   },
   projects: [
-    'NativeNest — E-commerce platform (30K+ users): React, React Native, Node.js, PostgreSQL, Redis, AWS, Docker, K8s, 99.9% uptime.',
-    'B4IGO — Digital legacy platform: React, React Native, Node.js, MongoDB, blockchain, AWS, secure vaults.',
-    'Origem India — Next.js commerce: Node.js, MongoDB, Stripe/Razorpay, AWS, Cloudflare.',
-    'Benchmark Automation — AMD: Vue.js, Node.js, GitLab, Jira automation workflows.',
-    'ASI ADP Job Alerts — React, Python, MongoDB, GitHub Actions, Vercel.',
-    'Upturn — AI stock advisory: React Native, Angular, Firebase, Python.',
+    'NativeNest — Grocery commerce (30,000+ users): React Native, React, GraphQL, Node.js, MongoDB, AWS — https://nativenest.in',
+    'Origem Jewellery — Next.js commerce with Redis/Magento: Next.js, Redis, Node.js, Tailwind, Magento, Razorpay — https://origemindia.com',
+    'FutureU — CSULB student engagement: React Native, Node.js, AWS — https://www.asicsulb.org/corporate/discover/futureu',
+    'ARIKYA — Training/placement SaaS: Angular, React Native, Node.js, AWS — https://arikya.in',
+    'Booking Bee — AI appointment booking: Angular, NestJS, MongoDB, Dasha AI — https://bookingbee.ai',
+    'MirrorMate — Windows screen casting: C#, Miracast',
+    'AI Based Slum Control — Smart India Hackathon: Angular, Node.js, Twilio',
   ],
-  publications:
-    'Accurate Fake News Detection Using KNN, LSTM, MLP and CNN — ICCTDC 2025, IEEE Xplore (98% accuracy hybrid model).',
+  publications: '',
   certifications: [
-    'Frontend Developer – React (HackerRank, Jan 2025)',
-    'JavaScript Intermediate (HackerRank, Jul 2022)',
-    'SQL Intermediate (HackerRank, Feb 2022)',
-    'Problem Solving, Python, SQL Basic (HackerRank)',
+    'HackerRank JavaScript',
+    'HackerRank Python',
+    'HackerRank SQL',
+    'HackerRank AngularJS',
+    'HackerRank Problem Solving',
+    'Wipro TalentNext',
+    'Coursera AI for Everyone',
+    'Coursera HTML',
+    'NPTEL Ethical Hacking',
+    'NPTEL Soft Skills',
+  ],
+  awards: [
+    'ISTE AP Best Student Innovator Gold Medal',
+    'Smart India Hackathon National Finalist',
+    'Tech/Web Club Coordinator and Mentor',
   ],
 };
 
@@ -73,7 +83,14 @@ Email: ${r.email} | Phone: ${r.phone} | Location: ${r.location}
 LinkedIn: ${r.linkedin} | Portfolio: ${r.portfolio}
 
 EDUCATION:
-${r.education.map((e) => `- ${e.degree} — ${e.school} (${e.dates})${e.graduation ? ` | Grad: ${e.graduation}` : ''}`).join('\n')}
+${r.education
+  .map(
+    (e) =>
+      `- ${e.degree} — ${e.school} (${e.dates})${e.graduation ? ` | Grad: ${e.graduation}` : ''}${
+        e.gpa ? ` | GPA: ${e.gpa}` : ''
+      }`
+  )
+  .join('\n')}
 
 EXPERIENCE:
 ${r.experience.map((e) => `- ${e}`).join('\n')}
@@ -89,8 +106,10 @@ SKILLS:
 PROJECTS:
 ${r.projects.map((p) => `- ${p}`).join('\n')}
 
-PUBLICATIONS: ${r.publications}
+PUBLICATIONS: ${r.publications || 'None'}
 
 CERTIFICATIONS: ${r.certifications.join('; ')}
+
+AWARDS: ${r.awards.join('; ')}
 `.trim();
 }

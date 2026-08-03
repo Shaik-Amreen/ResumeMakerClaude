@@ -21,7 +21,7 @@ import type { Job, JobStatus, ResumePhase } from '../types';
 import { api, UPLOADS_BASE } from '../api';
 import { jobApplicants, formatPostedOnPlatform, formatScrapedOn, platformLabel } from '../utils/jobFilters';
 
-/** Safe download name: Amreen-{title} with {company}.pdf */
+/** Safe download name: Karthik-{title} with {company}.pdf */
 function resumeDownloadFilename(title: string, company: string): string {
   const clean = (s: string) =>
     (s || '')
@@ -31,7 +31,7 @@ function resumeDownloadFilename(title: string, company: string): string {
       .slice(0, 80);
   const t = clean(title) || 'Resume';
   const c = clean(company) || 'Company';
-  return `Amreen-${t} with ${c}.pdf`;
+  return `Karthik-${t} with ${c}.pdf`;
 }
 const STATUS_LABELS: Record<string, string> = {
   scraped: 'Scraped',

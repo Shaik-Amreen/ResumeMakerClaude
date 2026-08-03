@@ -101,7 +101,7 @@ function titleLooksProfileCompatible(title: string): boolean {
 
 /**
  * Phase 2 — curated GitHub Summer 2027 SWE internship lists.
- * Always opens the apply URL for a real JD; only saves if it matches Amreen’s MS profile.
+ * Always opens the apply URL for a real JD; only saves if it matches Karthik’s MS / full-time profile.
  */
 export async function scrapeGithubInternshipLists(existingIds: string[] = []): Promise<string[]> {
   const savedIds = [...existingIds];

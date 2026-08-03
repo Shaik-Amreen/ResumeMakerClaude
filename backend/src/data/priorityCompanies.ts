@@ -3,94 +3,94 @@ export type CompanyTier = 'faang' | 'mango' | 'standard';
 export interface CompanyTarget {
   name: string;
   tier: CompanyTier;
-  /** Career site search or listing URL filtered for SWE interns */
+  /** Career site search or listing URL filtered for SWE full-time / new grad */
   searchUrl: string;
 }
 
-/** FAANG + MANGOES — email alert on any new Summer 2027 software intern match */
+/** FAANG + MANGOES — email alert on any new full-time / new-grad SWE match */
 export const FAANG_MANGO_COMPANIES: CompanyTarget[] = [
   {
     name: 'Google',
     tier: 'faang',
     searchUrl:
-      'https://www.google.com/about/careers/applications/jobs/results/?q=software%20engineering%20intern%202027&location=United%20States',
+      'https://www.google.com/about/careers/applications/jobs/results/?q=software%20engineer%20new%20grad&location=United%20States',
   },
   {
     name: 'Meta',
     tier: 'faang',
-    searchUrl: 'https://www.metacareers.com/jobs?q=software%20engineer%20intern%20summer%202027',
+    searchUrl: 'https://www.metacareers.com/jobs?q=software%20engineer%20university%20grad',
   },
   {
     name: 'Amazon',
     tier: 'faang',
     searchUrl:
-      'https://www.amazon.jobs/en/search?base_query=software%20development%20engineer%20intern%202027&loc_query=United%20States',
+      'https://www.amazon.jobs/en/search?base_query=software%20development%20engineer%20new%20grad&loc_query=United%20States',
   },
   {
     name: 'Apple',
     tier: 'faang',
-    searchUrl: 'https://jobs.apple.com/en-us/search?team=internships-STDNT-INTRN',
+    searchUrl: 'https://jobs.apple.com/en-us/search?team=software-and-services-SFTWR-SOFTSRV',
   },
   {
     name: 'Netflix',
     tier: 'faang',
-    searchUrl: 'https://explore.jobs.netflix.net/careers?query=software%20intern%202027',
+    searchUrl: 'https://explore.jobs.netflix.net/careers?query=software%20engineer',
   },
   {
     name: 'Microsoft',
     tier: 'mango',
     searchUrl:
-      'https://jobs.careers.microsoft.com/global/en/search?q=software%20engineering%20intern&lc=United%20States&l=en_us',
+      'https://jobs.careers.microsoft.com/global/en/search?q=software%20engineer%20new%20grad&lc=United%20States&l=en_us',
   },
   {
     name: 'Nvidia',
     tier: 'mango',
-    searchUrl: 'https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite?q=software%20intern%202027',
+    searchUrl: 'https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite?q=software%20engineer%20new%20grad',
   },
   {
     name: 'Oracle',
     tier: 'mango',
-    searchUrl: 'https://careers.oracle.com/jobs/#en/sites/jobsearch/requisitions?keyword=software%20intern',
+    searchUrl: 'https://careers.oracle.com/jobs/#en/sites/jobsearch/requisitions?keyword=software%20engineer%20new%20grad',
   },
   {
     name: 'Salesforce',
     tier: 'mango',
-    searchUrl: 'https://careers.salesforce.com/en/jobs/?search=software%20engineering%20intern',
+    searchUrl: 'https://careers.salesforce.com/en/jobs/?search=software%20engineer%20new%20grad',
   },
   {
     name: 'Adobe',
     tier: 'mango',
-    searchUrl: 'https://careers.adobe.com/us/en/search-results?keywords=software%20intern',
+    searchUrl: 'https://careers.adobe.com/us/en/search-results?keywords=software%20engineer%20new%20grad',
   },
   {
     name: 'Uber',
     tier: 'mango',
-    searchUrl: 'https://www.uber.com/us/en/careers/list/?query=software%20engineering%20intern',
+    searchUrl: 'https://www.uber.com/us/en/careers/list/?query=software%20engineer',
   },
   {
     name: 'Airbnb',
     tier: 'mango',
-    searchUrl: 'https://careers.airbnb.com/positions/?_departments=engineering&search=intern',
+    searchUrl: 'https://careers.airbnb.com/positions/?_departments=engineering&search=software%20engineer',
   },
   {
     name: 'Stripe',
     tier: 'mango',
-    searchUrl: 'https://stripe.com/jobs/search?q=software%20intern',
+    searchUrl: 'https://stripe.com/jobs/search?q=software%20engineer',
   },
   {
     name: 'LinkedIn',
     tier: 'mango',
-    searchUrl: 'https://careers.linkedin.com/reach/search?query=software%20engineering%20intern',
+    searchUrl: 'https://careers.linkedin.com/reach/search?query=software%20engineer%20new%20grad',
   },
   {
     name: 'Tesla',
     tier: 'mango',
-    searchUrl: 'https://www.tesla.com/careers/search/?query=software%20intern',
+    searchUrl: 'https://www.tesla.com/careers/search/?query=software%20engineer',
   },
   {
     name: 'AMD',
     tier: 'mango',
-    searchUrl: 'https://careers.amd.com/careers-home/jobs?keywords=software%20intern',
+    searchUrl: 'https://careers.amd.com/careers-home/jobs?keywords=software%20engineer',
   },
 ];
 
@@ -100,7 +100,7 @@ export const EXTENDED_CAREER_COMPANIES: CompanyTarget[] = [
   {
     name: 'Palantir',
     tier: 'standard',
-    searchUrl: 'https://jobs.lever.co/palantir?team=Engineering&commitment=Internship',
+    searchUrl: 'https://jobs.lever.co/palantir?team=Engineering',
   },
   {
     name: 'Databricks',
@@ -111,42 +111,67 @@ export const EXTENDED_CAREER_COMPANIES: CompanyTarget[] = [
   {
     name: 'Snowflake',
     tier: 'standard',
-    searchUrl: 'https://careers.snowflake.com/us/en/search-results?keywords=summer%202027%20intern',
+    searchUrl: 'https://careers.snowflake.com/us/en/search-results?keywords=software%20engineer%20new%20grad',
   },
   {
     name: 'Coinbase',
     tier: 'standard',
-    searchUrl: 'https://www.coinbase.com/careers/positions?query=intern',
+    searchUrl: 'https://www.coinbase.com/careers/positions?query=software%20engineer',
   },
   {
     name: 'Snap',
     tier: 'standard',
-    searchUrl: 'https://careers.snap.com/jobs?search=software%20intern',
+    searchUrl: 'https://careers.snap.com/jobs?search=software%20engineer',
   },
   {
     name: 'Pinterest',
     tier: 'standard',
-    searchUrl: 'https://www.pinterestcareers.com/jobs/?search=software%20intern',
+    searchUrl: 'https://www.pinterestcareers.com/jobs/?search=software%20engineer',
   },
   {
     name: 'Spotify',
     tier: 'standard',
-    searchUrl: 'https://www.lifeatspotify.com/jobs?search=intern',
+    searchUrl: 'https://www.lifeatspotify.com/jobs?search=software%20engineer',
   },
   {
     name: 'Intuit',
     tier: 'standard',
-    searchUrl: 'https://jobs.intuit.com/search-jobs/intern%20software',
+    searchUrl: 'https://jobs.intuit.com/search-jobs/software%20engineer',
   },
   {
     name: 'PayPal',
     tier: 'standard',
-    searchUrl: 'https://careers.pypl.com/home/search-results?keywords=software%20intern',
+    searchUrl: 'https://careers.pypl.com/home/search-results?keywords=software%20engineer',
   },
   {
     name: 'Shopify',
     tier: 'standard',
-    searchUrl: 'https://www.shopify.com/careers/search?query=intern',
+    searchUrl: 'https://www.shopify.com/careers/search?query=software%20engineer',
+  },
+  {
+    name: 'ServiceNow',
+    tier: 'standard',
+    searchUrl: 'https://careers.servicenow.com/jobs/?search=software%20engineer%20new%20grad',
+  },
+  {
+    name: 'Atlassian',
+    tier: 'standard',
+    searchUrl: 'https://www.atlassian.com/company/careers/all-jobs?team=Engineering&location=United%20States',
+  },
+  {
+    name: 'Cisco',
+    tier: 'standard',
+    searchUrl: 'https://jobs.cisco.com/jobs/SearchJobs/?keyword=software%20engineer%20new%20grad',
+  },
+  {
+    name: 'TikTok',
+    tier: 'standard',
+    searchUrl: 'https://careers.tiktok.com/position?keywords=software%20engineer&category=&location=United%20States',
+  },
+  {
+    name: 'Roblox',
+    tier: 'standard',
+    searchUrl: 'https://careers.roblox.com/jobs?search=software%20engineer',
   },
 ];
 
@@ -158,5 +183,5 @@ export function isFaangMangoCompany(companyName: string): boolean {
 export function companyTier(companyName: string): CompanyTier {
   const norm = companyName.trim().toLowerCase();
   const hit = FAANG_MANGO_COMPANIES.find((c) => norm.includes(c.name.toLowerCase()));
-  return hit?.tier ?? 'standard';
+  return hit?.tier || 'standard';
 }

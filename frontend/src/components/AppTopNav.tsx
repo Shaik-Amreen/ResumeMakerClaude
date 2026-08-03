@@ -15,7 +15,7 @@ export function AppTopNav() {
       <div className="max-w-[1600px] w-full mx-auto px-4 md:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-[11px] uppercase tracking-widest text-primary-500 font-medium">
-            Amreen · ResumeMaker
+            Karthik · ResumeMaker
           </p>
           <p className="text-sm text-ink-muted">Choose a workspace</p>
         </div>

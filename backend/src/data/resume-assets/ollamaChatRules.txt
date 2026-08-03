@@ -1,12 +1,12 @@
-MASTER RULEBOOK — ALL 22 RULES (obey every time; Amreen Kousar only)
+MASTER RULEBOOK — ALL 22 RULES (obey every time; Karthik Kovi / KARTHIK KOVI only)
 
 1) 100% JD MATCH (exact 100%, not ~95%): every JD skill appears with EVIDENCE in a work/project bullet (not skills-list only).
 2) LaTeX ONLY, 11pt \usepackage{times}, narrow margins, EXACTLY 2 pages.
-3) Header: Name | Title | Email | Phone | Location | LinkedIn | Portfolio using \,\textbar\, (pipeline locks Amreen header).
+3) Header: Name | Email | Phone | Location | LinkedIn | Portfolio using \,\textbar\, (pipeline locks KARTHIK KOVI header).
 4) Sections IN ORDER: Education → Technical Skills → Professional Experience → Featured Projects → Publications & Research → Certifications. Never drop a section.
 5) Education MINIMAL: degree + school + dates ONLY. No GPA, coursework, honors, location, or descriptions.
 6) \titleformat{\section}{\scshape\raggedright\large}{}{0em}{}[\titlerule]; \textbf{L}\hfill\textbf{C}\hfill\textbf{R}; ASCII hyphens in prose; LaTeX -- for date ranges only; no Unicode — or –.
-7) Top 5 from the FULL ~23-project pool (projectPool.txt) — not a fixed default set. At least 3 of 5 MUST have live URLs. No keyword stuffing.
+7) Top 5 from the FULL project pool (projectPool.txt) — not a fixed default set. At least 3 of 5 MUST have live URLs. No keyword stuffing.
 8) Project titles \href{URL}{\uline{\textbf{text}}}; NO GitHub links; year ranges only; ONE frontend + ONE backend per project.
 9) Never invent/change facts, metrics, companies, dates, or URLs.
 10) Pubs/certs as underlined href titles; certs = Name \hfill Date (no middle org).
@@ -17,7 +17,7 @@ MASTER RULEBOOK — ALL 22 RULES (obey every time; Amreen Kousar only)
 15) Never modify project URLs.
 16) Cert lines: Name \hfill Date — no HackerRank in the middle.
 17) Every JD: analyze → cover 100% keywords with evidence → keep facts → amazon LaTeX → 2 pages.
-18) ONE main backend per project (Node OR Python OR Java OR Go OR C++). NEVER mix C++ with Node/Python/Java/Go. Write "C++" only — never C++20/C++23. Python in Node projects = scripting only.
+18) ONE main backend per project (Node OR Python OR Java OR Go OR C++ OR C#). NEVER mix C++ with Node/Python/Java/Go. Write "C++" only — never C++20/C++23. Python in Node projects = scripting only.
 19) Change project skills ONLY when unmatched vs JD, and ONLY in 2 projects max; leave the other 3 stacks alone.
 20) Never add "Open to Relocate"; location = Long Beach, CA.
 21) Work experience: MINIMUM 3 and MAXIMUM 4 bullets per job.
@@ -25,10 +25,10 @@ MASTER RULEBOOK — ALL 22 RULES (obey every time; Amreen Kousar only)
 
 ALWAYS:
 - Obey ALL 22 rules in instructions.txt — no shortcuts, no career-advice commentary.
-- ASI Web Developer (Part-Time), CSULB, Apr 2026 -- Present FIRST under Professional Experience.
-- Internship grad Jan 2028 / full-time grad May 2027.
+- Software Developer, Associated Students, Inc. (ASI), CSULB, Feb 2025 -- Present FIRST under Professional Experience.
+- Full-time MS graduation January 2027.
 - Output LaTeX only (body from \section{\textbf{Education}} when pipeline asks). No commentary essays.
-- Use amazonResumeTemplate.tex design; select top 5 from the FULL project pool (~23), not the template's default 5.
-- At least 3 of the 5 Featured Projects MUST use real catalog URLs (NativeNest, Origem, B4IGO, ASI ADP, Upturn, Arikya).
-- AI / agents / LLM / Co-Pilot / ML / data-science JDs: ALWAYS include AWS AI Summer Camp (Bedrock, LangGraph, agents) in the top 5 (still keep ≥3 LINKED).
+- Use amazonResumeTemplate.tex design; select top 5 from the FULL project pool, not the template's default 5.
+- At least 3 of the 5 Featured Projects MUST use real catalog URLs (NativeNest, Origem, FutureU, ARIKYA, Booking Bee).
+- AI / agents / LLM JDs: prefer Booking Bee and/or AI Based Slum Control in the top 5 (still keep ≥3 LINKED).
 - Languages line = programming languages ONLY — never paste JD sentences into Skills.

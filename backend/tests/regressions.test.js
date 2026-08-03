@@ -174,7 +174,7 @@ test('masters F-1 eligibility skips citizenship-only but keeps no-sponsorship jo
   assert.match(skipCitizen.reason || '', /citizenship|F-1/i);
 });
 
-test('internship graduation filter keeps Dec 2027 / Jan 2028 and silent JDs', () => {
+test('graduation filter keeps Jan 2027 and silent JDs', () => {
   const { isInternGraduationEligible } = require('../dist/services/internGraduation');
   const { shouldSkipJobDescription } = require('../dist/services/jobSkipRules');
   const { isSummer2027InternTarget } = require('../dist/services/jobMaintenance');
@@ -182,14 +182,14 @@ test('internship graduation filter keeps Dec 2027 / Jan 2028 and silent JDs', ()
   assert.equal(
     isInternGraduationEligible(
       'Software Engineering Intern',
-      'Summer 2027 internship. Currently enrolled students welcome.'
+      'Currently enrolled students welcome.'
     ),
     true
   );
   assert.equal(
     isInternGraduationEligible(
       'SWE Intern',
-      'Expected graduation December 2027 or January 2028. Summer 2027.'
+      'Expected graduation January 2027. Software internship.'
     ),
     true
   );
@@ -201,7 +201,7 @@ test('internship graduation filter keeps Dec 2027 / Jan 2028 and silent JDs', ()
     false
   );
   assert.equal(
-    isInternGraduationEligible('SWE Intern', 'Class of 2026 only. Summer internship.'),
+    isInternGraduationEligible('SWE Intern', 'Class of 2025 only. Summer internship.'),
     false
   );
 
@@ -211,12 +211,12 @@ test('internship graduation filter keeps Dec 2027 / Jan 2028 and silent JDs', ()
     'Expected graduation: May 2027. Summer 2027 internship for software engineers.'
   );
   assert.equal(skip.skip, true);
-  assert.match(skip.reason || '', /Graduation|Dec 2027|Jan 2028/i);
+  assert.match(skip.reason || '', /Graduation|January 2027/i);
 
   assert.equal(
     isSummer2027InternTarget(
       'Software Engineering Intern',
-      'Summer 2027. Graduating December 2027. Build software with React and Python.'
+      'Summer 2027. Graduating January 2027. Build software with React and Python.'
     ),
     true
   );

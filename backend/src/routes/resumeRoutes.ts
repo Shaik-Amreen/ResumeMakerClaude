@@ -261,7 +261,7 @@ async function handlePasteChat(req: Request, res: Response) {
       ctx,
       latex,
       [
-        'Revise the LaTeX based on this user request. Keep amazon.pdf structure and Amreen Kousar.',
+        'Revise the LaTeX based on this user request. Keep amazon.pdf structure and KARTHIK KOVI.',
         'Output section body from \\section{\\textbf{Education}} only.',
         `USER REQUEST: ${message}`,
       ].join('\n')

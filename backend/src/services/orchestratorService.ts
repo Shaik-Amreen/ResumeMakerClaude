@@ -209,14 +209,14 @@ async function runSingleSourceScrape(
   }
 }
 
-export function runScrapeJobright(cap?: number, jobType: 'internship' | 'fulltime' = 'internship') {
+export function runScrapeJobright(cap?: number, jobType: 'internship' | 'fulltime' = 'fulltime') {
   const limit = cap ?? config.pipeline.perSourceCap;
   return runSingleSourceScrape('scraping_jobright', 'Jobright', limit, () =>
     scrapeJobrightJobs([], jobType)
   );
 }
 
-export function runScrapeLinkedIn(cap?: number, jobType: 'internship' | 'fulltime' = 'internship') {
+export function runScrapeLinkedIn(cap?: number, jobType: 'internship' | 'fulltime' = 'fulltime') {
   const limit = cap ?? config.pipeline.perSourceCap;
   return runSingleSourceScrape('scraping_linkedin', 'LinkedIn', limit, () =>
     scrapeLinkedInJobs([], jobType)
@@ -252,7 +252,7 @@ export function runScrapeIndeed(cap?: number, jobType: 'internship' | 'fulltime'
 }
 
 /** Direct ATS boards (Greenhouse + Lever public JSON APIs) — free, no browser automation. */
-export function runScrapeAts(cap?: number, jobType: 'internship' | 'fulltime' = 'internship') {
+export function runScrapeAts(cap?: number, jobType: 'internship' | 'fulltime' = 'fulltime') {
   const limit = cap ?? config.pipeline.perSourceCap;
   return runSingleSourceScrape('scraping_ats', 'ATS boards (Greenhouse/Lever)', limit, () =>
     scrapeAtsBoards(jobType)
@@ -283,13 +283,13 @@ export async function runMasterPipeline(options?: {
   pipelineRunning = true;
   clearStopRequest();
   const totalCap = options?.perSourceCap ?? config.pipeline.perSourceCap;
-  const jobType = options?.jobType ?? 'internship';
+  const jobType = options?.jobType ?? 'fulltime';
   let deleted = 0;
   let remaining = totalCap;
 
   startTask(
     'master_pipeline',
-    `Summer 2027 internship pipeline started (max ${totalCap} jobs total)`,
+    `Master pipeline started — ${jobType === 'fulltime' ? 'full-time / new-grad' : 'internship (legacy)'} (max ${totalCap} jobs total)`,
     'init'
   );
 

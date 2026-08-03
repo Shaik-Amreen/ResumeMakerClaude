@@ -5,10 +5,12 @@ export type JobType = 'internship' | 'fulltime';
 export { isInternGraduationEligible } from './internGraduation';
 
 const FULLTIME_GRAD_PATTERNS = [
+  /\b(?:jan(?:uary)?|winter)\s*2027\b/i,
   /\bsummer\s*2027\b/i,
-  /\b(?:graduat(?:e|ing|ion)|class\s+of)\s*(?:in\s+)?(?:summer\s*)?2027\b/i,
-  /\b(?:expected|anticipated)\s+graduation\s*:?\s*(?:summer\s*)?2027\b/i,
-  /\b(?:may|june|july|august)\s*2027\s+graduat/i,
+  /\b(?:graduat(?:e|ing|ion)|class\s+of)\s*(?:in\s+)?(?:summer\s*|january\s*|winter\s*)?2027\b/i,
+  /\b(?:expected|anticipated)\s+graduation\s*:?\s*(?:january\s*|winter\s*|summer\s*)?2027\b/i,
+  /\b(?:may|june|july|august|january|december)\s*2027\s+graduat/i,
+  /\bclass\s+of\s*2027\b/i,
 ];
 
 const INTERN_TITLE_HINTS = /\b(intern(ship)?|co-?op|summer)\b/i;
@@ -81,7 +83,7 @@ export function inferJobType(title: string, description: string): JobType {
   if (/\b2027\b/i.test(title) && !/\bintern\b/i.test(title)) {
     return 'fulltime';
   }
-  return 'internship';
+  return 'fulltime';
 }
 
 export function isEligibleJob(jobType: JobType, title: string, description: string): boolean {
@@ -145,6 +147,6 @@ export function isEligibleJob(jobType: JobType, title: string, description: stri
 
 export function eligibilityReason(jobType: JobType): string {
   return jobType === 'internship'
-    ? 'Summer 2027 software internship — MS grad Dec 2027 / Jan 2028'
-    : 'Full-time software — new grad, 3+, or up to ~3.5 years';
+    ? 'Software internship — MS grad January 2027 (legacy mode)'
+    : 'Full-time software — new grad / entry-level / up to ~3.5 years (MS grad January 2027)';
 }

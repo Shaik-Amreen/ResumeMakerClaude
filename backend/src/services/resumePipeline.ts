@@ -53,7 +53,7 @@ function pageRepairInstruction(pageCount: number): string {
       `COMPILED PDF HAS ${pageCount} PAGES — it MUST be EXACTLY 2 pages.`,
       'Output ONLY sections from \\section{\\textbf{Education}} onward (no preamble).',
       'Shorten: remove weakest project, cut bullets to 1 line, tighten skills.',
-      'Keep ASI Web Developer first. Name is Amreen Kousar (header locked).',
+      'Keep ASI Software Developer first. Name is KARTHIK KOVI (header locked).',
     ].join(' ');
   }
   if (pageCount > 0 && pageCount < 2) {
@@ -65,7 +65,7 @@ function pageRepairInstruction(pageCount: number): string {
   }
   return [
     'PDF page count invalid. Regenerate amazon.pdf section body only (Education → Certifications).',
-    'No \\documentclass. No fontspec. Candidate Amreen Kousar only.',
+    'No \\documentclass. No fontspec. Candidate KARTHIK KOVI only.',
   ].join(' ');
 }
 

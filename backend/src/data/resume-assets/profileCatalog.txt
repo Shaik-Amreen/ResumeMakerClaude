@@ -3,60 +3,61 @@ Use ONLY for factual background when tailoring. Visual design MUST still match a
 Do NOT invent beyond this catalog + amazon template. Prefer amazon.pdf section structure for output.
 
 CONTACT:
-- Name: Amreen Kousar
-- Email: AmreenKousar.Shaik01@student.csulb.edu
-- Phone: +1 562-269-6008
-- Location: Long Beach, California (Open to Relocate)
-- LinkedIn: https://www.linkedin.com/in/amreen-kousar
+- Name: KARTHIK KOVI (header) / Karthik Kovi
+- Email: karthikkovik@gmail.com
+- Phone: +1 562-284-0297
+- Location: Long Beach, California (Open to Relocate — do NOT put relocate text in resume header)
+- LinkedIn: https://www.linkedin.com/in/karthikkovi
+- Portfolio: https://karthikkovi.com
 
 WORK EXPERIENCE (verified):
-1. Senior Software Engineer — AMD -- Infobell IT Solutions Pvt Ltd — Bangalore, India — 03/2024 -- 12/2025
-   - Vue.js, React.js, Node.js; 10K+ enterprise users
-   - CI/CD GitLab + AWS; 40% faster deploys; zero-downtime
-   - REST APIs / DB optimization; 35% faster response
-   - Agile/Jira; reusable UI + backend integrations
+1. Software Developer — Associated Students, Inc. (ASI), CSULB — California, USA — 02/2025 -- Present
+   - FutureU Mobile App + 22WestMedia website; 12,000+ monthly users
+   - WCAG 2.1/2.2 AA accessibility
+   - Campus SSO + audio streaming SDK
+   - GitHub Actions CI/CD; −40% deployment effort
+   - WordPress publishing +50% efficiency
+   - AWS LightSail + S3; −30% page load
+   - Tech: React Native, React, Node.js, Tailwind, PHP, WordPress, Elementor, AWS, SonarQube, ESLint
 
-2. Full Stack Developer — Infobell IT Solutions Pvt Ltd — Bangalore, India — 01/2023 -- 03/2024
-   - React Native App Store / Play Store; 99.5% uptime
-   - React.js + Redux; Firebase notifications/auth; +30% engagement
-   - MongoDB schemas; mentored juniors
+2. Full Stack Developer — Infobell IT Solutions Pvt Ltd — Bengaluru, India — 07/2023 -- 01/2025
+   - Led 4-member team; NativeNest 30,000+ users
+   - GraphQL APIs; −30% checkout latency
+   - Origem storefront: Next.js, Tailwind, Redis, Magento
+   - MirrorMate Windows Miracast app (C#)
+   - Mentored interns; six Agile releases
+   - Tech: React, React Native, Next.js, Node.js, GraphQL, Redis, MongoDB, Magento, AWS, C#
 
-3. MEAN Stack Developer Intern — Redbee 365 Studio Pvt Ltd — Chennai (Remote) — 09/2022 -- 12/2022
-   - Angular, Node, Express, MongoDB warehouse app from Figma
-   - 25% faster APIs via indexing
+3. Full Stack Developer Intern — Infobell IT Solutions Pvt Ltd — Bengaluru — 01/2023 -- 06/2023
+   - Angular dashboards; REST APIs; Jest coverage to 80%; Swagger
+   - Tech: Angular, Node.js, REST, Jest, Swagger
 
-4. React Native Developer Intern — Earthetic — Bangalore (Remote) — 07/2022 -- 10/2022
-   - React Native CLI iOS/Android; dynamic UI; e-commerce; Figma
-
-5. MERN Stack Developer Intern — Yes Real Technologies Pvt Ltd — Bangalore (Remote) — 01/2022 -- 06/2022
-   - MERN college ERP; auth, data management, APIs
-
-6. Backend Developer Intern — Hirecraft — Bangalore (Remote) — 07/2020 -- 08/2020
-   - Node.js + MongoDB project tracking; 50+ languages; graphical reports
+4. Full Stack Developer (Contract & Intern) — Redbee 365 Studio / Vasukam / Yes Real Technologies — 02/2021 -- 12/2022
+   - 5+ production MEAN/MERN projects
+   - SQL reporting performance 2x
+   - Tech: Angular, React, React Native, Node.js, MongoDB, Express
 
 ALSO REQUIRED ON AMAZON-STYLE OUTPUT:
-- Web Developer (Part-Time), Associated Students Inc. (ASI), CSULB, Apr 2026 -- Present
+- Software Developer, Associated Students, Inc. (ASI), CSULB, Feb 2025 -- Present as FIRST experience
 
-SKILLS CATALOG (pick/align to JD; put languages in Skills section):
-Languages: JavaScript, TypeScript, ES6, Python, SQL, HTML5, CSS3 (+ Java, Go, C++, PHP as in amazon template when JD needs)
-Frontend: React.js, Angular, Next.js, Vue.js, React Native, Redux, Bootstrap, Material-UI, Tailwind CSS
-Backend: Node.js, Express.js, Nest.js, Flask, REST, GraphQL, Apollo, Microservices
-Databases: MongoDB, PostgreSQL
-Mobile: React Native CLI, Android Studio, Xcode, Firebase
-Cloud/DevOps: AWS (EC2, S3, …), GitOps, CI/CD, Docker
-API Tools: Swagger, Postman, GraphQL Playground
-Testing: JMeter, manual/performance/load testing
-VC/PM: GitHub, GitLab, Jira, Notion, Zoho Sheet, Slack
-AI/ML: AI integration, ML implementation, Amazon Bedrock, LangGraph (AWS AI Summer Camp Jul 2026)
+SKILLS CATALOG (pick/align to JD):
+Languages: JavaScript, TypeScript, Python, Java, C, C++, C#
+Frontend: React, React Native, Angular, Next.js, HTML, CSS, Bootstrap, Tailwind CSS
+Backend: Node.js, Express.js, NestJS, Flask, PHP, GraphQL, REST APIs
+Databases: MongoDB, PostgreSQL, MySQL, Redis
+Cloud/DevOps: AWS EC2, S3, Lambda, LightSail, Docker, GitHub Actions, GitOps, CI/CD
+Practices: DSA, OOP, Agile, WCAG, JWT, SonarQube, Swagger, Postman, Jest, Jira, WordPress, Elementor, SEO, Performance
 
-KEY / DETAILED PROJECTS (verified — pick top 5 from FULL pool in projectPool.txt; ≥3 must be LINKED):
-LINKED: NativeNest (https://nativenest.in), Origem India (https://www.origemindia.com), B4IGO (https://www.b4igo.com), ASI ADP Job Alerts (https://adp-scraper-vercel.vercel.app/), Upturn (https://www.upturn.io), Arikya (https://arikya.com)
-NO-LINK (still valid): AWS AI Summer Camp / AI-Assisted Technology Review Workflow (Bedrock, LangGraph, agents), Benchmark Automation, GSI Sales, NextZen ERP HRMS, Nova Physician, Buzz Staff Women, BookingBee, Dynamic Ecommerce, College ERP / Feedback / Exam fee / Digital library / Admission / Recruitment, Smart India Hackathon (AI Slum Control, Agri-Farm), Exam Hall seating, MS Teams attendance, Task Forz, Leave/Salary, Timetable, Exam reports, BGMI tournaments
-- Never invent URLs. For AI/agents/LLM JDs include AWS AI Summer Camp AND still keep ≥3 LINKED.
+KEY / DETAILED PROJECTS (verified — pick top 5; ≥3 must be LINKED):
+LINKED: NativeNest (https://nativenest.in), Origem India (https://origemindia.com), FutureU (https://www.asicsulb.org/corporate/discover/futureu), ARIKYA (https://arikya.in), Booking Bee (https://bookingbee.ai)
+NO-LINK (still valid): MirrorMate (C#, Miracast), AI Based Slum Control (Smart India Hackathon — Angular, Node.js, Twilio)
+- Never invent URLs.
 
 EDUCATION:
-- MS Computer Science, CSULB — Graduation May 2027 (full-time) / Jan 2028 (internship resumes)
-- B.Tech CSE, JNTU Anantapur -- MITS, GPA 3.69/4.0, Aug 2019 -- May 2023
+- MS Computer Science, CSULB — Graduation January 2027 (GPA 3.67)
+- B.Tech CSE, MITS / JNTU Anantapur, GPA 3.60, Aug 2019 -- May 2023
 
-CERTIFICATIONS: HackerRank Frontend React, JS, Python, Problem Solving, SQL; Coding Ninjas Code Kaze 2022
-PUBLICATION: Fake News Detection NLP/ML, ICCTDC 2025, IEEE DOI https://doi.org/10.1109/ICCTDC64446.2025.11158216
+CERTIFICATIONS: HackerRank JS/Python/SQL/AngularJS/Problem Solving; Wipro TalentNext; Coursera AI for Everyone / HTML; NPTEL Ethical Hacking / Soft Skills
+AWARDS: ISTE AP Best Student Innovator Gold Medal; Smart India Hackathon National Finalist; Tech/Web Club Coordinator and Mentor
+PUBLICATIONS: None
+WORK AUTH: F-1; after graduation F-1 OPT; future H-1B sponsorship needed; legally authorized to work Yes; now need sponsorship No; future sponsorship Yes

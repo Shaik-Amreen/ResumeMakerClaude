@@ -70,13 +70,13 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ limit }),
     }),
-  scrapeJobright: (limit: number, jobType: JobType = 'internship') =>
+  scrapeJobright: (limit: number, jobType: JobType = 'fulltime') =>
     request<{ message: string }>('/jobs/scrape/jobright', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ limit, jobType }),
     }),
-  scrapeLinkedIn: (limit: number, jobType: JobType = 'internship') =>
+  scrapeLinkedIn: (limit: number, jobType: JobType = 'fulltime') =>
     request<{ message: string }>('/jobs/scrape/linkedin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -94,7 +94,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ limit }),
     }),
-  scrapeAts: (limit: number, jobType: JobType = 'internship') =>
+  scrapeAts: (limit: number, jobType: JobType = 'fulltime') =>
     request<{ message: string }>('/jobs/scrape/ats', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

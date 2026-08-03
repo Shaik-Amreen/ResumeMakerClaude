@@ -22,7 +22,7 @@ export function LatexStudioPage() {
   const [jobDescription, setJobDescription] = useState('');
   const [title, setTitle] = useState('');
   const [company, setCompany] = useState('');
-  const [jobType, setJobType] = useState<JobType | ''>('internship');
+  const [jobType, setJobType] = useState<JobType | ''>('fulltime');
   const [latex, setLatex] = useState('');
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfNonce, setPdfNonce] = useState(0);

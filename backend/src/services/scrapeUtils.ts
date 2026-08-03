@@ -103,12 +103,12 @@ export async function saveJobIfNew(payload: ScrapedJobPayload): Promise<string |
     approvalNote:
       priority === 'faang'
         ? jobType === 'internship'
-          ? `🚨 FAANG/MANGO — Summer 2027 software intern (${source}). Apply ASAP.`
+          ? `🚨 FAANG/MANGO — software intern (${source}). Apply ASAP.`
           : `🚨 FAANG/MANGO — Full-time software role (${source}). Apply ASAP.`
         : jobType === 'internship'
           ? config.autoResume.enabled
-            ? `Summer 2027 software intern (${source}) — resume generating automatically.`
-            : `Summer 2027 software intern (${source}) — apply early. Tailor resume & upload PDF.`
+            ? `Software intern (${source}) — resume generating automatically.`
+            : `Software intern (${source}) — apply early. Tailor resume & upload PDF.`
           : config.autoResume.enabled
             ? `Full-time software role (${source}) — resume generating automatically.`
             : `Full-time software role (${source}) — tailor resume & upload PDF.`,
@@ -117,7 +117,7 @@ export async function saveJobIfNew(payload: ScrapedJobPayload): Promise<string |
   if (priority === 'faang') {
     const label =
       jobType === 'internship'
-        ? '🚨 FAANG/MANGO Summer 2027 internship OPENING'
+        ? '🚨 FAANG/MANGO internship OPENING'
         : '🚨 FAANG/MANGO full-time opening';
     await sendEmailNotification(
       `${label}\n${title}\n${company}\n${url}\n\n⚠️ Do NOT auto-apply — open the link and apply yourself ASAP.\nResume will be generated in the job tracker for you to download.`

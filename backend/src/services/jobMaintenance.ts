@@ -21,7 +21,7 @@ const NON_SWE_INTERN_TITLE = [
   /\bcivil\b/i,
 ];
 
-/** Summer 2027 software-only SWE internship — MS grad Jan 2028. */
+/** Software internship target filter — MS grad January 2027. */
 export function isSummer2027InternTarget(title: string, description: string): boolean {
   const text = `${title}\n${description}`;
 
@@ -72,7 +72,7 @@ export async function pruneNonSummer2027Jobs(): Promise<{ removed: number; kept:
       job.status = 'scraped';
       job.pendingAction = null;
       job.errorMessage = undefined;
-      job.approvalNote = 'Summer 2027 software intern — tailor resume & upload PDF.';
+      job.approvalNote = 'Software intern — tailor resume & upload PDF.';
       await job.save();
       kept += 1;
       console.log(`Kept: ${job.title} @ ${job.company}`);

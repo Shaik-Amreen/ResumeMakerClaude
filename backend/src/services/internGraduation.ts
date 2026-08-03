@@ -1,34 +1,36 @@
-/** Candidate internship graduation window: December 2027 or January 2028. */
+/** Candidate graduation window: January 2027 (full-time primary; legacy internship mode). */
 const INTERN_COMPATIBLE_GRAD_PATTERNS = [
-  /\bdec(?:ember)?\.?\s*2027\b/i,
-  /\bjan(?:uary)?\.?\s*2028\b/i,
-  /\bwinter\s*2028\b/i,
-  /\b(?:graduat(?:e|ing|ion)|class\s+of).{0,40}\b(?:fall|winter)\s*2027\b/i,
-  /\b(?:fall|winter)\s*2027.{0,20}graduat/i,
-  // Inclusive ranges that cover Dec 2027 / Jan 2028
-  /\b(?:dec(?:ember)?\.?|fall|winter)\s*2027\s*[-–to]+\s*(?:jan(?:uary)?\.?|may|june|spring|summer|winter)\s*2028\b/i,
-  /\b2027\s*[-–\/]\s*2028\b/i,
-  /\bclass\s+of\s*2027\s*(?:or|,|\/|&|and)\s*2028\b/i,
-  /\bgraduat(?:e|ing|ion).{0,40}(?:dec(?:ember)?\.?\s*)?2027.{0,40}2028\b/i,
-  /\bgraduat(?:e|ing|ion).{0,40}2027.{0,20}(?:or|through|to|[-–]).{0,20}2028\b/i,
-  /\b(?:dec(?:ember)?\.?\s*2027|jan(?:uary)?\.?\s*2028)\s+or\s+later\b/i,
+  /\bjan(?:uary)?\.?\s*2027\b/i,
+  /\bwinter\s*2027\b/i,
+  /\bdec(?:ember)?\.?\s*2026\b/i,
+  /\b(?:graduat(?:e|ing|ion)|class\s+of).{0,40}\b(?:fall|winter)\s*2026\b/i,
+  /\b(?:fall|winter)\s*2026.{0,20}graduat/i,
+  /\b(?:dec(?:ember)?\.?|fall|winter)\s*2026\s*[-–to]+\s*(?:jan(?:uary)?\.?|may|june|spring|summer|winter)\s*2027\b/i,
+  /\b2026\s*[-–\/]\s*2027\b/i,
+  /\bclass\s+of\s*2026\s*(?:or|,|\/|&|and)\s*2027\b/i,
+  /\bclass\s+of\s*2027\b/i,
+  /\bgraduat(?:e|ing|ion).{0,40}(?:dec(?:ember)?\.?\s*)?2026.{0,40}2027\b/i,
+  /\bgraduat(?:e|ing|ion).{0,40}2026.{0,20}(?:or|through|to|[-–]).{0,20}2027\b/i,
+  /\b(?:dec(?:ember)?\.?\s*2026|jan(?:uary)?\.?\s*2027)\s+or\s+later\b/i,
 ];
 
-/** Explicit graduation requirements that exclude Dec 2027 / Jan 2028. */
+/** Explicit graduation requirements that exclude January 2027. */
 const INTERN_INCOMPATIBLE_GRAD_PATTERNS = [
-  /\b(?:graduat(?:e|ing|ion)|class\s+of).{0,30}\b(?:may|june|july|august|spring|summer)\s*2026\b/i,
-  /\b(?:graduat(?:e|ing|ion)|class\s+of).{0,30}\b(?:dec(?:ember)?|fall|winter)\s*2026\b/i,
+  /\b(?:graduat(?:e|ing|ion)|class\s+of).{0,30}\b(?:may|june|july|august|spring|summer)\s*202[56]\b/i,
+  /\b(?:graduat(?:e|ing|ion)|class\s+of).{0,30}\b(?:dec(?:ember)?|fall|winter)\s*2025\b/i,
   /\b(?:graduat(?:e|ing|ion)|class\s+of).{0,30}\b(?:may|june|july|spring|summer)\s*2027\b/i,
-  /\bclass\s+of\s*202[56]\b/i,
-  /\bclass\s+of\s*2029\b/i,
-  /\b(?:graduat(?:e|ing|ion)|class\s+of).{0,30}\b(?:may|june|july|august|fall|spring|summer)\s*2029\b/i,
-  /\b(?:graduat(?:e|ing|ion)|class\s+of).{0,30}\b(?:sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|fall)\s*2028\b/i,
-  /\bmust\s+graduat(?:e|ing).{0,40}\b(?:before|by)\s+(?:may|june|july|august|summer)\s*2027\b/i,
+  /\bclass\s+of\s*202[456]\b/i,
+  /\bclass\s+of\s*202[89]\b/i,
+  /\b(?:graduat(?:e|ing|ion)|class\s+of).{0,30}\b(?:may|june|july|august|fall|spring|summer|winter)\s*2028\b/i,
+  /\b(?:graduat(?:e|ing|ion)|class\s+of).{0,30}\b(?:jan(?:uary)?|may|june)\s*2029\b/i,
+  /\b(?:graduat(?:e|ing|ion)|class\s+of).{0,30}\b(?:dec(?:ember)?|jan(?:uary)?)\s*2028\b/i,
+  /\bmust\s+graduat(?:e|ing).{0,40}\b(?:before|by)\s+(?:may|june|july|august|summer)\s*2026\b/i,
   /\bexpected\s+graduation\s*:?\s*(?:may|june|july|spring|summer)\s*2027\b/i,
-  /\bexpected\s+graduation\s*:?\s*(?:may|june|dec(?:ember)?)\s*2026\b/i,
+  /\bexpected\s+graduation\s*:?\s*(?:may|june|dec(?:ember)?)\s*2025\b/i,
   /\bgraduating\s+(?:only\s+)?(?:in\s+)?(?:may|june|spring|summer)\s*2027\b/i,
-  /\bgraduating\s+(?:in\s+)?2026\b/i,
-  /\bgraduating\s+(?:in\s+)?(?:fall|dec(?:ember)?)\s*2028\b/i,
+  /\bgraduating\s+(?:in\s+)?2025\b/i,
+  /\bgraduating\s+(?:in\s+)?(?:fall|dec(?:ember)?)\s*2027\b/i,
+  /\bgraduating\s+(?:in\s+)?(?:fall|dec(?:ember)?|jan(?:uary)?)\s*2028\b/i,
 ];
 
 function matchesAny(text: string, patterns: RegExp[]) {
@@ -50,9 +52,9 @@ function hasExplicitGraduationRequirement(text: string): boolean {
 }
 
 /**
- * Internship graduation eligibility for MS candidate (Dec 2027 or Jan 2028).
+ * Graduation eligibility for MS candidate (January 2027).
  * Keep when JD says nothing about graduation, or when the stated window includes
- * Dec 2027 / Jan 2028. Skip only clear mismatches.
+ * Jan 2027. Skip only clear mismatches.
  */
 export function isInternGraduationEligible(title: string, description: string): boolean {
   const text = `${title}\n${description}`;

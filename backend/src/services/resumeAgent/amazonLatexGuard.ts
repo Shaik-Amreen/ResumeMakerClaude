@@ -56,7 +56,7 @@ export function applyJdHeaderTagline(
 }
 
 const FORBIDDEN_NAME =
-  /\b(Allen\s+Sun|Nitin\s+Maddi|John\s+Doe|Jane\s+Doe|Your\s+Name|Candidate\s+Name)\b/i;
+  /\b(Allen\s+Sun|Nitin\s+Maddi|John\s+Doe|Jane\s+Doe|Your\s+Name|Candidate\s+Name|Amreen\s+Kousar|Shaik\s+Amreen)\b/i;
 const FORBIDDEN_PACKAGES = /\\usepackage\{fontspec\}|\\setmainfont/i;
 
 export interface AmazonLatexCheck {
@@ -105,7 +105,7 @@ export function checkAmazonLatex(latex: string): AmazonLatexCheck {
   if (!/\\usepackage\{times\}/i.test(latex)) reasons.push('missing times package');
   if (!/\\begin\{document\}/i.test(latex)) reasons.push('missing \\begin{document}');
   if (!/\\end\{document\}/i.test(latex)) reasons.push('missing \\end{document}');
-  if (!/Amreen\s+Kousar/i.test(latex)) reasons.push('missing candidate name Amreen Kousar');
+  if (!/KARTHIK\s+KOVI|Karthik\s+Kovi/i.test(latex)) reasons.push('missing candidate name Karthik Kovi');
   if (FORBIDDEN_NAME.test(latex)) reasons.push('hallucinated wrong person name');
   if (FORBIDDEN_PACKAGES.test(latex)) reasons.push('forbidden fontspec/setmainfont');
   if (!/\\section\{\\textbf\{Education\}\}/i.test(latex) && !/\\section\{Education\}/i.test(latex)) {
@@ -191,7 +191,7 @@ export function enforceAmazonLatex(modelOutput: string): string {
   assembled = applyJdHeaderTagline(assembled);
 
   const check = checkAmazonLatex(assembled);
-  if (!check.ok || FORBIDDEN_NAME.test(assembled) || !/Amreen\s+Kousar/i.test(assembled)) {
+  if (!check.ok || FORBIDDEN_NAME.test(assembled) || !/KARTHIK\s+KOVI|Karthik\s+Kovi/i.test(assembled)) {
     console.warn(`⚠️ Amazon check failed (${check.reasons.join('; ')}) — using amazon template`);
     return applyJdHeaderTagline(sanitizeResumeLatex(fullTemplate));
   }
@@ -214,11 +214,11 @@ export function amazonStructureRepairInstruction(reasons: string[]): string {
   return [
     'CRITICAL: Your LaTeX must match amazon.pdf EXACTLY.',
     'Do NOT invent another person, template, fontspec, or A4 geometry.',
-    'Candidate name MUST be Amreen Kousar.',
+    'Candidate name MUST be KARTHIK KOVI.',
     'Output ONLY section content starting at \\section{\\textbf{Education}} through Certifications.',
     'Do NOT output \\documentclass or preamble — the pipeline locks the amazon preamble/header.',
     reasons.length ? `Problems detected: ${reasons.join('; ')}.` : '',
-    'Keep ASI Web Developer as first experience. Exactly content for a 2-page amazon-style resume.',
+    'Keep ASI Software Developer as first experience. Exactly content for a 2-page amazon-style resume.',
   ]
     .filter(Boolean)
     .join(' ');

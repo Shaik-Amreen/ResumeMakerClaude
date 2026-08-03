@@ -20,7 +20,14 @@ export interface ApplicationProfile {
   linkedinSummary: string;
   coverLetter: string;
   yearsOfExperience: string;
+  /** Default when form only asks a single sponsorship question. */
   requireVisa: string;
+  /** "Are you legally authorized to work in the U.S.?" */
+  legallyAuthorizedToWorkInUS: string;
+  /** "Do you now require sponsorship?" — No while on F-1 OPT. */
+  nowRequireSponsorship: string;
+  /** "Will you require sponsorship in the future?" — Yes (H-1B). */
+  futureRequireSponsorship: string;
   usCitizenship: string;
   gender: string;
   ethnicity: string;
@@ -57,24 +64,31 @@ export const applicationProfile: ApplicationProfile = {
   currentCity: 'Long Beach',
   street: '',
   state: 'California',
-  zipcode: '90840',
+  zipcode: '',
   country: 'United States',
   linkedin: resumeProfile.linkedin,
   website: resumeProfile.portfolio,
-  recentEmployer: 'Associated Students Inc. (ASI), CSULB',
-  linkedinHeadline: resumeProfile.headline,
-  linkedinSummary: `MS Computer Science student at CSULB (May 2027) with 3+ years of full-stack experience (React, Node.js, TypeScript, AWS). Previously Senior Software Engineer at AMD/Infobell serving 100K+ users.`,
-  coverLetter: '',
-  yearsOfExperience: '3',
+  recentEmployer: 'Associated Students, Inc. (ASI), CSULB',
+  linkedinHeadline:
+    'Software Engineer | MS Computer Science @ CSULB | Full Stack Engineer | React • Node.js • React Native • AWS • GraphQL | Building Scalable Software',
+  linkedinSummary:
+    'Software engineer and M.S. Computer Science student at California State University, Long Beach with 3+ years of experience building production web, mobile, and cloud applications. I enjoy building scalable software, improving developer productivity, and delivering accessible user experiences using React, React Native, Node.js, GraphQL, AWS, and modern engineering practices. I am seeking full-time Software Engineering opportunities beginning after graduation.',
+  coverLetter:
+    'I am excited to apply for this full-time Software Engineer opportunity. Through professional experience at Associated Students, Inc. at CSULB and Infobell IT Solutions, I have built production web and mobile applications serving thousands of users while improving accessibility, performance, and deployment automation. I look forward to contributing strong full-stack engineering skills and collaborating with your team to build reliable software that delivers measurable customer impact.',
+  yearsOfExperience: '3+',
   requireVisa: 'Yes',
-  usCitizenship: 'Non-citizen allowed to work for any employer',
+  legallyAuthorizedToWorkInUS: 'Yes',
+  nowRequireSponsorship: 'No',
+  futureRequireSponsorship: 'Yes',
+  usCitizenship:
+    'Not a U.S. citizen or permanent resident. Requires employment sponsorship for long-term work authorization.',
   gender: 'Decline',
   ethnicity: 'Decline',
   disabilityStatus: 'Decline',
   veteranStatus: 'Decline',
-  desiredSalary: 120000,
+  desiredSalary: 150000,
   currentCtc: 0,
-  noticePeriodDays: 14,
+  noticePeriodDays: 0,
   confidenceLevel: '8',
   overwritePreviousAnswers: false,
   userInformationAll: formatResumeProfileForPrompt(),

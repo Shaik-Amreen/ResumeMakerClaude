@@ -33,8 +33,8 @@ interface Props {
 }
 
 const JOB_TYPE_LABELS: Record<JobType, string> = {
-  internship: 'Summer internships 2027',
-  fulltime: 'Full-time',
+  internship: 'Internships (legacy)',
+  fulltime: 'Full-time / new grad',
 };
 
 export function PipelineControlPanel({ jobType, onJobsChanged, busy, setBusy }: Props) {
