@@ -5,7 +5,15 @@ import { attachDriver, releaseDriver } from './chromeProfile';
 import { syncOrangeSession } from './cookieSync';
 import { inferJobType, isSoftwareRole } from './eligibility';
 import { isDuplicateJob } from './jobDedup';
+import { isUndergraduateOnlyJob } from './jobSkipRules';
 import { saveJobIfNew } from './scrapeUtils';
+import { shouldAbortScrape } from './scrapeContext';
+import {
+  appendTaskLog,
+  incrementScraped,
+  logScrapingUrl,
+  setTaskProgress,
+} from './taskStatusService';
 
 function orangeProfile() {
   const { linkedin } = config;
@@ -63,36 +71,44 @@ async function getJobCards(driver: WebDriver): Promise<WebElement[]> {
   return [];
 }
 
-async function readFromCard(card: WebElement) {
-  const title = await readTextIn(card, [
-    '.job-card-list__title--link',
-    '.job-card-container__link strong',
-    'a[href*="/jobs/view/"]',
-  ]);
-  const company = await readTextIn(card, [
-    '.job-card-container__company-name',
-    '.artdeco-entity-lockup__subtitle',
-    '.job-card-container__primary-description',
-  ]);
-  const location = await readTextIn(card, [
-    '.job-card-container__metadata-item',
-    '.artdeco-entity-lockup__caption',
-  ]);
-  const linkedinApplicants = await readTextIn(card, [
-    '.job-card-container__applicant-count',
-    '.job-card-list__footer-item',
-  ]);
+async function readFromCard(driver: WebDriver, card: WebElement) {
+  const extracted = (await driver.executeScript(
+    `
+    const card = arguments[0];
+    const titleEl = card.querySelector('.job-card-list__title--link, .job-card-container__link strong, a[href*="/jobs/view/"]');
+    const companyEl = card.querySelector('.job-card-container__company-name, .artdeco-entity-lockup__subtitle');
+    const locEl = card.querySelector('.job-card-container__metadata-item, .artdeco-entity-lockup__caption');
+    const appEl = card.querySelector('.job-card-container__applicant-count, .job-card-list__footer-item');
+    const link = card.querySelector('a[href*="/jobs/view/"], a[href*="/jobs/collections/"]');
+    let href = link ? (link.href || link.getAttribute('href') || '') : '';
+    const jobId = card.getAttribute('data-job-id') || card.querySelector('[data-job-id]')?.getAttribute('data-job-id');
+    if (!href && jobId) href = 'https://www.linkedin.com/jobs/view/' + jobId + '/';
+    return {
+      title: (titleEl?.textContent || '').trim(),
+      company: (companyEl?.textContent || '').trim(),
+      location: (locEl?.textContent || '').trim(),
+      applicants: (appEl?.textContent || '').trim(),
+      href,
+    };
+  `,
+    card
+  )) as {
+    title: string;
+    company: string;
+    location: string;
+    applicants: string;
+    href: string;
+  };
 
-  let url: string | null = null;
-  try {
-    const link = await card.findElement(By.css('a[href*="/jobs/view/"], a[href*="/jobs/collections/"]'));
-    const href = await link.getAttribute('href');
-    url = href ? normalizeJobUrl(href) : null;
-  } catch {
-    // no link on card
-  }
+  const url = extracted.href ? normalizeJobUrl(extracted.href) : null;
 
-  return { title, company, location, url, linkedinApplicants: linkedinApplicants || undefined };
+  return {
+    title: extracted.title,
+    company: extracted.company,
+    location: extracted.location,
+    url,
+    linkedinApplicants: extracted.applicants || undefined,
+  };
 }
 
 async function readTextIn(root: WebElement | WebDriver, selectors: string[]): Promise<string> {
@@ -158,6 +174,70 @@ async function waitForDetailPane(driver: WebDriver, expectedTitle?: string) {
   throw new Error('Job detail pane did not load.');
 }
 
+async function waitForJobDetail(driver: WebDriver, expectedTitle?: string): Promise<WebElement> {
+  try {
+    return await waitForDetailPane(driver, expectedTitle);
+  } catch {
+    /* split-pane failed — may be on full job page */
+  }
+
+  const fullPageSelectors = ['.jobs-description__content', '#job-details', '.jobs-box__html-content'];
+  for (const sel of fullPageSelectors) {
+    try {
+      const el = await driver.wait(until.elementLocated(By.css(sel)), 12000);
+      await driver.wait(until.elementIsVisible(el), 8000);
+      return el;
+    } catch {
+      // try next
+    }
+  }
+
+  throw new Error('Job detail did not load.');
+}
+
+async function openJobListing(
+  driver: WebDriver,
+  card: WebElement,
+  fromCard: { title: string; url: string | null }
+): Promise<WebElement | WebDriver> {
+  if (fromCard.url) {
+    logScrapingUrl(fromCard.url, fromCard.title || 'LinkedIn job');
+    await driver.get(fromCard.url);
+    await driver.sleep(2500);
+    await waitForJobDetail(driver, fromCard.title);
+    return driver;
+  }
+
+  await driver.executeScript('arguments[0].scrollIntoView({ block: "center" });', card);
+  await driver.sleep(500);
+
+  try {
+    await driver.executeScript('arguments[0].click();', card);
+  } catch {
+    await card.click();
+  }
+  await driver.sleep(1500);
+  return waitForJobDetail(driver, fromCard.title);
+}
+
+async function readLinkedInMetaFromPage(driver: WebDriver) {
+  const meta = await driver.executeScript(`
+    const text = (document.body.innerText || '').slice(0, 4000);
+    let applicants = '';
+    let posted = '';
+    const m1 = text.match(/(?:Over\\s+)?[\\d,]+\\+?\\s+applicants?/i);
+    if (m1) applicants = m1[0];
+    const m2 = text.match(/(?:Reposted|Posted)\\s+[^\\n·]{3,50}/i);
+    if (m2) posted = m2[0].trim();
+    return { applicants, posted };
+  `);
+  const result = meta as { applicants?: string; posted?: string };
+  return {
+    applicants: result.applicants?.trim() || undefined,
+    posted: result.posted?.trim() || undefined,
+  };
+}
+
 async function readLinkedInMeta(driver: WebDriver, pane: WebElement) {
   const meta = await driver.executeScript(
     `const pane = arguments[0];
@@ -190,7 +270,7 @@ async function readLinkedInMeta(driver: WebDriver, pane: WebElement) {
   };
 }
 
-async function readDetailPane(driver: WebDriver, pane: WebElement) {
+async function readDetailPane(driver: WebDriver, pane: WebElement | WebDriver) {
   const title = await readTextIn(pane, [
     '.job-details-jobs-unified-top-card__job-title',
     '.jobs-unified-top-card__job-title',
@@ -205,7 +285,10 @@ async function readDetailPane(driver: WebDriver, pane: WebElement) {
     '.job-details-jobs-unified-top-card__bullet',
     '.jobs-unified-top-card__bullet',
   ]);
-  const meta = await readLinkedInMeta(driver, pane);
+  const meta =
+    pane === driver
+      ? await readLinkedInMetaFromPage(driver)
+      : await readLinkedInMeta(driver, pane as WebElement);
   const description = await readTextIn(pane, [
     '.jobs-description__content',
     '#job-details',
@@ -266,6 +349,11 @@ async function scrapeSearchPage(
   const target = scrapeRunTarget();
 
   for (let i = 0; i < limit; i++) {
+    if (shouldAbortScrape()) {
+      appendTaskLog('LinkedIn scrape stopped by user.');
+      return true;
+    }
+
     if (savedJobIds.length >= target) {
       console.log(`Reached ${target} jobs — stopping this search.`);
       return true;
@@ -276,9 +364,10 @@ async function scrapeSearchPage(
       if (i >= freshCards.length) break;
 
       const card = freshCards[i];
-      const fromCard = await readFromCard(card);
+      const fromCard = await readFromCard(driver, card);
 
       console.log(`[${i + 1}/${limit}] ${fromCard.title || 'Unknown'} @ ${fromCard.company || '?'}`);
+      setTaskProgress(i + 1, limit, `LinkedIn card ${i + 1}/${limit}`);
 
       if (fromCard.url) {
         const dup = await isDuplicateJob(fromCard.url, fromCard.title || '', fromCard.company || '');
@@ -288,11 +377,15 @@ async function scrapeSearchPage(
         }
       }
 
-      await driver.executeScript('arguments[0].scrollIntoView({ block: "center" });', card);
-      await driver.sleep(400);
-      await card.click();
+      if (isUndergraduateOnlyJob(fromCard.title || '', '')) {
+        console.log('  ↳ Skipped — undergraduate only (title)');
+        continue;
+      }
 
-      const pane = await waitForDetailPane(driver, fromCard.title);
+      const pane = await openJobListing(driver, card, {
+        title: fromCard.title,
+        url: fromCard.url,
+      });
       const details = await readDetailPane(driver, pane);
 
       const title = details.title || fromCard.title;
@@ -329,6 +422,7 @@ async function scrapeSearchPage(
         posted: details.linkedinPosted || undefined,
         source: 'linkedin',
         forcedType: jobType,
+        pipelinePhase: 'linkedin',
       });
 
       if (!id) {
@@ -338,6 +432,7 @@ async function scrapeSearchPage(
 
       savedJobIds.push(id);
       saved += 1;
+      incrementScraped();
       console.log(`  ↳ Saved to tracker (${jobType}) [${savedJobIds.length}/${target}]`);
 
       if (savedJobIds.length >= target) {

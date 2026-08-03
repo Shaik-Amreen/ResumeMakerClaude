@@ -3,6 +3,8 @@ import { config } from '../config';
 import { scrapeRunTarget } from '../utils/scrapeLimits';
 import { attachDriver, releaseDriver } from './chromeProfile';
 import { saveJobIfNew } from './scrapeUtils';
+import { shouldAbortScrape, scrapeSleep } from './scrapeContext';
+import { appendTaskLog, incrementScraped, setTaskProgress } from './taskStatusService';
 
 function orangeProfile() {
   const { linkedin } = config;
@@ -54,7 +56,12 @@ async function scrapeIndeedSearch(
   console.log(searchUrl);
 
   await driver.get(searchUrl);
-  await driver.sleep(4000);
+  await scrapeSleep(4000);
+
+  if (shouldAbortScrape()) {
+    appendTaskLog('Indeed scrape stopped by user.');
+    return true;
+  }
 
   try {
     await driver.wait(until.elementLocated(By.css('div.job_seen_beacon, .jobsearch-ResultsList, [data-jk]')), 20000);
@@ -68,6 +75,10 @@ async function scrapeIndeedSearch(
   console.log(`Indeed: ${cards.length} cards — processing ${limit}`);
 
   for (let i = 0; i < limit; i++) {
+    if (shouldAbortScrape()) {
+      appendTaskLog('Indeed scrape stopped by user.');
+      return true;
+    }
     if (savedJobIds.length >= target) return true;
 
     try {
@@ -86,6 +97,7 @@ async function scrapeIndeedSearch(
       const posted = await readTextIn(card, ['span.date', '[data-testid="myJobsStateDate"]', '.date']);
 
       console.log(`[Indeed ${i + 1}/${limit}] ${title || '?'} @ ${company || '?'}`);
+      setTaskProgress(i + 1, limit, `Indeed ${i + 1}/${limit}`);
 
       let jobUrl = '';
       try {
@@ -98,7 +110,7 @@ async function scrapeIndeedSearch(
       if (!jobUrl) continue;
 
       await driver.executeScript('arguments[0].scrollIntoView({block:"center"});', card);
-      await driver.sleep(300);
+      await scrapeSleep(300);
 
       try {
         const link = await card.findElement(By.css('h2.jobTitle a, a.jcs-JobTitle, a[data-jk]'));
@@ -107,7 +119,9 @@ async function scrapeIndeedSearch(
         await driver.get(jobUrl);
       }
 
-      await driver.sleep(2500);
+      await scrapeSleep(2500);
+
+      if (shouldAbortScrape()) return true;
 
       const description = await readTextIn(driver, [
         '#jobDescriptionText',
@@ -136,13 +150,14 @@ async function scrapeIndeedSearch(
 
       if (id) {
         savedJobIds.push(id);
+        incrementScraped();
         console.log(`  ↳ Saved from Indeed [${savedJobIds.length}/${target}]`);
       } else {
         console.log('  ↳ Skipped (duplicate or filter)');
       }
 
       await driver.navigate().back();
-      await driver.sleep(1500);
+      await scrapeSleep(1500);
     } catch (err) {
       console.error(`  ↳ Indeed card error:`, err);
       try {
@@ -172,6 +187,10 @@ export async function scrapeIndeedJobs(
     console.log(`\n📰 Indeed — ${label} (newest first)`);
 
     for (let q = 0; q < searches.length; q++) {
+      if (shouldAbortScrape()) {
+        appendTaskLog('Indeed scrape stopped by user.');
+        break;
+      }
       if (savedJobIds.length >= target) break;
       console.log(`\n--- Indeed query ${q + 1}/${searches.length} (${savedJobIds.length}/${target}) ---`);
       const stop = await scrapeIndeedSearch(driver, searches[q], savedJobIds, target, jobType);

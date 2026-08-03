@@ -12,9 +12,32 @@ export type JobStatus =
   | 'pending_message_approval'
   | 'pending_submit_approval'
   | 'applied'
+  | 'assessment'
+  | 'interview'
+  | 'confused_hold'
+  | 'invalid_job'
+  | 'accepted'
   | 'failed';
 
 export type PendingAction = 'resume_review' | 'message_send' | 'submit_application' | null;
+
+/** Live progress while generating / regenerating a resume from a JD. */
+export type ResumePhase =
+  | 'idle'
+  | 'saving_jd'
+  | 'generating'
+  | 'compiling'
+  | 'checking_match'
+  | 'repairing_match'
+  | 'done'
+  | 'failed';
+
+export interface ContactSuggestion {
+  name?: string;
+  title?: string;
+  linkedinSearchQuery?: string;
+  notes?: string;
+}
 
 export interface IJob extends Document {
   title: string;
@@ -35,15 +58,35 @@ export interface IJob extends Document {
   linkedinApplicants?: string;
   /** @deprecated use posted */
   linkedinPosted?: string;
-  source?: 'jobright' | 'linkedin' | 'indeed' | 'career_portal' | 'other';
+  source?:
+    | 'jobright'
+    | 'linkedin'
+    | 'indeed'
+    | 'career_portal'
+    | 'greenhouse'
+    | 'lever'
+    | 'github'
+    | 'company_portal'
+    | 'other';
   /** FAANG + MANGOES companies get email alerts and sort to top */
   priority?: 'faang' | 'standard';
   status: JobStatus;
+  /** Overall resume↔JD match % (same basis as keyword coverage today). */
   matchScore?: number;
+  /** Keyword coverage % = matched / total JD tech keywords. */
+  keywordMatchScore?: number;
+  matchedKeywords?: string[];
+  missingKeywords?: string[];
+  skillGaps?: string[];
   latexResume?: string;
   pdfPath?: string;
   recruiterMessageDraft?: string;
+  coverLetterDraft?: string;
+  contactSuggestions?: ContactSuggestion[];
+  pipelinePhase?: 'jobright' | 'linkedin' | 'career_portal';
   pendingAction: PendingAction;
+  /** Step while resume is generating (shown in UI progress). */
+  resumePhase?: ResumePhase;
   approvalNote?: string;
   errorMessage?: string;
   createdAt: Date;
@@ -67,7 +110,17 @@ const JobSchema: Schema = new Schema(
     linkedinPosted: { type: String },
     source: {
       type: String,
-      enum: ['jobright', 'linkedin', 'indeed', 'career_portal', 'other'],
+      enum: [
+        'jobright',
+        'linkedin',
+        'indeed',
+        'career_portal',
+        'greenhouse',
+        'lever',
+        'github',
+        'company_portal',
+        'other',
+      ],
       default: 'linkedin',
     },
     priority: { type: String, enum: ['faang', 'standard'], default: 'standard' },
@@ -83,18 +136,54 @@ const JobSchema: Schema = new Schema(
         'pending_message_approval',
         'pending_submit_approval',
         'applied',
+        'assessment',
+        'interview',
+        'confused_hold',
+        'invalid_job',
+        'accepted',
         'failed',
       ],
       default: 'scraped',
     },
     matchScore: { type: Number },
+    keywordMatchScore: { type: Number },
+    matchedKeywords: [{ type: String }],
+    missingKeywords: [{ type: String }],
+    skillGaps: [{ type: String }],
     latexResume: { type: String },
     pdfPath: { type: String },
     recruiterMessageDraft: { type: String },
+    coverLetterDraft: { type: String },
+    contactSuggestions: [
+      {
+        name: { type: String },
+        title: { type: String },
+        linkedinSearchQuery: { type: String },
+        notes: { type: String },
+      },
+    ],
+    pipelinePhase: {
+      type: String,
+      enum: ['jobright', 'linkedin', 'career_portal'],
+    },
     pendingAction: {
       type: String,
       enum: ['resume_review', 'message_send', 'submit_application', null],
       default: null,
+    },
+    resumePhase: {
+      type: String,
+      enum: [
+        'idle',
+        'saving_jd',
+        'generating',
+        'compiling',
+        'checking_match',
+        'repairing_match',
+        'done',
+        'failed',
+      ],
+      default: 'idle',
     },
     approvalNote: { type: String },
     errorMessage: { type: String },

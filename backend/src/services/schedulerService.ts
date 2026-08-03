@@ -1,8 +1,8 @@
 import { config } from '../config';
-import { scrapePriorityCareerPortals } from './careerPortalScraper';
-import { isScrapeRunning, runFullTimeScrapeOnly } from './orchestratorService';
+import { isPipelineRunning, isScrapeRunning, runMasterPipeline } from './orchestratorService';
 
-export type ScheduleWindow = 'night_faang_mango' | 'morning_faang_mango' | 'fulltime_jobs' | 'idle';
+/** Continuous Summer 2027 internship cycles (scrape → resume → LinkedIn Easy Apply with approval). */
+export type ScheduleWindow = 'internship_cycle' | 'idle';
 
 function pacificHourMinute(): { hour: number; minute: number } {
   const fmt = new Intl.DateTimeFormat('en-US', {
@@ -17,94 +17,94 @@ function pacificHourMinute(): { hour: number; minute: number } {
   return { hour, minute };
 }
 
-/**
- * 11 PM–8 AM  → FAANG + MANGOES career portals (internships)
- * 9 AM–11 AM  → FAANG + MANGOES career portals (internships)
- * 8–9 AM & 11 AM–11 PM → full-time jobs (Jobright → LinkedIn → Indeed)
- */
-export function currentWindow(): ScheduleWindow {
-  const { hour } = pacificHourMinute();
+let running = false;
+let lastCycleEndedAt = 0;
 
-  if (hour >= 23 || hour < 8) return 'night_faang_mango';
-  if (hour >= 9 && hour < 11) return 'morning_faang_mango';
-  if (hour === 8 || hour >= 11) return 'fulltime_jobs';
-
-  return 'idle';
+/** Cooldown between full internship cycles (default 2 hours). */
+function cycleCooldownMs(): number {
+  const hours = Number(process.env.SCHEDULER_CYCLE_HOURS) || 2;
+  return Math.max(0.25, hours) * 60 * 60 * 1000;
 }
 
-let running = false;
-let activeWindow: ScheduleWindow | null = null;
-let completedWindow: ScheduleWindow | null = null;
+/** Call after any manual scrape/stop so the auto cycle does not start immediately. */
+export function noteManualActivity() {
+  lastCycleEndedAt = Date.now();
+}
 
-async function runWindow(window: ScheduleWindow) {
-  if (running || isScrapeRunning()) return;
+async function runInternshipCycle() {
+  if (running || isScrapeRunning() || isPipelineRunning()) return;
   running = true;
 
   try {
-    console.log(`\n⏰ Scheduler [${config.scheduler.timezone}] — ${window}`);
+    console.log(`\n⏰ Scheduler [${config.scheduler.timezone}] — Summer 2027 internship cycle`);
+    console.log('   FAANG → GitHub → Jobright → LinkedIn → Google → ATS (shared cap) → resumes (no Easy Apply)');
 
-    if (window === 'night_faang_mango' || window === 'morning_faang_mango') {
-      console.log('   FAANG + MANGOES career portals — Summer 2027 software interns, then stop.');
-      await scrapePriorityCareerPortals();
-    } else if (window === 'fulltime_jobs') {
-      console.log('   Full-time software roles — Jobright → LinkedIn → Indeed, then stop.');
-      await runFullTimeScrapeOnly();
-    }
+    await runMasterPipeline({
+      deleteFirst: false,
+      perSourceCap: config.pipeline.perSourceCap,
+      jobType: 'internship',
+    });
 
-    completedWindow = window;
-    console.log(`\n✅ Window complete (${window}) — scheduler idle until next window.`);
+    console.log('\n✅ Internship cycle complete — waiting for cooldown before next run.');
   } catch (err) {
-    console.error('Scheduler run failed:', err);
+    console.error('Scheduler internship cycle failed:', err);
   } finally {
+    lastCycleEndedAt = Date.now();
     running = false;
   }
 }
 
 function tick() {
-  const window = currentWindow();
-  if (window === 'idle') {
-    activeWindow = null;
-    return;
-  }
+  if (!config.scheduler.enabled) return;
+  if (running || isScrapeRunning() || isPipelineRunning()) return;
 
-  if (window !== activeWindow) {
-    activeWindow = window;
-    completedWindow = null;
-  }
+  const since = Date.now() - lastCycleEndedAt;
+  if (lastCycleEndedAt > 0 && since < cycleCooldownMs()) return;
 
-  if (running || completedWindow === window || isScrapeRunning()) return;
+  runInternshipCycle().catch(console.error);
+}
 
-  runWindow(window).catch(console.error);
+export function currentWindow(): ScheduleWindow {
+  if (!config.scheduler.enabled) return 'idle';
+  if (running) return 'internship_cycle';
+  return 'internship_cycle';
 }
 
 export function startJobScheduler() {
   if (!config.scheduler.enabled) {
-    console.log('Job scheduler disabled (set SCHEDULER_ENABLED=true in .env)');
+    console.log('Job scheduler disabled (set SCHEDULER_ENABLED=true in .env to enable auto cycles)');
     return;
   }
 
   const { hour, minute } = pacificHourMinute();
+  const cooldownH = Number(process.env.SCHEDULER_CYCLE_HOURS) || 2;
   console.log(
     `Job scheduler on (${config.scheduler.timezone}) — now ${hour}:${String(minute).padStart(2, '0')}`
   );
-  console.log('  11 PM–8 AM     → FAANG + MANGOES career portals (internships)');
-  console.log('  9 AM–11 AM     → FAANG + MANGOES career portals (internships)');
-  console.log('  8–9 AM & 11 AM–11 PM → full-time jobs (Jobright → LinkedIn → Indeed)');
-  console.log('  Each window runs once, scrapes all matches, then stops.');
+  console.log('  24/7 Summer 2027 mode:');
+  console.log('    Jobright → LinkedIn → Google Jobs (50 each)');
+  console.log('    Generate resumes one-by-one');
+  console.log('    LinkedIn Easy Apply (you approve message + Submit)');
+  console.log('    FAANG/MANGO: email alert only — never auto-apply');
+  console.log(`  Cooldown between cycles: ${cooldownH}h`);
 
-  tick();
+  // Start first cycle shortly after boot
+  setTimeout(() => tick(), 5000);
   setInterval(tick, config.scheduler.checkIntervalMs);
 }
 
 export function getSchedulerStatus() {
   const { hour, minute } = pacificHourMinute();
-  const window = currentWindow();
+  const cooldown = cycleCooldownMs();
+  const remaining =
+    lastCycleEndedAt > 0 ? Math.max(0, cooldown - (Date.now() - lastCycleEndedAt)) : 0;
   return {
     enabled: config.scheduler.enabled,
     timezone: config.scheduler.timezone,
     localTime: `${hour}:${String(minute).padStart(2, '0')}`,
-    currentWindow: window,
+    currentWindow: running ? ('internship_cycle' as const) : ('idle' as const),
     running,
-    windowCompleted: completedWindow === window && !running,
+    windowCompleted: !running && lastCycleEndedAt > 0,
+    cooldownMinutesRemaining: Math.ceil(remaining / 60000),
   };
 }

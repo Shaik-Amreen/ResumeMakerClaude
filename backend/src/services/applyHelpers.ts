@@ -31,10 +31,9 @@ export function buildApplyProfile(): ApplicationProfile {
 }
 
 export async function runPreApplySkipCheck(job: IJob): Promise<void> {
-  if (job.jobType !== 'fulltime') {
+  if (job.priority === 'faang') {
     job.status = 'failed';
-    job.errorMessage =
-      'Auto-apply is enabled for full-time jobs only. Mark internship applications as applied manually.';
+    job.errorMessage = 'FAANG/MANGO — never auto-applied. Apply yourself on the company site.';
     job.pendingAction = null;
     await job.save();
     throw new Error(job.errorMessage);

@@ -36,11 +36,13 @@ function orangeProfile(startUrl: string) {
 function platformLabel(source?: string, url?: string): string {
   if (source === 'indeed' || url?.includes('indeed.com')) return 'Indeed';
   if (source === 'jobright' || url?.includes('jobright.ai')) return 'Jobright';
-  if (source === 'career_portal') return 'Career portal';
+  if (source === 'greenhouse' || url?.includes('greenhouse.io')) return 'Greenhouse';
+  if (source === 'lever' || url?.includes('lever.co')) return 'Lever';
+  if (source === 'career_portal') return 'Google';
   return source || 'External site';
 }
 
-/** Auto-apply for Indeed, Jobright, career portals, and other non-LinkedIn-Easy-Apply URLs. */
+/** Auto-apply for Indeed, Jobright, Google Jobs, and other non-LinkedIn-Easy-Apply URLs. */
 export async function applyExternalJob(jobId: string) {
   const job = await Job.findById(jobId);
   if (!job) throw new Error('Job not found');

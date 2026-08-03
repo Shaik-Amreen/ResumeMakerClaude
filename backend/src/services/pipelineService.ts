@@ -5,6 +5,7 @@ import { evaluateWithClaude, runClaudeStepOnly } from './claudeService';
 import { releaseDriver } from './chromeProfile';
 import { WebDriver } from 'selenium-webdriver';
 import { sendEmailNotification } from './notifier';
+import { sanitizeResumeLatex } from './resumeAgent/sanitizeLatex';
 
 export async function waitForApproval(
   jobId: string,
@@ -36,12 +37,12 @@ export async function runResumePipeline(jobId: string) {
 
     const chatgpt = await generateResumeWithChatGPT(job.jobDescription);
     driver = chatgpt.driver;
-    job.latexResume = chatgpt.latex;
+    job.latexResume = sanitizeResumeLatex(chatgpt.latex);
     await job.save();
 
-    const evaluation = await evaluateWithClaude(driver, chatgpt.latex, job.jobDescription);
+    const evaluation = await evaluateWithClaude(driver, job.latexResume, job.jobDescription);
 
-    await applyClaudeEvaluation(job, evaluation, chatgpt.latex);
+    await applyClaudeEvaluation(job, evaluation, job.latexResume);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Resume pipeline failed';
     job.status = 'failed';
@@ -59,7 +60,7 @@ async function applyClaudeEvaluation(
   evaluation: { isMatch: boolean; latex?: string },
   fallbackLatex: string
 ) {
-  job.latexResume = evaluation.latex || fallbackLatex;
+  job.latexResume = sanitizeResumeLatex(evaluation.latex || fallbackLatex);
 
   if (evaluation.isMatch) {
     job.status = 'pending_resume_approval';
@@ -92,12 +93,14 @@ export async function runClaudeOnlyPipeline(jobId: string) {
   if (!latex) {
     const fromTab = await readLatexFromOpenChatGPT();
     if (fromTab) {
-      latex = fromTab;
+      latex = sanitizeResumeLatex(fromTab);
       job.latexResume = latex;
       await job.save();
       console.log(`Saved LaTeX from ChatGPT tab for ${job.company}`);
     }
   }
+
+  if (latex) latex = sanitizeResumeLatex(latex);
 
   if (!latex) {
     throw new Error('No LaTeX saved — run ChatGPT step first or keep ChatGPT tab open.');

@@ -1,7 +1,16 @@
 import Job from '../models/Job';
 
-function normalizeUrl(url: string): string {
-  return url.split('?')[0].replace(/\/$/, '').toLowerCase();
+export function normalizeJobUrl(url: string): string {
+  return url.split(/[?#]/, 1)[0].replace(/\/+$/, '').toLowerCase();
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function normalizedJobUrlPattern(url: string): RegExp {
+  const cleanUrl = normalizeJobUrl(url);
+  return new RegExp(`^${escapeRegex(cleanUrl)}/?(?:[?#].*)?$`, 'i');
 }
 
 function normalizeText(value: string): string {
@@ -9,12 +18,8 @@ function normalizeText(value: string): string {
 }
 
 export async function findDuplicateJob(url: string, title: string, company: string) {
-  const cleanUrl = normalizeUrl(url);
-  const allWithUrl = await Job.find({ url: { $regex: cleanUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } });
-  if (allWithUrl.length) return allWithUrl[0];
-
-  const byExactUrl = await Job.findOne({ url });
-  if (byExactUrl) return byExactUrl;
+  const byNormalizedUrl = await Job.findOne({ url: normalizedJobUrlPattern(url) });
+  if (byNormalizedUrl) return byNormalizedUrl;
 
   const normTitle = normalizeText(title);
   const normCompany = normalizeText(company);

@@ -3,22 +3,43 @@ import { applyLinkedInJob } from './linkedinApplier';
 import { applyExternalJob } from './externalApplier';
 
 function usesLinkedInEasyApply(url: string): boolean {
-  return url.includes('linkedin.com/jobs') || url.includes('linkedin.com/job');
+  return /linkedin\.com\/(jobs|job)/i.test(url);
 }
 
 /**
- * Auto-apply for full-time jobs only (all sources).
- * LinkedIn Easy Apply → linkedinApplier; everything else → externalApplier.
- * Always waits for your approval before final submit.
+ * Apply flow:
+ * - FAANG/MANGO: never auto-apply (alert only)
+ * - LinkedIn Easy Apply (internship or full-time): fill form, wait for your approval before Submit
+ * - Other full-time sources: external applier with submit approval
+ * - Non-LinkedIn internships: manual apply on company site
  */
 export async function autoApplyToJob(jobId: string) {
   const job = await Job.findById(jobId);
   if (!job) throw new Error('Job not found');
-  if (job.jobType !== 'fulltime') {
-    throw new Error('Auto-apply is enabled for full-time jobs only.');
+
+  if (job.priority === 'faang') {
+    throw new Error(
+      'FAANG/MANGO roles are never auto-applied. Open the job link and apply yourself.'
+    );
   }
+
+  if (!job.pdfPath) {
+    throw new Error('Approve/build a 2-page PDF before applying.');
+  }
+
   if (usesLinkedInEasyApply(job.url)) {
     return applyLinkedInJob(jobId);
   }
+
+  if (job.jobType === 'internship') {
+    throw new Error(
+      'This internship is not a LinkedIn Easy Apply listing. Open the company link and apply manually.'
+    );
+  }
+
   return applyExternalJob(jobId);
+}
+
+export function isLinkedInEasyApplyUrl(url: string): boolean {
+  return usesLinkedInEasyApply(url);
 }

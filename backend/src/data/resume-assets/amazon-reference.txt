@@ -1,0 +1,100 @@
+AMREENKOUSAR
+Software Engineer|Distributed Systems & Cloud|MS Computer Science, CSULB|
+AmreenKousar.Shaik01@student.csulb.edu|
++1 562-269-6008|Long Beach, CA|linkedin.com/in/shaikamreenkousar |Portfolio
+EDUCATION
+Master of Science in Computer Science California State University, Long Beach (CSULB) Graduation May 2027
+Coursework: Programming Languages, Software Engineering, Algorithms, Distributed Systems
+B.Tech in Computer Science (GPA: 3.69/4.0) JNTU Anantapur – MITS Aug 2019 – May 2023
+Coursework: Data Structures, Algorithms, OOP , Operating Systems, Database Systems, Computer Networks
+TECHNICALSKILLS
+Languages:Python, Java, JavaScript (ES6+), TypeScript, SQL,Go, C++, PHP
+Data Structures & Algorithms:Arrays, trees, graphs, dynamic programming, BFS/DFS, OOP design patterns, system
+design
+Backend & Distributed Systems:Node.js,Spring Boot Express.js, Nest.js, REST APIs, GraphQL, microservices architec-
+ture
+Cloud & DevOps (A WS):EC2, S3, CloudFront, Docker, Kubernetes, CI/CD (GitHub Actions, GitLab CI)
+Databases (SQL & NoSQL):PostgreSQL, MySQL, MongoDB, Redis (caching & pub/sub), Firebase
+Frontend & Mobile:React.js, Next.js, Angular, Redux, React Native, Tailwind CSS
+AI/ML & GenAI Tools:Python ML pipelines, NLP classification (IEEE published), AI-powered app integration, GenAI
+dev tools
+Observability & Operations:Uptime monitoring, performance profiling, alerting, production incident response
+Practices:Agile/SCRUM, TDD, code reviews, technical documentation, SDLC, version control (Git/GitHub/GitLab)
+PROFESSIONALEXPERIENCE
+Senior Software Engineer AMD – Infobell IT Solutions Mar 2024 – Dec 2025
+• Architected scalable full-stack microservices using React.js and Node.js, owning full lifecycle from design through de-
+ployment and ongoing operations for systems serving 100K+ enterprise users.
+• Designed and developed scalable solutions using cloud-native architectures on AWS (EC2, S3, CloudFront), following
+clean code principles and established design patterns.
+• Optimized REST APIs and PostgreSQL/MongoDB queries, reducing response time by 35% through query tuning, Redis
+caching, and Cloudflare CDN integration.
+• Automated CI/CD pipelines with GitLab and AWS, reducing deployment time by 40%; implemented monitoring and
+alerting to demonstrate operational excellence and enable rapid incident resolution.
+• Led code reviews and contributed to technical documentation; mentored junior engineers on OOP principles, data structure
+best practices, and version control workflows.
+• Leveraged GenAI and AI-powered developer tools to enhance development productivity and code quality across the team;
+stayed current with emerging technologies.
+Full Stack Web & Mobile Developer Infobell IT Solutions Jan 2023 – Mar 2024
+• Developed and deployed cross-platform mobile applications (React Native) to App Store and Play Store, owning full
+lifecycle from architecture to production operations with 99.5% uptime.
+• Built resilient, fault-tolerant backend services and managed complex Redux state across distributed React.js frontends for
+enterprise-scale applications.
+• Integrated Firebase for real-time notifications, deep linking, and authentication, increasing user engagement by 30%.
+• Designed scalable MongoDB schemas with optimized indexing for high-throughput data retrieval; monitored database
+performance and resolved production incidents proactively.
+• Participated in code reviews and contributed to technical documentation; mentored junior engineers on clean code princi-
+ples and systematic debugging of distributed systems.
+• Applied object-oriented design principles and algorithmic thinking to build cost-effective, maintainable solutions delivered
+within agile development cycles.
+MEAN Stack Developer Intern Redbee 365 Studio Sep 2022 – Dec 2022
+• Built a production web application using Angular, Node.js, Express, and MongoDB; wrote clean, maintainable code
+
+following OOP design patterns and industry best practices.
+• Improved API response time by 25% through database indexing, query optimization, and profiling — hands-on exposure
+to data-driven performance engineering.
+FEATUREDPROJECTS
+NativeNest – Cloud-Native E-Commerce Platform|Android|iOS Jun – Oct 2025
+React.js — React Native — Node.js — PostgreSQL — Redis — AWS — Docker — Kubernetes — Cloudflare — GitHub
+• Designed and developed a cloud-native, fault-tolerant e-commerce platform (web + mobile) serving 30K+ concurrent
+users using microservices on AWS EC2 with Docker and Kubernetes.
+• Implemented Redis caching layer reducing database load by 60% and achieving sub-100ms API response times; set up
+monitoring and performance dashboards demonstrating operational excellence.
+• Built resilient CI/CD pipelines with GitHub Actions achieving 99.9% uptime; applied code splitting and lazy loading to
+achieve Lighthouse score 94/100.
+• Owned the full engineering lifecycle: system design, implementation, deployment and production operations.
+Origem India – High-Performance E-Commerce Platform Feb – May 2025
+Next.js — Node.js — MongoDB — AWS EC2 & S3 — Cloudflare — Stripe — Razorpay — JWT — Python
+• Designed and developed a scalable, server-side-rendered web application on AWS EC2 and S3 with Cloudflare CDN,
+achieving fast global content delivery and high availability.
+• Architected distributed backend services with JWT authentication, Stripe/Razorpay payment integrations, and real-time
+inventory management using cost-effective data architecture.
+• Wrote Python scripts for data pipeline automation, product catalog ingestion, and performance monitoring; applied algo-
+rithmic optimisation for search and filtering at scale.
+B4IGO – Secure Digital Asset Management Platform Jan – Dec 2025
+React.js — React Native — Node.js — MongoDB — Blockchain — AWS — Firebase
+• Designed and built a fault-tolerant, distributed platform for secure digital asset management with multi-factor authentica-
+tion, advanced encryption, and blockchain-based tamper-proof storage.
+• Deployed scalable backend microservices on AWS with real-time Firebase sync; implemented operational monitoring and
+alerting to maintain uptime SLAs and resolve production issues rapidly.
+ASI ADP Job Alerts – Real-Time Automated Notification System Jan 2026
+React — Node.js — MongoDB — GitHub Actions — Vercel — Python
+• Built an end-to-end automated job alert system with Python-based web scraping, real-time data ingestion, and scheduled
+email digest delivery directly impacting CSULB students seeking employment.
+• Designed CI/CD with GitHub Actions for zero-downtime deployments; architected MongoDB backend for scalable sub-
+scription and job data management.
+Upturn – AI-Powered Stock Advisory App|iOS App Oct 2023 – Feb 2024
+React Native — Angular — Firebase — Python — iOS — Android
+• Developed an AI-powered personalized stock advisory mobile app with custom Robo-Portfolios, real-time Firebase noti-
+fications, and deep linking for iOS and Android.
+• Integrated AI recommendation engine APIs using Python; optimized React Native performance for cross-platform respon-
+siveness and low-latency data rendering.
+PUBLICATIONS& RESEARCH
+Accurate Fake News Detection in Text-Based Content using NLP & Machine Learning July 2025
+2025 International Conference on Computing Technologies & Data Communication (ICCTDC) — IEEE Xplore
+CERTIFICATIONS
+Frontend Developer – React(HackerRank)Jan 2025
+SQL Intermediate(HackerRank)Feb 2022
+JavaScript Intermediate(HackerRank)Jul 2022
+Problem Solving(HackerRank)Dec 2021
+Python(HackerRank) Dec 2021
+Coding Ninjas Programming(Code Kaze)Apr 2022

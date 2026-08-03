@@ -21,7 +21,7 @@ export type JobRecord = Pick<
   linkedinPosted?: string;
 };
 
-export type JobSource = 'jobright' | 'linkedin' | 'indeed' | 'career_portal' | 'other';
+export type JobSource = 'jobright' | 'linkedin' | 'indeed' | 'career_portal' | 'greenhouse' | 'lever' | 'other';
 
 export function jobApplicants(job: {
   applicants?: string;
@@ -88,7 +88,9 @@ export const PLATFORM_LABELS: Record<JobSource, string> = {
   jobright: 'Jobright',
   linkedin: 'LinkedIn',
   indeed: 'Indeed',
-  career_portal: 'Career Portal',
+  career_portal: 'Google',
+  greenhouse: 'Greenhouse',
+  lever: 'Lever',
   other: 'Other',
 };
 

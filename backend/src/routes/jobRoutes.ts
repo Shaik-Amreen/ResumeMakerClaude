@@ -4,39 +4,51 @@ import path from 'path';
 import fs from 'fs';
 import Job from '../models/Job';
 import { config } from '../config';
+import { resumeAgentLabel } from '../services/resumeAgent';
+import { sanitizeResumeLatex } from '../services/resumeAgent/sanitizeLatex';
+import { applyJdHeaderTagline } from '../services/resumeAgent/amazonLatexGuard';
+import { cleanJobDescriptionForResume } from '../services/cleanJobDescription';
+import {
+  applyMatchFieldsToJob,
+  scoreResumeAgainstJd,
+} from '../services/resumeAgent/jdMatch';
 import {
   runScrapeOnly,
   refreshExistingJobs,
   isScrapeRunning,
+  isPipelineRunning,
   runResumesForScrapedJobs,
   prepareAndGenerateResumes,
   enqueueSingleResume,
   rerunClaudeForJobsWithLatex,
   enqueueSingleClaude,
   enqueueSingleOllamaResume,
+  runMasterPipeline,
+  deleteAllJobs,
+  runScrapeJobright,
+  runScrapeLinkedIn,
+  runScrapeIndeed,
+  runScrapeCareerPortals,
+  runScrapeAts,
+  runScrapeFaangPortals,
+  runScrapeGithubLists,
+  forceStopCurrentTask,
+  getTaskStatus,
 } from '../services/orchestratorService';
-import { resetAllJobsToScraped, pruneNonSummer2027Jobs } from '../services/jobMaintenance';
+import { resetAllJobsToScraped, pruneNonSummer2027Jobs, deleteJobById, markJobsWithInvalidJd } from '../services/jobMaintenance';
 import { getSchedulerStatus } from '../services/schedulerService';
 import { filterJobs, normalizeJob, sortJobs, type JobRecord } from '../utils/jobQuery';
 import type { JobStatus } from '../models/Job';
 import { autoApplyToJob } from '../services/jobApplier';
 import { compileLatexToPdf } from '../services/latexCompileService';
+import { removeJobResumeFiles } from '../services/resumeFiles';
 
 const router = Router();
 
 fs.mkdirSync(config.uploadsDir, { recursive: true });
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, config.uploadsDir),
-  filename: (req, file, cb) => {
-    const jobId = req.params.id;
-    const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-    cb(null, `${jobId}-${Date.now()}-${safeName}`);
-  },
-});
-
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype === 'application/pdf') cb(null, true);
@@ -46,6 +58,15 @@ const upload = multer({
 
 router.get('/scheduler/status', (_req: Request, res: Response) => {
   res.json(getSchedulerStatus());
+});
+
+router.get('/task/status', (_req: Request, res: Response) => {
+  res.json(getTaskStatus());
+});
+
+router.post('/task/stop', (_req: Request, res: Response) => {
+  forceStopCurrentTask();
+  res.json({ message: 'Stop requested — the task will halt safely after its current step.' });
 });
 
 router.get('/', async (req: Request, res: Response) => {
@@ -77,8 +98,78 @@ router.get('/:id', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/delete-all', async (_req: Request, res: Response) => {
+  try {
+    if (isScrapeRunning() || isPipelineRunning()) {
+      return res.status(409).json({ message: 'Scrape or pipeline running — wait before deleting.' });
+    }
+    const result = await deleteAllJobs();
+    res.json({
+      message: `Deleted ${result.deleted} job(s) and ${result.pdfsRemoved} PDF file(s).`,
+      ...result,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting jobs', error });
+  }
+});
+
+/** Flag jobs whose JD is a dead posting / "Job not found" ATS page. */
+router.post('/mark-invalid-jds', async (_req: Request, res: Response) => {
+  try {
+    const marked = await markJobsWithInvalidJd();
+    res.json({
+      message: `Marked ${marked} job(s) as invalid_job (missing / dead JD).`,
+      marked,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error marking invalid JDs', error });
+  }
+});
+
+router.delete('/:id', async (req: Request, res: Response) => {
+  try {
+    const result = await deleteJobById(req.params.id);
+    if (!result.deleted) {
+      return res.status(404).json({ message: 'Job not found' });
+    }
+    res.json({
+      message: `Deleted job${result.pdfsRemoved ? ` and ${result.pdfsRemoved} file(s)` : ''}.`,
+      ...result,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting job', error });
+  }
+});
+
+router.post('/run-pipeline', async (req: Request, res: Response) => {
+  try {
+    if (isScrapeRunning() || isPipelineRunning()) {
+      return res.status(409).json({ message: 'Pipeline or scrape already running.' });
+    }
+
+    const deleteFirst = req.body?.deleteFirst === true;
+    const perSourceCap = Number(req.body?.perSourceCap) || config.pipeline.perSourceCap;
+    const jobType = req.body?.jobType === 'fulltime' ? 'fulltime' : 'internship';
+
+    runMasterPipeline({ deleteFirst, perSourceCap, jobType }).catch(console.error);
+
+    res.json({
+      message: deleteFirst
+        ? `Pipeline started: wipe DB → scrape (max ${perSourceCap} total) → resumes. No Easy Apply.`
+        : `Pipeline started: scrape (max ${perSourceCap} jobs total, keep existing) → resumes. No Easy Apply. Orange Chrome must stay open.`,
+      perSourceCap,
+      jobType,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error starting pipeline', error });
+  }
+});
+
 router.post('/prepare-and-generate-resumes', async (_req: Request, res: Response) => {
   try {
+    if (isScrapeRunning() || isPipelineRunning()) {
+      return res.status(409).json({ message: 'Another task is already running.' });
+    }
     prepareAndGenerateResumes().catch(console.error);
     res.json({
       message:
@@ -118,15 +209,129 @@ router.post('/:id/rerun-claude', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/generate-resumes', async (_req: Request, res: Response) => {
+router.post('/generate-resumes', async (req: Request, res: Response) => {
   try {
+    if (isScrapeRunning()) {
+      return res.status(409).json({ message: 'Another task is running. Stop it first or wait.' });
+    }
+    const limit = Number(req.body?.limit) || 0;
+    const withOutreach = req.body?.withOutreach === true;
     const pending = await Job.countDocuments({ status: 'scraped' });
-    runResumesForScrapedJobs().catch(console.error);
+    const count = limit > 0 ? Math.min(limit, pending) : pending;
+
+    runResumesForScrapedJobs({ limit: limit || undefined, withOutreach }).catch(console.error);
     res.json({
-      message: `Resume generation started for ${pending} scraped job(s) — one by one (ChatGPT → Claude).`,
+      message: `Resume generation started for up to ${count} scraped job(s) only — one by one (${resumeAgentLabel()}). Failed/partial resumes are not retried.`,
+      count,
     });
   } catch (error) {
     res.status(500).json({ message: 'Error starting resume queue', error });
+  }
+});
+
+function parseScrapeCap(body: Record<string, unknown> | undefined): number {
+  const cap = Number(body?.limit ?? body?.perSourceCap);
+  return cap > 0 ? cap : config.pipeline.perSourceCap;
+}
+
+router.post('/scrape/jobright', async (req: Request, res: Response) => {
+  try {
+    if (isScrapeRunning()) {
+      return res.status(409).json({ message: 'Scrape or pipeline already running.' });
+    }
+    const cap = parseScrapeCap(req.body);
+    const jobType = req.body?.jobType === 'fulltime' ? 'fulltime' : 'internship';
+    runScrapeJobright(cap, jobType).catch(console.error);
+    res.json({ message: `Jobright scrape started — up to ${cap} new jobs. Orange Chrome must stay open.` });
+  } catch (error) {
+    res.status(500).json({ message: 'Error starting Jobright scrape', error });
+  }
+});
+
+router.post('/scrape/linkedin', async (req: Request, res: Response) => {
+  try {
+    if (isScrapeRunning()) {
+      return res.status(409).json({ message: 'Scrape or pipeline already running.' });
+    }
+    const cap = parseScrapeCap(req.body);
+    const jobType = req.body?.jobType === 'fulltime' ? 'fulltime' : 'internship';
+    runScrapeLinkedIn(cap, jobType).catch(console.error);
+    res.json({ message: `LinkedIn scrape started — up to ${cap} new jobs (skips duplicates).` });
+  } catch (error) {
+    res.status(500).json({ message: 'Error starting LinkedIn scrape', error });
+  }
+});
+
+router.post('/scrape/indeed', async (req: Request, res: Response) => {
+  try {
+    if (isScrapeRunning()) {
+      return res.status(409).json({ message: 'Scrape or pipeline already running.' });
+    }
+    const cap = parseScrapeCap(req.body);
+    const jobType = req.body?.jobType === 'internship' ? 'internship' : 'fulltime';
+    runScrapeIndeed(cap, jobType).catch(console.error);
+    res.json({ message: `Indeed scrape started — up to ${cap} new ${jobType} jobs.` });
+  } catch (error) {
+    res.status(500).json({ message: 'Error starting Indeed scrape', error });
+  }
+});
+
+router.post('/scrape/ats', async (req: Request, res: Response) => {
+  try {
+    if (isScrapeRunning()) {
+      return res.status(409).json({ message: 'Scrape or pipeline already running.' });
+    }
+    const cap = parseScrapeCap(req.body);
+    const jobType = req.body?.jobType === 'fulltime' ? 'fulltime' : 'internship';
+    runScrapeAts(cap, jobType).catch(console.error);
+    res.json({
+      message: `ATS board scrape started (Greenhouse + Lever, free public APIs) — up to ${cap} new ${jobType} jobs.`,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error starting ATS scrape', error });
+  }
+});
+
+router.post('/scrape/faang-portals', async (req: Request, res: Response) => {
+  try {
+    if (isScrapeRunning()) {
+      return res.status(409).json({ message: 'Scrape or pipeline already running.' });
+    }
+    const cap = parseScrapeCap(req.body);
+    runScrapeFaangPortals(cap).catch(console.error);
+    res.json({
+      message: `FAANG portal scrape started (Amazon/Microsoft/Meta/Apple/Google) — up to ${cap} new jobs. Orange Chrome must stay open.`,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error starting FAANG portal scrape', error });
+  }
+});
+
+router.post('/scrape/github-lists', async (req: Request, res: Response) => {
+  try {
+    if (isScrapeRunning()) {
+      return res.status(409).json({ message: 'Scrape or pipeline already running.' });
+    }
+    const cap = parseScrapeCap(req.body);
+    runScrapeGithubLists(cap).catch(console.error);
+    res.json({
+      message: `GitHub internship list scrape started (SpeedyApply + Vansh Summer2027) — up to ${cap} new jobs.`,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error starting GitHub list scrape', error });
+  }
+});
+
+router.post('/scrape/career-portals', async (req: Request, res: Response) => {
+  try {
+    if (isScrapeRunning()) {
+      return res.status(409).json({ message: 'Scrape or pipeline already running.' });
+    }
+    const cap = parseScrapeCap(req.body);
+    runScrapeCareerPortals(cap).catch(console.error);
+    res.json({ message: `Google Jobs scrape started (US) — up to ${cap} new jobs.` });
+  } catch (error) {
+    res.status(500).json({ message: 'Error starting Google Jobs scrape', error });
   }
 });
 
@@ -145,8 +350,13 @@ router.post('/prune-summer-2027', async (_req: Request, res: Response) => {
 
 router.post('/reset-all', async (_req: Request, res: Response) => {
   try {
+    if (isScrapeRunning() || isPipelineRunning()) {
+      return res.status(409).json({ message: 'Another task is running — wait before resetting jobs.' });
+    }
     const count = await resetAllJobsToScraped();
-    res.json({ message: `Reset ${count} job(s) to scraped. Upload resumes manually in job tracker.` });
+    res.json({
+      message: `Reset ${count} job(s) to scraped and removed their generated/uploaded resume files.`,
+    });
   } catch (error) {
     res.status(500).json({ message: 'Error resetting jobs', error });
   }
@@ -157,6 +367,11 @@ const MANUAL_STATUSES: JobStatus[] = [
   'resume_generated',
   'pdf_uploaded',
   'applied',
+  'assessment',
+  'interview',
+  'confused_hold',
+  'invalid_job',
+  'accepted',
   'failed',
 ];
 
@@ -183,6 +398,16 @@ router.patch('/:id/status', async (req: Request, res: Response) => {
       job.approvalNote = 'PDF on file — apply on LinkedIn when ready.';
     } else if (status === 'applied') {
       job.approvalNote = 'Marked as applied.';
+    } else if (status === 'assessment') {
+      job.approvalNote = 'Assessment stage — complete the take-home / online test.';
+    } else if (status === 'interview') {
+      job.approvalNote = 'Interview stage — prep and track interview rounds.';
+    } else if (status === 'confused_hold') {
+      job.approvalNote = 'Confused — Hold. Unclear fit / need to revisit later.';
+    } else if (status === 'invalid_job') {
+      job.approvalNote = 'Marked invalid — not a fit / closed / wrong posting.';
+    } else if (status === 'accepted') {
+      job.approvalNote = 'Offer accepted — congratulations.';
     } else if (status === 'failed') {
       job.approvalNote = 'Marked as failed / skipped.';
     }
@@ -193,15 +418,63 @@ router.patch('/:id/status', async (req: Request, res: Response) => {
   }
 });
 
+/** Edit JD text; optionally re-queue resume generation against the updated description. */
+router.patch('/:id/job-description', async (req: Request, res: Response) => {
+  try {
+    const job = await Job.findById(req.params.id);
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+
+    const jobDescription =
+      typeof req.body?.jobDescription === 'string' ? req.body.jobDescription.trim() : '';
+    if (!jobDescription || jobDescription.length < 40) {
+      return res.status(400).json({
+        message: 'Job description must be at least 40 characters.',
+      });
+    }
+
+    const regenerate = req.body?.regenerate !== false;
+    job.jobDescription = cleanJobDescriptionForResume(jobDescription);
+    job.errorMessage = undefined;
+
+    if (regenerate) {
+      job.status = 'resume_generating';
+      job.resumePhase = 'saving_jd';
+      job.pendingAction = null;
+      job.matchScore = undefined;
+      job.keywordMatchScore = undefined;
+      job.matchedKeywords = undefined;
+      job.missingKeywords = undefined;
+      job.skillGaps = undefined;
+      job.approvalNote = `JD saved — starting resume generation (${resumeAgentLabel()})…`;
+      await job.save();
+      enqueueSingleOllamaResume(job.id);
+      return res.json({
+        job: normalizeJob(job.toObject() as unknown as Record<string, unknown>),
+        message: 'JD saved — resume regeneration started. Watch progress steps below.',
+      });
+    }
+
+    job.resumePhase = 'idle';
+    job.approvalNote = 'JD updated — generate a resume when ready.';
+    await job.save();
+    res.json({
+      job: normalizeJob(job.toObject() as unknown as Record<string, unknown>),
+      message: 'Job description saved.',
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating job description', error });
+  }
+});
+
 router.post('/scrape', async (_req: Request, res: Response) => {
   try {
-    if (isScrapeRunning()) {
-      return res.status(409).json({ message: 'Scrape already running. Wait for it to finish.' });
+    if (isScrapeRunning() || isPipelineRunning()) {
+      return res.status(409).json({ message: 'Scrape or pipeline already running. Wait for it to finish.' });
     }
     runScrapeOnly().catch(console.error);
     res.json({
       message:
-        'Scraping FAANG + MANGOES career portals only (Summer 2027 software internships).',
+        'Scraping Google Jobs (United States) for Summer 2027 software internships.',
     });
   } catch (error) {
     res.status(500).json({ message: 'Error starting scrape', error });
@@ -223,7 +496,9 @@ router.post('/:id/generate-resume', async (req: Request, res: Response) => {
     if (!job) return res.status(404).json({ message: 'Job not found' });
 
     enqueueSingleResume(job.id);
-    res.json({ message: 'Resume queued (sequential — runs after any jobs ahead in queue).' });
+    res.json({
+      message: `Resume agent queued (${resumeAgentLabel()}) — LaTeX in ~1–3 min.`,
+    });
   } catch (error) {
     res.status(500).json({ message: 'Error starting pipeline', error });
   }
@@ -234,13 +509,46 @@ router.post('/:id/generate-resume-ollama', async (req: Request, res: Response) =
     const job = await Job.findById(req.params.id);
     if (!job) return res.status(404).json({ message: 'Job not found' });
 
+    job.status = 'resume_generating';
+    job.resumePhase = 'generating';
+    job.approvalNote = `Generating tailored resume (${resumeAgentLabel()})…`;
+    await job.save();
     enqueueSingleOllamaResume(job.id);
     res.json({
-      message:
-        'Ollama resume generation started — Green Chrome will open, send JD to Ollama, compile PDF when done.',
+      message: `Resume agent started (${resumeAgentLabel()}) — watch progress steps on the job panel.`,
+      job: normalizeJob(job.toObject() as unknown as Record<string, unknown>),
     });
   } catch (error) {
     res.status(500).json({ message: 'Error starting Ollama resume generation', error });
+  }
+});
+
+/** Recompute keyword + resume match scores from current JD + LaTeX. */
+router.get('/:id/match-score', async (req: Request, res: Response) => {
+  try {
+    const job = await Job.findById(req.params.id);
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+    if (!job.latexResume?.trim()) {
+      return res.status(400).json({ message: 'No LaTeX resume on this job yet.' });
+    }
+    const match = scoreResumeAgainstJd(job.jobDescription, job.latexResume);
+    applyMatchFieldsToJob(job, match);
+    await job.save();
+    res.json({
+      resumeMatchScore: match.score,
+      keywordMatchScore: match.score,
+      matchedKeywords: match.matched,
+      missingKeywords: match.missing,
+      skillGaps: job.skillGaps || [],
+      keywords: match.keywords,
+      whyNot100:
+        match.score >= 100 || match.missing.length === 0
+          ? null
+          : `Keyword coverage is ${match.score}% — missing ${match.missing.length} of ${match.keywords.length} JD keywords: ${match.missing.slice(0, 12).join(', ')}.`,
+      job: normalizeJob(job.toObject() as unknown as Record<string, unknown>),
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error scoring resume', error });
   }
 });
 
@@ -249,26 +557,64 @@ router.post('/:id/latex', async (req: Request, res: Response) => {
     const job = await Job.findById(req.params.id);
     if (!job) return res.status(404).json({ message: 'Job not found' });
 
-    const latex = typeof req.body?.latex === 'string' ? req.body.latex.trim() : '';
+    const latex = typeof req.body?.latex === 'string' ? sanitizeResumeLatex(req.body.latex.trim()) : '';
     if (!latex) return res.status(400).json({ message: 'LaTeX content is required' });
 
-    job.latexResume = latex;
+    // Keep the editor source exactly as the user typed it (minus dash sanitize),
+    // but always rewrite the generic amazon header from this job's title/JD.
+    const withHeader = applyJdHeaderTagline(latex, {
+      title: job.title,
+      jobDescription: job.jobDescription,
+      company: job.company,
+    });
+    job.latexResume = withHeader;
     job.errorMessage = undefined;
 
     try {
-      const { pdfPath } = compileLatexToPdf(latex, job.id);
+      // preserveUserLatex: Recompile must reflect editor edits (Overleaf-style).
+      const { pdfPath, pageCount } = compileLatexToPdf(withHeader, job.id, {
+        preserveUserLatex: true,
+        header: {
+          title: job.title,
+          jobDescription: job.jobDescription,
+          company: job.company,
+        },
+      });
       job.pdfPath = pdfPath;
+      job.latexResume = withHeader;
+      applyMatchFieldsToJob(job, scoreResumeAgainstJd(job.jobDescription, withHeader));
+
+      if (pageCount !== 2) {
+        job.status = 'resume_generated';
+        job.pendingAction = 'resume_review';
+        job.errorMessage = `PDF is ${pageCount} page(s) — must be exactly 2. Edit LaTeX and Recompile again.`;
+        job.approvalNote = `Compiled to ${pageCount} page(s). Your edits are in the PDF — trim or expand until exactly 2 pages. Resume match ${job.matchScore ?? '—'}%.`;
+        await job.save();
+        return res.status(200).json({
+          message: job.errorMessage,
+          pageCount,
+          warning: job.errorMessage,
+          job: normalizeJob(job.toObject() as unknown as Record<string, unknown>),
+        });
+      }
+
       job.status = 'pending_resume_approval';
       job.pendingAction = 'resume_review';
+      job.errorMessage = undefined;
       job.approvalNote =
-        'LaTeX compiled to PDF — review the preview below. Approve to enable auto-apply (full-time).';
+        job.priority === 'faang'
+          ? `🚨 FAANG/MANGO — 2-page PDF ready (${job.matchScore ?? '—'}% JD match). Apply yourself on the company site (no auto-apply).`
+          : `LaTeX recompiled — PDF preview updated. Resume match ${job.matchScore ?? '—'}% · keyword match ${job.keywordMatchScore ?? '—'}%.`;
       await job.save();
-      return res.json(normalizeJob(job.toObject() as unknown as Record<string, unknown>));
+      return res.json({
+        pageCount,
+        job: normalizeJob(job.toObject() as unknown as Record<string, unknown>),
+      });
     } catch (compileErr) {
       job.status = 'resume_generated';
       job.pendingAction = null;
       job.approvalNote =
-        'LaTeX saved but PDF compile failed. Install BasicTeX or upload a PDF manually.';
+        'LaTeX saved but PDF compile failed. Fix the LaTeX errors and Recompile, or upload a PDF manually.';
       job.errorMessage =
         compileErr instanceof Error ? compileErr.message : 'LaTeX compile failed';
       await job.save();
@@ -296,9 +642,13 @@ router.post('/:id/approve-resume', async (req: Request, res: Response) => {
     job.status = 'pdf_uploaded';
     job.errorMessage = undefined;
     job.approvalNote =
-      job.jobType === 'fulltime'
-        ? 'Resume approved. Click Auto-Apply when ready (submit still requires your approval).'
-        : 'Resume approved. Apply manually on the company site for internships.';
+      job.priority === 'faang'
+        ? '🚨 FAANG/MANGO — resume approved. Apply yourself on the company site (no auto-apply).'
+        : /linkedin\.com\/(jobs|job)/i.test(job.url)
+          ? 'Resume approved. Click Auto-Apply for LinkedIn Easy Apply — you must approve before final Submit.'
+          : job.jobType === 'internship'
+            ? 'Resume approved. Apply manually on the company site for this internship.'
+            : 'Resume approved. Click Auto-Apply when ready (submit still requires your approval).';
     await job.save();
     res.json(normalizeJob(job.toObject() as unknown as Record<string, unknown>));
   } catch (error) {
@@ -313,16 +663,20 @@ router.post('/:id/approve-resume-and-apply', async (req: Request, res: Response)
     if (!job.pdfPath) {
       return res.status(400).json({ message: 'No PDF on file.' });
     }
-    if (job.jobType !== 'fulltime') {
+    if (job.priority === 'faang') {
       return res.status(400).json({
-        message: 'Auto-apply is full-time only. Approve the resume and apply manually for internships.',
+        message:
+          'FAANG/MANGO roles are never auto-applied. Open the job URL and apply yourself.',
       });
+    }
+    if (!job.pdfPath) {
+      return res.status(400).json({ message: 'No PDF on file.' });
     }
 
     job.pendingAction = null;
     job.status = 'pdf_uploaded';
     job.errorMessage = undefined;
-    job.approvalNote = 'Resume approved — starting auto-apply…';
+    job.approvalNote = 'Resume approved — starting LinkedIn Easy Apply (you must approve before Submit)…';
     await job.save();
 
     autoApplyToJob(job.id).catch(console.error);
@@ -337,19 +691,33 @@ router.post('/:id/approve-resume-and-apply', async (req: Request, res: Response)
 });
 
 router.post('/:id/upload-pdf', upload.single('resume'), async (req: Request, res: Response) => {
+  let writtenPath: string | undefined;
   try {
     const job = await Job.findById(req.params.id);
     if (!job) return res.status(404).json({ message: 'Job not found' });
     if (!req.file) return res.status(400).json({ message: 'PDF file is required' });
 
-    job.pdfPath = req.file.path;
+    const safeName = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    writtenPath = path.join(config.uploadsDir, `${job.id}-${Date.now()}-${safeName}`);
+    fs.writeFileSync(writtenPath, req.file.buffer);
+
+    const previousPath = job.pdfPath;
+    job.pdfPath = writtenPath;
     job.status = 'pending_resume_approval';
     job.pendingAction = 'resume_review';
     job.errorMessage = undefined;
     job.approvalNote = 'PDF uploaded — review preview, then approve to apply.';
     await job.save();
+    removeJobResumeFiles(job.id, previousPath, [writtenPath]);
     res.json(normalizeJob(job.toObject() as unknown as Record<string, unknown>));
   } catch (error) {
+    if (writtenPath) {
+      try {
+        fs.unlinkSync(writtenPath);
+      } catch {
+        // Best-effort rollback if the database update failed.
+      }
+    }
     res.status(500).json({ message: 'Error uploading PDF', error });
   }
 });
@@ -362,16 +730,23 @@ router.post('/:id/apply', async (req: Request, res: Response) => {
     if (job.status === 'pending_resume_approval') {
       return res.status(400).json({ message: 'Approve the resume PDF before applying.' });
     }
-    if (job.jobType !== 'fulltime') {
+    if (job.priority === 'faang') {
       return res.status(400).json({
-        message: 'Auto-apply is enabled for full-time jobs only. Apply to internships manually on the company site.',
+        message:
+          'FAANG/MANGO roles are never auto-applied. Open the job URL and apply yourself.',
+      });
+    }
+    if (job.jobType === 'internship' && !/linkedin\.com\/(jobs|job)/i.test(job.url)) {
+      return res.status(400).json({
+        message:
+          'LinkedIn Easy Apply is only for LinkedIn listings. Open the company site and apply manually for this internship.',
       });
     }
 
     autoApplyToJob(job.id).catch(console.error);
     res.json({
       message:
-        'Auto-apply started (full-time). Form questions will be filled automatically; you must approve before final submit.',
+        'Apply started. Forms fill automatically; you must approve the LinkedIn message and final Submit in the tracker.',
     });
   } catch (error) {
     res.status(500).json({ message: 'Error starting apply', error });

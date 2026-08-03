@@ -7,16 +7,37 @@ export default {
   theme: {
     extend: {
       colors: {
+        paper: {
+          DEFAULT: '#f3f5f7',
+          card: '#ffffff',
+          line: '#e2e6eb',
+        },
+        ink: {
+          DEFAULT: '#1a2332',
+          muted: '#5c6b7a',
+          faint: '#8a97a5',
+        },
+        accent: {
+          DEFAULT: '#0d7377',
+          soft: '#e6f3f3',
+          hover: '#0a5c5f',
+        },
         dark: {
           900: '#0a0a0a',
           800: '#121212',
           700: '#1a1a1a',
         },
         primary: {
-          500: '#6366f1',
-          400: '#818cf8',
-        }
-      }
+          500: '#0d7377',
+          400: '#14919b',
+          300: '#2aa6b0',
+          100: '#d8f3f4',
+        },
+      },
+      fontFamily: {
+        sans: ['"Poppins"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['"Poppins"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
     },
   },
   plugins: [],

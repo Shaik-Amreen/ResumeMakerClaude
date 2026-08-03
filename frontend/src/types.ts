@@ -10,9 +10,40 @@ export type JobStatus =
   | 'pending_message_approval'
   | 'pending_submit_approval'
   | 'applied'
+  | 'assessment'
+  | 'interview'
+  | 'confused_hold'
+  | 'invalid_job'
+  | 'accepted'
   | 'failed';
 
-export type JobSource = 'jobright' | 'linkedin' | 'indeed' | 'career_portal' | 'other';
+export type ResumePhase =
+  | 'idle'
+  | 'saving_jd'
+  | 'generating'
+  | 'compiling'
+  | 'checking_match'
+  | 'repairing_match'
+  | 'done'
+  | 'failed';
+
+export type JobSource =
+  | 'jobright'
+  | 'linkedin'
+  | 'indeed'
+  | 'career_portal'
+  | 'greenhouse'
+  | 'lever'
+  | 'github'
+  | 'company_portal'
+  | 'other';
+
+export interface ContactSuggestion {
+  name?: string;
+  title?: string;
+  linkedinSearchQuery?: string;
+  notes?: string;
+}
 
 export interface Job {
   _id: string;
@@ -38,12 +69,20 @@ export interface Job {
   priority?: 'faang' | 'standard';
   status: JobStatus;
   matchScore?: number;
+  keywordMatchScore?: number;
+  matchedKeywords?: string[];
+  missingKeywords?: string[];
+  skillGaps?: string[];
   latexResume?: string;
   pdfPath?: string;
   /** e.g. /uploads/jobid-timestamp-resume.pdf */
   pdfUrl?: string;
   recruiterMessageDraft?: string;
+  coverLetterDraft?: string;
+  contactSuggestions?: ContactSuggestion[];
+  pipelinePhase?: 'jobright' | 'linkedin' | 'career_portal';
   pendingAction?: 'resume_review' | 'message_send' | 'submit_application' | null;
+  resumePhase?: ResumePhase;
   approvalNote?: string;
   errorMessage?: string;
   createdAt: string;
