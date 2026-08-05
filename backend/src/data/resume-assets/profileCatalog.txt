@@ -26,11 +26,12 @@ WORK EXPERIENCE (verified - Amazon FIRST; Redbee REMOVED from resume):
  - Agile UI modules + accessibility
 
 3. Software Engineer - Infobell IT Solutions Pvt Ltd - 01/2023 - 01/2025
- - React, Node.js, Spring Boot; 99.9% uptime
- - Jenkins + AWS EC2/ECS blue-green
- - Async queues/caching (+30% throughput)
- - CloudWatch observability (-25% MTTR)
- - Mentored interns
+ - React, Node.js, Spring Boot, Java, Python; 99.9% uptime
+ - Deployed containerized microservices via Kubernetes (EKS / Helm / Docker), Jenkins, and AWS EC2/ECS
+ - Async message queues (Kafka, SQS/SNS, RabbitMQ), Redis caching (+30% throughput)
+ - Prometheus/Grafana & CloudWatch observability (-25% MTTR)
+ - Mentored interns on API design, microservices, container orchestration, testing frameworks, and CI/CD
+ - Verified Infobell Skills: Kubernetes, K8s, Docker, Helm, Microservices, Kafka, AWS, Terraform, Jenkins, Spring Boot, Node.js, React, GraphQL, REST APIs, Python, PostgreSQL, Redis, CI/CD, Prometheus, Grafana
 
 (Do NOT put Redbee Technologies on the resume.)
 

@@ -19,10 +19,10 @@ BODY ONLY — preamble/header locked.
 13) Dates/titles/certs: plain " - " only (spaces both sides). NEVER LaTeX -- / --- or Unicode en/em dashes.
 14) One frontend + one backend family per project; never mix C++ with Node/Python/Java/Go.
 15) Change ≤2 project stacks for unmatched JD skills only. Co-founder ONLY if JD asks.
-16) FULL JD coverage: put JD skills in Skills/tech lines even if not yet used (capability OK).
-17) LIMIT: do NOT fabricate past-tense Experience claims for genuinely unused different skills.
-18) Same-concept substitution OK (Postgres↔MySQL, Express↔Fastify, …). Different concept → Skills only.
-19) Keep real numbers/outcomes; only tool labels may change under substitution.
+16) FULL JD coverage: Kubernetes, K8s, Docker, Helm, Microservices, Kafka, Terraform, Jenkins, Prometheus, Grafana, gRPC, GraphQL, REST, Redis, AWS are verified skills under Infobell IT Solutions & Projects.
+17) EVIDENCE REQUIREMENT: Every required JD skill must be written into an Infobell/ASI or Key Project bullet with concrete evidence.
+18) Same-concept substitution OK (Kubernetes/EKS/Helm, Postgres↔MySQL, Kafka↔RabbitMQ, Express↔Fastify, …).
+19) Keep real numbers/outcomes; tool labels and evidence adapt per JD.
 20) Ban AI words: leveraged, utilized, spearheaded, orchestrated, cutting-edge, seamless, robust,
     holistic, synergy, streamline, delve, showcase, empower, foster, unlock, elevate, pivotal,
     myriad, plethora, best-in-class, state-of-the-art, impactful, passionate, excited, landscape.

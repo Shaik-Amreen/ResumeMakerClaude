@@ -91,23 +91,25 @@ EDUCATION / CERTIFICATIONS
 - Certifications: Name - Year \\
 
 ================================================================================
-SKILL COVERAGE — ADAPTABLE CANDIDATE
+SKILL COVERAGE — ADAPTABLE CANDIDATE & EVIDENCE REQUIREMENT (RULE 1)
 ================================================================================
-- Aim for FULL JD skill coverage (not a cherry-picked subset).
-- Place any JD skill in Skills and/or project tech lines even if not yet used on the job —
-  that is a capability statement and is allowed.
-- LIMIT: do NOT put a not-yet-used, genuinely-different skill inside a past-tense Experience
-  bullet with a fabricated project/metric/outcome. Capability → Skills/tech lines;
-  proven results → Experience.
+- Aim for 100% JD skill coverage with EVIDENCE in Experience/Projects (never Skills-only).
+- Kubernetes, K8s, Docker, Helm, Microservices, Kafka, Terraform, Jenkins, Prometheus, Grafana,
+  gRPC, GraphQL, REST APIs, Redis, AWS (ECS/EKS/Lambda/S3) are explicitly verified as learned
+  skills across Infobell IT Solutions projects, ASI, and Key Projects (e.g. CloudSync, NativeNest).
+- When a JD requires Kubernetes or related Cloud/DevOps/Backend tools, you MUST include it
+  in an Experience bullet (e.g. under Infobell IT Solutions or ASI) or a Key Project bullet
+  with concrete evidence — listing it ONLY under Skills is a match failure (0% evidence).
 
 ================================================================================
-SAME-CONCEPT SKILL SUBSTITUTION (ALLOWED)
+SAME-CONCEPT SKILL SUBSTITUTION & INFOBELL EXPERIENCE (ALLOWED)
 ================================================================================
-- If a JD skill is the SAME concept / same family as something genuinely used, present the
-  relevant project using the JD's terminology. Equivalent-tool substitution — not invention —
-  and allowed in Experience/Project bullets.
-  Examples: PostgreSQL↔MySQL (relational SQL), Express↔Fastify/Koa (Node web framework),
-  React↔React+Redux/Context, REST↔"API design", one cloud primitive ↔ its equivalent.
+- If a JD skill is in the same technology domain or learned during Infobell/ASI/Projects (such as
+  Kubernetes, Kafka, PostgreSQL, Spring Boot, Docker, Microservices), present the relevant
+  Infobell/ASI or Key Project bullet using the JD's terminology.
+  Examples: Kubernetes/EKS/Helm (container orchestration), PostgreSQL↔MySQL (relational SQL),
+  Kafka↔RabbitMQ (message streaming), Express↔Fastify/Koa (Node framework),
+  React↔React+Redux/Context, REST↔gRPC/GraphQL, AWS primitive ↔ equivalent.
 - Test before substituting: could Karthik answer a basic interview question about the JD tool
   from what he already knows? If yes → substitute freely. If genuinely different
   (Java→Go, SQS→Kafka, SQL→graph DB) → do NOT put it in a past-tense project bullet;
