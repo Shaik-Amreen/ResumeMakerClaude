@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { toast } from 'react-toastify';
 import {
   Briefcase,
   FileText,
@@ -10,6 +11,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { api, type TaskStatus } from '../api';
+import { useConfirm } from './ConfirmProvider';
 
 const TASK_LABELS: Record<TaskStatus['task'], string> = {
   idle: 'Idle',
@@ -32,9 +34,9 @@ interface Props {
 }
 
 export function PipelineControlPanel({ onJobsChanged, busy, setBusy }: Props) {
+  const confirm = useConfirm();
   const [limit, setLimit] = useState(50);
   const [status, setStatus] = useState<TaskStatus | null>(null);
-  const [toast, setToast] = useState('');
 
   const loadStatus = () => api.getTaskStatus().then(setStatus).catch(() => {});
 
@@ -46,14 +48,14 @@ export function PipelineControlPanel({ onJobsChanged, busy, setBusy }: Props) {
 
   const run = async (label: string, fn: () => Promise<{ message: string }>) => {
     setBusy(true);
-    setToast('');
     try {
       const r = await fn();
-      setToast(r.message);
+      toast.success(r.message);
       onJobsChanged();
       loadStatus();
     } catch (e) {
-      setToast(e instanceof Error ? e.message : `${label} failed`);
+      const errMsg = e instanceof Error ? e.message : `${label} failed`;
+      toast.error(errMsg);
     } finally {
       setBusy(false);
     }
@@ -242,13 +244,14 @@ export function PipelineControlPanel({ onJobsChanged, busy, setBusy }: Props) {
         <button
           type="button"
           disabled={busy || active}
-          onClick={() => {
-            if (
-              !confirm(
-                `Run full pipeline (max ${limit} new jobs total across all sources, then resumes)? Existing jobs are kept.`
-              )
-            )
-              return;
+          onClick={async () => {
+            const ok = await confirm({
+              title: 'Run Full Pipeline?',
+              message: `Run full pipeline (max ${limit} new jobs total across all sources, then resumes)? Existing jobs are kept.`,
+              confirmText: 'Start Pipeline',
+              variant: 'primary',
+            });
+            if (!ok) return;
             run('Pipeline', () =>
               api.runPipeline({ deleteFirst: false, perSourceCap: limit, jobType: 'fulltime' })
             );
@@ -260,8 +263,14 @@ export function PipelineControlPanel({ onJobsChanged, busy, setBusy }: Props) {
         <button
           type="button"
           disabled={busy || active}
-          onClick={() => {
-            if (!confirm('Delete ALL jobs and their resume files? This cannot be undone.')) return;
+          onClick={async () => {
+            const ok = await confirm({
+              title: 'Delete ALL Jobs?',
+              message: 'Delete ALL jobs and their resume files? This cannot be undone.',
+              confirmText: 'Delete All Jobs',
+              variant: 'danger',
+            });
+            if (!ok) return;
             run('Delete all', () => api.deleteAll());
           }}
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-red-50 text-red-800 border border-red-200 hover:bg-red-100 disabled:opacity-40"
@@ -269,8 +278,6 @@ export function PipelineControlPanel({ onJobsChanged, busy, setBusy }: Props) {
           <Trash2 size={14} /> Delete all jobs
         </button>
       </div>
-
-      {toast && <p className="text-xs text-ink-muted">{toast}</p>}
     </div>
   );
 }

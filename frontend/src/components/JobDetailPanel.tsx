@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { toast as reactToast } from 'react-toastify';
 import {
   ExternalLink,
   Upload,
@@ -20,6 +21,7 @@ import {
 import type { Job, JobStatus, ResumePhase } from '../types';
 import { api, UPLOADS_BASE } from '../api';
 import { jobApplicants, formatPostedOnPlatform, formatScrapedOn, platformLabel } from '../utils/jobFilters';
+import { useConfirm } from './ConfirmProvider';
 
 /** Safe download name: Karthik-{title} with {company}.pdf */
 function resumeDownloadFilename(title: string, company: string): string {
@@ -86,6 +88,7 @@ interface Props {
 }
 
 export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
+  const confirm = useConfirm();
   const [current, setCurrent] = useState(job);
   const [messageDraft, setMessageDraft] = useState(job.recruiterMessageDraft || '');
   const [coverLetterDraft, setCoverLetterDraft] = useState(job.coverLetterDraft || '');
@@ -166,11 +169,14 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
     try {
       await fn();
       setToast(successMsg);
+      reactToast.success(successMsg);
       onUpdated();
       const refreshed = await api.getJob(current._id);
       setCurrent(refreshed);
     } catch (e) {
-      setToast(e instanceof Error ? e.message : 'Action failed');
+      const errMsg = e instanceof Error ? e.message : 'Action failed';
+      setToast(errMsg);
+      reactToast.error(errMsg);
     } finally {
       setBusy(false);
     }
@@ -445,27 +451,35 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
           <button
             type="button"
             disabled={busy}
-            onClick={() => {
-              if (
-                !confirm(
-                  `Delete this job?\n\n${current.title} @ ${current.company}\n\nThis removes the listing and any resume PDF/TeX files.`
-                )
-              ) {
-                return;
-              }
+            onClick={async () => {
+              const ok = await confirm({
+                title: 'Delete this job?',
+                message: (
+                  <div className="space-y-2">
+                    <p className="font-semibold text-slate-800">{current.title} @ {current.company}</p>
+                    <p className="text-xs text-slate-500">This removes the listing and any resume PDF/TeX files.</p>
+                  </div>
+                ),
+                confirmText: 'Delete Job',
+                variant: 'danger',
+              });
+              if (!ok) return;
+
               setBusy(true);
               setToast('');
-              api
-                .deleteJob(current._id)
-                .then((r) => {
-                  setToast(r.message);
-                  onDeleted?.();
-                  onUpdated();
-                })
-                .catch((e) => {
-                  setToast(e instanceof Error ? e.message : 'Delete failed');
-                })
-                .finally(() => setBusy(false));
+              try {
+                const r = await api.deleteJob(current._id);
+                setToast(r.message);
+                reactToast.success(r.message || 'Job deleted');
+                onDeleted?.();
+                onUpdated();
+              } catch (e) {
+                const errMsg = e instanceof Error ? e.message : 'Delete failed';
+                setToast(errMsg);
+                reactToast.error(errMsg);
+              } finally {
+                setBusy(false);
+              }
             }}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-red-50 border border-red-200 hover:bg-red-100 text-sm text-red-800 disabled:opacity-40"
           >

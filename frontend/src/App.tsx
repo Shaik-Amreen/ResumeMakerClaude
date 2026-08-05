@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
 import {
   Briefcase,
   FileText,
@@ -14,6 +15,7 @@ import { JobDetailPanel } from './components/JobDetailPanel';
 import { JobFiltersBar } from './components/JobFiltersBar';
 import { PipelineControlPanel } from './components/PipelineControlPanel';
 import { Background3D } from './components/Background3D';
+import { useConfirm } from './components/ConfirmProvider';
 import { api, type SchedulerStatus } from './api';
 import type { Job } from './types';
 import {
@@ -68,6 +70,7 @@ function statusLabel(status: string) {
 }
 
 function App() {
+  const confirm = useConfirm();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -119,29 +122,31 @@ function App() {
     setPanelBusy(true);
     try {
       await api.runPipeline({ deleteFirst: false, perSourceCap: 50, jobType: 'fulltime' });
+      toast.success('Scraper started');
       loadJobs();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Scraper failed to start');
+      toast.error(e instanceof Error ? e.message : 'Scraper failed to start');
     } finally {
       setPanelBusy(false);
     }
   };
 
   const runFullPipeline = async () => {
-    if (
-      !confirm(
-        'Run full pipeline (FAANG → GitHub → Jobright → LinkedIn → Indeed → Google → ATS, up to 50 new jobs, then resumes)? Existing jobs are kept.'
-      )
-    ) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Run Full Pipeline?',
+      message: 'Run full pipeline (FAANG → GitHub → Jobright → LinkedIn → Indeed → Google → ATS, up to 50 new jobs, then resumes)? Existing jobs are kept.',
+      confirmText: 'Run Pipeline',
+      variant: 'primary',
+    });
+    if (!ok) return;
+    
     setPanelBusy(true);
     try {
       const r = await api.runPipeline({ deleteFirst: false, perSourceCap: 50, jobType: 'fulltime' });
-      alert(r.message);
+      toast.success(r.message);
       loadJobs();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Pipeline failed to start');
+      toast.error(e instanceof Error ? e.message : 'Pipeline failed to start');
     } finally {
       setPanelBusy(false);
     }
@@ -151,10 +156,10 @@ function App() {
     setPanelBusy(true);
     try {
       await api.refreshJobs();
-      alert('Refreshing posted dates & applicant counts for all jobs.');
+      toast.info('Refreshing posted dates & applicant counts for all jobs.');
       loadJobs();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Refresh failed');
+      toast.error(e instanceof Error ? e.message : 'Refresh failed');
     } finally {
       setPanelBusy(false);
     }
@@ -164,6 +169,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-paper text-ink relative font-sans flex flex-col">
+      <ToastContainer position="top-right" autoClose={3500} theme="colored" />
       <Background3D />
 
       <div className="relative z-10 flex flex-col flex-1 max-w-[1600px] w-full mx-auto p-4 md:p-6 gap-4 min-h-0">
@@ -190,14 +196,20 @@ function App() {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={async () => {
-                if (!confirm('Reset ALL jobs to Scraped? Clears PDFs and LaTeX.')) return;
+                const ok = await confirm({
+                  title: 'Reset All Jobs?',
+                  message: 'Reset ALL jobs to Scraped? Clears PDFs and LaTeX.',
+                  confirmText: 'Reset All',
+                  variant: 'warning',
+                });
+                if (!ok) return;
                 setScraping(true);
                 try {
                   const r = await api.resetAll();
-                  alert(r.message);
+                  toast.success(r.message);
                   loadJobs();
                 } catch (e) {
-                  alert(e instanceof Error ? e.message : 'Reset failed');
+                  toast.error(e instanceof Error ? e.message : 'Reset failed');
                 } finally {
                   setScraping(false);
                 }
