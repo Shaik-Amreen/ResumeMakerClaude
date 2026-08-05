@@ -177,12 +177,13 @@ function listFilter(list: SimplifyJobListTarget): string {
  */
 export async function scrapeSimplifyNewGradLists(
   existingIds: string[] = [],
-  jobType: JobType = 'fulltime'
+  _requestedType: JobType = 'fulltime'
 ): Promise<string[]> {
+  const jobType: JobType = 'fulltime';
   const savedIds = [...existingIds];
   const target = scrapeRunTarget();
   const source: ScrapeSource = 'simplify';
-  const modeLabel = jobType === 'fulltime' ? 'new-grad / full-time' : 'internship';
+  const modeLabel = 'new-grad / full-time';
 
   appendTaskLog(`Simplify lists — ${modeLabel} (up to ${target} new)…`);
   console.log(`\n✨ Simplify curated lists — ${modeLabel} — target ${target}`);

@@ -89,9 +89,8 @@ export function JobFiltersBar({ filters, onChange, total, visible }: Props) {
         </select>
 
         <select value={filters.jobType} onChange={(e) => set({ jobType: e.target.value })} className={inputClass}>
-          <option value="all">All types</option>
-          <option value="internship">Internship</option>
           <option value="fulltime">Full-time</option>
+          <option value="all">All types</option>
         </select>
 
         <select

@@ -174,6 +174,32 @@ test('masters F-1 eligibility skips citizenship-only but keeps no-sponsorship jo
   assert.match(skipCitizen.reason || '', /citizenship|F-1/i);
 });
 
+test('full-time targeting rejects internships and keeps new-grad SWE', () => {
+  const { isEligibleJob, isInternshipTitle, inferJobType } = require('../dist/services/eligibility');
+
+  assert.equal(isInternshipTitle('Software Engineering Intern'), true);
+  assert.equal(isInternshipTitle('Software Engineer New Grad'), false);
+  assert.equal(inferJobType('SWE Intern', 'Summer 2027 internship'), 'internship');
+  assert.equal(inferJobType('Software Engineer', 'Prior internships welcome. Full-time role.'), 'fulltime');
+
+  assert.equal(
+    isEligibleJob('internship', 'Software Engineering Intern', 'Summer 2027 software internship.'),
+    false
+  );
+  assert.equal(
+    isEligibleJob(
+      'fulltime',
+      'Software Engineer New Grad',
+      'Entry-level full-time SWE. Expected graduation January 2027. React and Node.'
+    ),
+    true
+  );
+  assert.equal(
+    isEligibleJob('fulltime', 'Software Engineering Intern', 'Summer 2027 software internship.'),
+    false
+  );
+});
+
 test('graduation filter keeps Jan 2027 and silent JDs', () => {
   const { isInternGraduationEligible } = require('../dist/services/internGraduation');
   const { shouldSkipJobDescription } = require('../dist/services/jobSkipRules');
@@ -584,6 +610,23 @@ Docker \\& Container Orchestration -- 2024 \\\\
   assert.match(out, /Amazon/);
   assert.match(out, /\\section\{\\textbf\{Skills\}\}/);
   assert.match(out, /NativeNest/);
+});
+
+test('parseModelResumeResponse unwraps Claude JSON and rejects empty prose', () => {
+  const { parseModelResumeResponse } = require('../dist/services/resumeAgent/extractLatex');
+
+  const wrapped = JSON.stringify({
+    result:
+      '\\section{\\textbf{Work Experience}}\n\\textbf{Software Engineer Intern} Amazon\n\\begin{itemize}\\item Built AWS Lambda jobs.\\end{itemize}',
+  });
+  const ok = parseModelResumeResponse(wrapped);
+  assert.match(ok.latex, /Work Experience/);
+  assert.match(ok.latex, /Amazon/);
+
+  assert.throws(
+    () => parseModelResumeResponse('Sorry, I cannot help with that.'),
+    /No LaTeX found|Preview:/i
+  );
 });
 
 test('normalizePlainHyphens converts en/em dashes to spaced plain hyphens', () => {

@@ -94,7 +94,7 @@ export const config = {
     debugPort: Number(process.env.ORANGE_DEBUG_PORT) || 9333,
     userDataDir: path.join(backendRoot, '.orange_chrome_automation'),
     headless: process.env.ORANGE_HEADLESS === 'false' ? false : process.env.ORANGE_HEADLESS === 'true',
-    /** Legacy internship searches (deprioritized — primary mode is full-time). */
+    /** Unused — tracker is full-time only. Kept so old .env URLs do not break config load. */
     internshipSearches: (
       process.env.LINKEDIN_INTERN_SEARCH_URLS ||
       [

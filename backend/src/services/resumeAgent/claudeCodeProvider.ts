@@ -77,8 +77,9 @@ export async function runClaudePrint(systemPrompt: string, userPrompt: string): 
         '--no-session-persistence',
       ];
 
+  const callStart = Date.now();
   console.log(
-    `\n🟣 Resume agent (Claude Code) — model ${model} — ${bin} -p (${userPrompt.length} char task)`
+    `\n🟣 Resume agent (Claude Code) — model ${model} — ${bin} -p (${userPrompt.length} char task, ${systemPrompt.length} char system)`
   );
 
   try {
@@ -91,7 +92,10 @@ export async function runClaudePrint(systemPrompt: string, userPrompt: string): 
       },
     });
 
+    const elapsedSec = ((Date.now() - callStart) / 1000).toFixed(1);
     const content = (stdout || '').trim();
+    console.log(`  ⏱️ Claude Code CLI returned in ${elapsedSec}s (${content.length} chars output)`);
+
     if (/401|Invalid API key|Failed to authenticate/i.test(content)) {
       throw new Error(
         `Claude Code auth failed (401 Invalid API key). ` +
@@ -128,8 +132,29 @@ export async function generateResumeWithClaudeCode(
 ): Promise<ResumeGenerationResult> {
   const systemPrompt = buildResumeSystemPrompt(ctx);
   const userPrompt = buildResumeUserPrompt(ctx.jobDescription);
-  const content = await runClaudePrint(systemPrompt, userPrompt);
-  const parsed = parseModelResumeResponse(content);
+
+  const attempt = async (prompt: string) => {
+    const content = await runClaudePrint(systemPrompt, prompt);
+    return parseModelResumeResponse(content);
+  };
+
+  let parsed: ResumeGenerationResult;
+  try {
+    parsed = await attempt(userPrompt);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!/No LaTeX found|empty output/i.test(msg)) throw err;
+    console.warn(`Claude Code first reply unusable (${msg.slice(0, 160)}) — retrying once…`);
+    const retryPrompt = [
+      userPrompt,
+      '',
+      'CRITICAL RETRY: Your previous reply had no usable LaTeX.',
+      'Output ONLY the resume body starting at \\section{\\textbf{Work Experience}} through Certifications.',
+      'No preamble, no commentary, no markdown fences required. Include \\section and \\item commands.',
+    ].join('\n');
+    parsed = await attempt(retryPrompt);
+  }
+
   console.log(
     `Claude Code LaTeX ready (${parsed.latex.length} chars)` +
       (parsed.llmMatch

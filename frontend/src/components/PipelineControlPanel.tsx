@@ -9,7 +9,7 @@ import {
   Search,
   Trash2,
 } from 'lucide-react';
-import { api, type JobType, type TaskStatus } from '../api';
+import { api, type TaskStatus } from '../api';
 
 const TASK_LABELS: Record<TaskStatus['task'], string> = {
   idle: 'Idle',
@@ -26,18 +26,12 @@ const TASK_LABELS: Record<TaskStatus['task'], string> = {
 };
 
 interface Props {
-  jobType: JobType;
   onJobsChanged: () => void;
   busy: boolean;
   setBusy: (v: boolean) => void;
 }
 
-const JOB_TYPE_LABELS: Record<JobType, string> = {
-  internship: 'Internships (legacy)',
-  fulltime: 'Full-time / new grad',
-};
-
-export function PipelineControlPanel({ jobType, onJobsChanged, busy, setBusy }: Props) {
+export function PipelineControlPanel({ onJobsChanged, busy, setBusy }: Props) {
   const [limit, setLimit] = useState(50);
   const [status, setStatus] = useState<TaskStatus | null>(null);
   const [toast, setToast] = useState('');
@@ -83,8 +77,8 @@ export function PipelineControlPanel({ jobType, onJobsChanged, busy, setBusy }: 
         <div>
           <h2 className="text-sm font-semibold text-ink">Pipeline controls</h2>
           <p className="text-xs text-ink-muted mt-0.5">
-            Mode: <span className="text-primary-500 font-medium">{JOB_TYPE_LABELS[jobType]}</span> · Karthik Chrome
-            (port 9333) must stay open.
+            Mode: <span className="text-primary-500 font-medium">Full-time / new grad</span> · internships ignored ·
+            Karthik Chrome (port 9333) must stay open.
           </p>
         </div>
         <label className="flex items-center gap-2 text-sm text-ink-muted">
@@ -169,7 +163,7 @@ export function PipelineControlPanel({ jobType, onJobsChanged, busy, setBusy }: 
         <button
           type="button"
           disabled={busy || active}
-          onClick={() => run('FAANG portals', () => api.scrapeFaangPortals(limit, jobType))}
+          onClick={() => run('FAANG portals', () => api.scrapeFaangPortals(limit, 'fulltime'))}
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-orange-50 text-orange-900 border border-orange-200 hover:bg-orange-100 disabled:opacity-40"
         >
           <Briefcase size={14} /> Scrape FAANG
@@ -177,7 +171,7 @@ export function PipelineControlPanel({ jobType, onJobsChanged, busy, setBusy }: 
         <button
           type="button"
           disabled={busy || active}
-          onClick={() => run('GitHub lists', () => api.scrapeGithubLists(limit, jobType))}
+          onClick={() => run('GitHub lists', () => api.scrapeGithubLists(limit, 'fulltime'))}
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-slate-800 text-white border border-slate-700 hover:bg-slate-700 disabled:opacity-40"
         >
           <Search size={14} /> Scrape GitHub + Simplify
@@ -185,7 +179,7 @@ export function PipelineControlPanel({ jobType, onJobsChanged, busy, setBusy }: 
         <button
           type="button"
           disabled={busy || active}
-          onClick={() => run('Jobright', () => api.scrapeJobright(limit, jobType))}
+          onClick={() => run('Jobright', () => api.scrapeJobright(limit, 'fulltime'))}
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-violet-50 text-violet-800 border border-violet-200 hover:bg-violet-100 disabled:opacity-40"
         >
           <Search size={14} /> Scrape Jobright
@@ -193,7 +187,7 @@ export function PipelineControlPanel({ jobType, onJobsChanged, busy, setBusy }: 
         <button
           type="button"
           disabled={busy || active}
-          onClick={() => run('LinkedIn', () => api.scrapeLinkedIn(limit, jobType))}
+          onClick={() => run('LinkedIn', () => api.scrapeLinkedIn(limit, 'fulltime'))}
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-sky-50 text-sky-800 border border-sky-200 hover:bg-sky-100 disabled:opacity-40"
         >
           <Globe size={14} /> Scrape LinkedIn
@@ -201,7 +195,7 @@ export function PipelineControlPanel({ jobType, onJobsChanged, busy, setBusy }: 
         <button
           type="button"
           disabled={busy || active}
-          onClick={() => run('Indeed', () => api.scrapeIndeed(limit, jobType))}
+          onClick={() => run('Indeed', () => api.scrapeIndeed(limit, 'fulltime'))}
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-indigo-50 text-indigo-900 border border-indigo-200 hover:bg-indigo-100 disabled:opacity-40"
         >
           <Briefcase size={14} /> Scrape Indeed
@@ -209,7 +203,7 @@ export function PipelineControlPanel({ jobType, onJobsChanged, busy, setBusy }: 
         <button
           type="button"
           disabled={busy || active}
-          onClick={() => run('Google Jobs', () => api.scrapeCareerPortals(limit, jobType))}
+          onClick={() => run('Google Jobs', () => api.scrapeCareerPortals(limit, 'fulltime'))}
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100 disabled:opacity-40"
         >
           <Briefcase size={14} /> Scrape Google
@@ -217,7 +211,7 @@ export function PipelineControlPanel({ jobType, onJobsChanged, busy, setBusy }: 
         <button
           type="button"
           disabled={busy || active}
-          onClick={() => run('ATS boards', () => api.scrapeAts(limit, jobType))}
+          onClick={() => run('ATS boards', () => api.scrapeAts(limit, 'fulltime'))}
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-teal-50 text-teal-800 border border-teal-200 hover:bg-teal-100 disabled:opacity-40"
         >
           <Globe size={14} /> Scrape ATS (Greenhouse/Lever)
@@ -256,7 +250,7 @@ export function PipelineControlPanel({ jobType, onJobsChanged, busy, setBusy }: 
             )
               return;
             run('Pipeline', () =>
-              api.runPipeline({ deleteFirst: false, perSourceCap: limit, jobType })
+              api.runPipeline({ deleteFirst: false, perSourceCap: limit, jobType: 'fulltime' })
             );
           }}
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-40"

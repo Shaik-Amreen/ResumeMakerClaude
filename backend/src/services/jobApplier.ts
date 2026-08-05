@@ -31,7 +31,7 @@ export async function autoApplyToJob(jobId: string) {
     return applyLinkedInJob(jobId);
   }
 
-  if (job.jobType === 'internship') {
+  if (String(job.jobType) === 'internship') {
     throw new Error(
       'This internship is not a LinkedIn Easy Apply listing. Open the company link and apply manually.'
     );

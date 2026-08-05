@@ -1,8 +1,8 @@
 import { config } from '../config';
 import { isPipelineRunning, isScrapeRunning, runMasterPipeline } from './orchestratorService';
 
-/** Continuous scrape → resume cycles (default full-time / new-grad for Karthik). */
-export type ScheduleWindow = 'job_cycle' | 'internship_cycle' | 'idle';
+/** Continuous scrape → resume cycles (full-time / new-grad only). */
+export type ScheduleWindow = 'job_cycle' | 'idle';
 
 function pacificHourMinute(): { hour: number; minute: number } {
   const fmt = new Intl.DateTimeFormat('en-US', {
@@ -17,8 +17,8 @@ function pacificHourMinute(): { hour: number; minute: number } {
   return { hour, minute };
 }
 
-function schedulerJobType(): 'internship' | 'fulltime' {
-  return process.env.SCHEDULER_JOB_TYPE === 'internship' ? 'internship' : 'fulltime';
+function schedulerJobType(): 'fulltime' {
+  return 'fulltime';
 }
 
 let running = false;
@@ -39,7 +39,7 @@ async function runScheduledCycle() {
   if (running || isScrapeRunning() || isPipelineRunning()) return;
   running = true;
   const jobType = schedulerJobType();
-  const label = jobType === 'fulltime' ? 'full-time / new-grad' : 'internship (legacy)';
+  const label = 'full-time / new-grad';
 
   try {
     console.log(`\n⏰ Scheduler [${config.scheduler.timezone}] — ${label} cycle`);
@@ -74,8 +74,7 @@ function tick() {
 
 export function currentWindow(): ScheduleWindow {
   if (!config.scheduler.enabled) return 'idle';
-  if (running) return schedulerJobType() === 'internship' ? 'internship_cycle' : 'job_cycle';
-  return schedulerJobType() === 'internship' ? 'internship_cycle' : 'job_cycle';
+  return 'job_cycle';
 }
 
 export function startJobScheduler() {
@@ -90,12 +89,12 @@ export function startJobScheduler() {
   console.log(
     `Job scheduler on (${config.scheduler.timezone}) — now ${hour}:${String(minute).padStart(2, '0')}`
   );
-  console.log(`  24/7 ${jobType === 'fulltime' ? 'full-time / new-grad' : 'internship'} mode:`);
+  console.log('  24/7 full-time / new-grad mode:');
   console.log('    FAANG → GitHub → Jobright → LinkedIn → Indeed → Google → ATS');
   console.log('    Generate resumes one-by-one');
   console.log('    LinkedIn Easy Apply (you approve message + Submit)');
   console.log('    FAANG/MANGO: email alert only — never auto-apply');
-  console.log(`  Cooldown between cycles: ${cooldownH}h (SCHEDULER_JOB_TYPE=${jobType})`);
+  console.log(`  Cooldown between cycles: ${cooldownH}h (full-time only)`);
 
   setTimeout(() => tick(), 5000);
   setInterval(tick, config.scheduler.checkIntervalMs);
@@ -107,11 +106,7 @@ export function getSchedulerStatus() {
   const remaining =
     lastCycleEndedAt > 0 ? Math.max(0, cooldown - (Date.now() - lastCycleEndedAt)) : 0;
   const jobType = schedulerJobType();
-  const window = running
-    ? jobType === 'internship'
-      ? ('internship_cycle' as const)
-      : ('job_cycle' as const)
-    : ('idle' as const);
+  const window = running ? ('job_cycle' as const) : ('idle' as const);
   return {
     enabled: config.scheduler.enabled,
     timezone: config.scheduler.timezone,

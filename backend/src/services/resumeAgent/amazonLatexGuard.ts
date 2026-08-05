@@ -128,46 +128,86 @@ export function shortenHeaderRoleTitle(
   return 'Software Engineer';
 }
 
-function headerLinePlain(title: string, includeRelocate: boolean): string {
-  const parts = [title];
-  if (includeRelocate) parts.push('Open to Relocate');
-  parts.push(HEADER_CONTACT_PLAIN);
-  return parts.join(' | ');
-}
-
 /**
- * Lock header to Karthik standard:
- * Name | short Title | [Open to Relocate] | Email | Phone | California | LinkedIn | Portfolio | GitHub
- * Drops "Open to Relocate" when the title line would wrap to a second line.
+ * Lock header to Karthik standard (EXACTLY 3 LINES):
+ * Line 1: KARTHIK KOVI
+ * Line 2: Title | [Open to Relocate] | Email | Phone | [California, USA]
+ * Line 3: LinkedIn | [Portfolio] | GitHub
+ * Prunes low-priority details (Open to Relocate -> California, USA -> Portfolio) if any line exceeds 92 plain chars.
  */
 export function applyJdHeaderTagline(
   latex: string,
   opts?: { title?: string; jobDescription?: string; company?: string }
 ): string {
   const safeTitle = shortenHeaderRoleTitle(opts?.title, opts?.jobDescription).replace(/[{}%\\]/g, '');
-  const includeRelocate =
-    headerLinePlain(safeTitle, true).length <= MAX_HEADER_LINE_PLAIN;
 
-  const relocateChunk = includeRelocate
-    ? '\n    {Open to Relocate} \\,\\textbar\\,'
-    : '';
-  const titleLine = `{${safeTitle}} \\,\\textbar\\,${relocateChunk}`;
+  const email = '\\href{mailto:karthikkovik@gmail.com}{karthikkovik@gmail.com}';
+  const phone = '\\href{tel:+15622840297}{+1 (562) 284-0297}';
+  const relocate = '{Open to Relocate}';
+  const location = 'California, USA';
 
-  // Replace existing title (+ optional Open to Relocate); leave email/phone line intact.
-  const headerBlockRe =
-    /(\\textbf\{\\Huge \\scshape Karthik Kovi\}\\\\(?:\[-2pt\])?\s*\n)\s*\{[^}\n]*\}\s*\\,\s*\\textbar\\,(?:\s*\n\s*\{Open to Relocate\}\s*\\,\s*\\textbar\\,)?/i;
+  // Determine line 2 items based on plain length (target <= 92 plain chars)
+  let includeRelocate = true;
+  let includeLocation = true;
 
-  if (headerBlockRe.test(latex)) {
-    let out = latex.replace(headerBlockRe, `$1${titleLine}\n    `);
-    if (!includeRelocate) {
-      out = out.replace(/\n\s*\{Open to Relocate\}\s*\\,\s*\\textbar\\,/gi, '');
-    }
-    return out;
+  const getLine2Plain = (rel: boolean, loc: boolean) => {
+    const p = [safeTitle];
+    if (rel) p.push('Open to Relocate');
+    p.push('karthikkovik@gmail.com', '+1 (562) 284-0297');
+    if (loc) p.push('California, USA');
+    return p.join(' | ');
+  };
+
+  if (getLine2Plain(true, true).length > 92) {
+    includeRelocate = false;
+  }
+  if (getLine2Plain(false, true).length > 92) {
+    includeLocation = false;
+  }
+
+  const line2Parts: string[] = [`{${safeTitle}}`];
+  if (includeRelocate) line2Parts.push(relocate);
+  line2Parts.push(email, phone);
+  if (includeLocation) line2Parts.push(location);
+  const line2Code = line2Parts.join(' \\,\\textbar\\, ') + '\\\\';
+
+  // Determine line 3 items
+  const linkedin = '\\href{https://www.linkedin.com/in/karthikkovi}{linkedin.com/in/karthikkovi}';
+  const portfolio = '\\href{https://karthikkovi.com}{karthikkovi.com}';
+  const github = '\\href{https://github.com/kovikarthik}{github.com/kovikarthik}';
+
+  let includePortfolio = true;
+  const getLine3Plain = (port: boolean) => {
+    const p = ['linkedin.com/in/karthikkovi'];
+    if (port) p.push('karthikkovi.com');
+    p.push('github.com/kovikarthik');
+    return p.join(' | ');
+  };
+
+  if (getLine3Plain(true).length > 92) {
+    includePortfolio = false;
+  }
+
+  const line3Parts: string[] = [linkedin];
+  if (includePortfolio) line3Parts.push(portfolio);
+  line3Parts.push(github);
+  const line3Code = line3Parts.join(' \\,\\textbar\\, ');
+
+  const newHeaderBlock = [
+    '\\begin{center}',
+    ' \\textbf{\\Huge \\scshape Karthik Kovi}\\\\[-2pt]',
+    ` ${line2Code}`,
+    ` ${line3Code}`,
+    '\\end{center}',
+  ].join('\n');
+
+  if (/\\begin\{center\}[\s\S]*?\\end\{center\}/i.test(latex)) {
+    return latex.replace(/\\begin\{center\}[\s\S]*?\\end\{center\}/i, newHeaderBlock);
   }
 
   return latex.replace(
-    /(\\textbf\{\\Huge \\scshape Karthik Kovi\}\\\\(?:\[-2pt\])?\s*\n)/i,
-    `$1${titleLine}\n    `
+    /(\\begin\{document\}\s*)/i,
+    `$1\n${newHeaderBlock}\n\n`
   );
 }
 

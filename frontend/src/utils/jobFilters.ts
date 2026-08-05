@@ -126,7 +126,7 @@ export const DEFAULT_FILTERS: JobFilters = {
   source: 'all',
   status: 'all',
   priority: 'all',
-  jobType: 'all',
+  jobType: 'fulltime',
   hasApplicants: 'all',
   hasPosted: 'all',
   sort: 'priority',

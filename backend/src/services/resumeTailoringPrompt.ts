@@ -37,11 +37,7 @@ export function buildResumeSystemPrompt(ctx: ResumeJobContext): string {
   const careerKb = readAsset('Karthik_COMPLETE_CAREER_KNOWLEDGE_BASE.md').slice(0, 14000);
 
   const gradRule =
-    ctx.jobType === 'internship'
-      ? 'INTERNSHIP — MS graduation date: January 2027 (legacy mode; prefer full-time).'
-      : ctx.jobType === 'fulltime'
-        ? 'FULL-TIME — MS graduation date: January 2027.'
-        : 'Prefer full-time (January 2027 grad) unless JD clearly says internship.';
+    'FULL-TIME / NEW-GRAD only — MS graduation date: January 2027. Never tailor for internships.';
 
   const roleContext = [
     ctx.title && `Target role: ${ctx.title}`,
@@ -71,9 +67,9 @@ export function buildResumeSystemPrompt(ctx: ResumeJobContext): string {
     'You MUST rewrite Skills, experience bullets, and project stacks for THIS JD.',
     'BOLD: job title, \\uline{\\textbf{company}}, dates, tech+metrics in bullets, skill labels, \\href{\\textbf{project}}.',
     'NOT bold: header role {Software Engineer}, project stack after \\textbar {React, ...}.',
-    'Header: Name | short Title | [Open to Relocate] | Email | Phone | California | LinkedIn | Portfolio | GitHub.',
+    'Header MUST be EXACTLY 3 lines: Line 1 Name | Line 2 Title + Open to Relocate + Email + Phone + Location | Line 3 LinkedIn + Portfolio + GitHub.',
     'Title = Software Engineer / Backend Engineer / Frontend Engineer / Full Stack Engineer (never full JD title).',
-    'Drop Open to Relocate if the title+contact line would wrap.',
+    'Prune low-priority details on overflow: drop Open to Relocate first, California, USA second, karthikkovi.com third.',
     'After every \\section{\\textbf{...}}: \\vspace{2pt}. Between Key Projects: \\vspace{2pt}.',
     'Experience itemize: [itemsep=2pt, topsep=2pt, parsep=0pt, partopsep=0pt, leftmargin=10pt] (never bare itemize).',
     'EACH \\item = ONE complete printed line (target 80–95 plain chars, max 95). Ends with period — never mid-phrase cut.',
@@ -116,7 +112,7 @@ export function buildResumeSystemPrompt(ctx: ResumeJobContext): string {
     'FINAL CHECKLIST (Rules 1-22 — ALL REQUIRED):',
     '□ R1: every JD tech skill evidenced in a bullet (100%, not skills-list only)',
     '□ R2/R11: amazon Times LaTeX; VISUAL LOCK; EXACTLY 1 PAGE (never 2) — trim content, never change gaps',
-    '□ R3: header Name|short Title|[Open to Relocate]|Email|Phone|California|LinkedIn|Portfolio|GitHub (drop relocate if wrap)',
+    '□ R3: header EXACTLY 3 lines (Name / Title+Contact / Links); prune low-priority details (Relocate, Location, Portfolio) on overflow',
     '□ R4: Work Experience → Skills → Key Projects → Education → Certifications; each section + \\vspace{2pt}',
     '□ R5: Education matches standard template (GPA/location/dates OK); \\uline{\\textbf{school}}',
     '□ R6: plain " - " hyphens with spaces both sides; never -- / --- / en/em dashes; no mid-phrase bullet cuts',
@@ -169,7 +165,7 @@ export function buildResumeUserPrompt(jobDescription: string): string {
     '3c) Adaptable: ALL JD skills in Skills/tech lines OK. No fake past-tense Experience for unused different skills. Same-concept swap OK.',
     '4) Education matches standard template. EXACTLY 1 page (never 2) — trim projects/bullets to fit.',
     '5) Cover EVERY required/preferred JD skill (R1: 100%). Proven work → Experience; capability-only → Skills/tech lines (R23/R24).',
-    '6) VISUAL LOCK + EXACTLY 1 PAGE: amazonResumeTemplate.tex bold/gaps; short header; Open to Relocate only if title line fits.',
+    '6) VISUAL LOCK + EXACTLY 1 PAGE: amazonResumeTemplate.tex bold/gaps; 3-line header; auto-prune low priority details on overflow.',
     '7) itemize MUST include [itemsep=2pt, topsep=2pt, parsep=0pt, partopsep=0pt, leftmargin=10pt]; bold tech+metrics in bullets.',
     '8) If content would spill to page 2: drop weakest projects (keep ≥3 LINKED), cut to 3–4 complete bullets/job — rewrite, do not truncate mid-line.',
     '',
@@ -201,11 +197,7 @@ export function buildPasteToLatexSystemPrompt(ctx: PasteResumeContext): string {
 
   const careerKb = readAsset('Karthik_COMPLETE_CAREER_KNOWLEDGE_BASE.md').slice(0, 10000);
   const gradRule =
-    ctx.jobType === 'internship'
-      ? 'INTERNSHIP — MS graduation date: January 2027 (legacy mode; prefer full-time).'
-      : ctx.jobType === 'fulltime'
-        ? 'FULL-TIME — MS graduation date: January 2027.'
-        : 'Prefer full-time (January 2027) unless JD clearly says internship.';
+    'FULL-TIME / NEW-GRAD only — MS graduation date: January 2027. Never tailor for internships.';
 
   return [
     'You convert a pasted resume into amazon.pdf-style LaTeX for Karthik Kovi using his standard template.',
@@ -229,7 +221,7 @@ export function buildPasteToLatexSystemPrompt(ctx: PasteResumeContext): string {
     '',
     'Use the PASTED resume as the primary content source. Map roles/projects/skills into amazon sections.',
     'If a JD is also provided, reorder skills and rewrite bullets to match it (Rule 1/19).',
-    '3–5 bullets/job, Key Projects from pool (4–5 max, ≥3 LINKED), EXACTLY 1 page; short header title; Open to Relocate only if title line fits.',
+    '3–5 bullets/job, Key Projects from pool (4–5 max, ≥3 LINKED), EXACTLY 1 page; 3-line header (prune low-priority details on overflow).',
   ]
     .filter(Boolean)
     .join('\n\n');

@@ -1,5 +1,4 @@
 import { maxExperienceAllowed, parseExperienceRequirement } from './jobSkipRules';
-import { isInternGraduationEligible } from './internGraduation';
 
 export type JobType = 'internship' | 'fulltime';
 export { isInternGraduationEligible } from './internGraduation';
@@ -13,7 +12,7 @@ const FULLTIME_GRAD_PATTERNS = [
   /\bclass\s+of\s*2027\b/i,
 ];
 
-const INTERN_TITLE_HINTS = /\b(intern(ship)?|co-?op|summer)\b/i;
+const INTERN_TITLE_HINTS = /\b(intern(ship)?|co-?op)\b/i;
 const FULLTIME_TITLE_HINTS =
   /\b(new\s*grad|entry[\s-]?level|full[\s-]?time|associate|software\s+engineer(?!\s+intern)|\d\s*[-–to+]+\s*\d*\s*years?)\b/i;
 
@@ -51,9 +50,6 @@ const NON_SOFTWARE_EXCLUSIONS = [
   /\boptics\s+engineer\b/i,
 ];
 
-const SUMMER_2027_HINTS =
-  /\b(summer\s*2027|2027\s+summer|intern.*2027|2027.*intern)\b/i;
-
 function matchesAny(text: string, patterns: RegExp[]) {
   return patterns.some((pattern) => pattern.test(text));
 }
@@ -69,20 +65,13 @@ export function isSoftwareRole(title: string, description: string): boolean {
   return SOFTWARE_HINTS.test(text);
 }
 
-export function inferJobType(title: string, description: string): JobType {
-  const combined = `${title} ${description}`;
-  if (INTERN_TITLE_HINTS.test(title) || /\bintern\b/i.test(combined)) {
-    return 'internship';
-  }
-  if (FULLTIME_TITLE_HINTS.test(title)) {
-    return 'fulltime';
-  }
-  if (parseExperienceRequirement(`${title} ${description}`).min > 0 && !/\bintern\b/i.test(combined)) {
-    return 'fulltime';
-  }
-  if (/\b2027\b/i.test(title) && !/\bintern\b/i.test(title)) {
-    return 'fulltime';
-  }
+/** Title-only: JD text often mentions prior internships on full-time postings. */
+export function isInternshipTitle(title: string): boolean {
+  return INTERN_TITLE_HINTS.test(title);
+}
+
+export function inferJobType(title: string, _description?: string): JobType {
+  if (isInternshipTitle(title)) return 'internship';
   return 'fulltime';
 }
 
@@ -93,22 +82,15 @@ export function isEligibleJob(jobType: JobType, title: string, description: stri
     return false;
   }
 
-  if (jobType === 'internship') {
-    const isInternRole = INTERN_TITLE_HINTS.test(title) || /\bintern(ship)?\b/i.test(text);
-    if (!isInternRole) return false;
-
-    const summer2027 = SUMMER_2027_HINTS.test(text) || /\b2027\b/i.test(text);
-    if (!summer2027) return false;
-
-    return isInternGraduationEligible(title, description);
+  // Karthik targets full-time / new-grad only — never internships or co-ops.
+  if (jobType === 'internship' || isInternshipTitle(title)) {
+    return false;
   }
 
   const isFtRole =
     FULLTIME_TITLE_HINTS.test(title) ||
     /\b(software|developer|engineer)\b/i.test(title);
   if (!isFtRole) return false;
-
-  if (INTERN_TITLE_HINTS.test(title) || /\bintern(ship)?\b/i.test(text)) return false;
 
   if (SENIOR_TITLE_BLOCK.test(title) && !/\b(associate|entry|new\s*grad)\b/i.test(title)) {
     return false;
@@ -145,8 +127,6 @@ export function isEligibleJob(jobType: JobType, title: string, description: stri
   return false;
 }
 
-export function eligibilityReason(jobType: JobType): string {
-  return jobType === 'internship'
-    ? 'Software internship — MS grad January 2027 (legacy mode)'
-    : 'Full-time software — new grad / entry-level / up to ~3.5 years (MS grad January 2027)';
+export function eligibilityReason(_jobType?: JobType): string {
+  return 'Full-time software — new grad / entry-level / up to ~3.5 years (MS grad January 2027)';
 }

@@ -193,29 +193,22 @@ async function savePortalJobs(
  */
 export async function scrapeFaangPriorityPortals(
   existingIds: string[] = [],
-  jobType: 'internship' | 'fulltime' = 'fulltime'
+  _requestedType: 'internship' | 'fulltime' = 'fulltime'
 ): Promise<string[]> {
+  const jobType = 'fulltime' as const;
   const savedIds = [...existingIds];
   const target = scrapeRunTarget();
-  const modeLabel = jobType === 'fulltime' ? 'new-grad / full-time' : 'internship';
+  const modeLabel = 'new-grad / full-time';
   appendTaskLog(`FAANG portals — ${modeLabel} (up to ${target} new)…`);
   console.log(`\n⭐ FAANG priority portals — ${modeLabel} — target ${target}`);
 
   // Amazon JSON API (no browser)
-  const amazonQueries =
-    jobType === 'fulltime'
-      ? [
-          'Software Development Engineer New Grad',
-          'Software Engineer University Graduate',
-          'SDE I new grad',
-          'Software Development Engineer I',
-        ]
-      : [
-          'Software Development Engineer Intern 2027',
-          'SDE Intern Summer 2027',
-          'software engineering intern 2027',
-          'Software Development Engineer Intern',
-        ];
+  const amazonQueries = [
+    'Software Development Engineer New Grad',
+    'Software Engineer University Graduate',
+    'SDE I new grad',
+    'Software Development Engineer I',
+  ];
   for (const q of amazonQueries) {
     if (shouldAbortScrape() || savedIds.length >= target) break;
     appendTaskLog(`Amazon API search: "${q}"`);

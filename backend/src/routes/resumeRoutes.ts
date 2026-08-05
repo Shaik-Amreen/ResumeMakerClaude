@@ -15,10 +15,8 @@ import type { JobType } from '../models/Job';
 
 const router = Router();
 
-function parseJobType(raw: unknown): JobType | undefined {
-  if (raw === 'fulltime') return 'fulltime';
-  if (raw === 'internship') return 'internship';
-  return undefined;
+function parseJobType(_raw: unknown): JobType {
+  return 'fulltime';
 }
 
 /** Pull JD + metadata from JSON, urlencoded form, or raw text/plain body. */

@@ -8,20 +8,14 @@ import { saveJobIfNew } from './scrapeUtils';
 import { shouldAbortScrape } from './scrapeContext';
 import { appendTaskLog, incrementScraped, logScrapingUrl, setTaskProgress } from './taskStatusService';
 
-function searchUrls(kind: 'internship' | 'fulltime' = 'internship'): string[] {
-  if (kind === 'fulltime') {
-    const list = config.jobright.fullTimeSearches?.length
-      ? config.jobright.fullTimeSearches
-      : [config.jobright.fullTimeSearchUrl];
-    return list.filter(Boolean);
-  }
-  const list = config.jobright.searches?.length
-    ? config.jobright.searches
-    : [config.jobright.searchUrl];
+function searchUrls(_kind: 'internship' | 'fulltime' = 'fulltime'): string[] {
+  const list = config.jobright.fullTimeSearches?.length
+    ? config.jobright.fullTimeSearches
+    : [config.jobright.fullTimeSearchUrl];
   return list.filter(Boolean);
 }
 
-function orangeProfile(kind: 'internship' | 'fulltime' = 'internship') {
+function orangeProfile(kind: 'internship' | 'fulltime' = 'fulltime') {
   const { linkedin } = config;
   return {
     kind: 'orange' as const,
@@ -236,8 +230,9 @@ async function readJobrightDetail(driver: WebDriver): Promise<{
  */
 export async function scrapeJobrightJobs(
   savedJobIds: string[],
-  jobType: 'internship' | 'fulltime' = 'internship'
+  _requestedType: 'internship' | 'fulltime' = 'fulltime'
 ): Promise<string[]> {
+  const jobType = 'fulltime' as const;
   const target = scrapeRunTarget();
   // Over-collect — citizenship / non-software / dupes remove many; keep bounded for small runs
   const collectNeed = Math.max(target * 5, Math.min(100, target + 35));
@@ -245,7 +240,7 @@ export async function scrapeJobrightJobs(
   let driver: WebDriver | null = null;
   try {
     driver = await attachDriver(orangeProfile(jobType));
-    const label = jobType === 'fulltime' ? 'full-time software' : 'Summer 2027';
+    const label = 'full-time software';
     const urls = searchUrls(jobType);
     console.log(`\n🎯 Jobright — ${label} — save up to ${target} new jobs across ${urls.length} search(es)`);
     appendTaskLog(`Jobright: targeting ${target} new jobs across ${urls.length} search(es)`);

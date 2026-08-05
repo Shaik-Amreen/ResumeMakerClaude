@@ -66,6 +66,7 @@ export async function runResumePipelineQueue(
   withOutreach = false,
   startIndex = 0
 ) {
+  let failed = 0;
   for (let i = startIndex; i < jobIds.length; i++) {
     if (shouldAbortScrape()) {
       appendTaskLog(`Resume queue stopped at ${i}/${jobIds.length}`);
@@ -73,7 +74,16 @@ export async function runResumePipelineQueue(
     }
     setResumeProgress(i + 1, jobIds.length);
     appendTaskLog(`📄 Resume ${i + 1}/${jobIds.length}`);
-    await enqueueResume(jobIds[i]);
+    try {
+      await enqueueResume(jobIds[i]);
+    } catch (err) {
+      failed += 1;
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`Resume ${i + 1}/${jobIds.length} failed:`, err);
+      appendTaskLog(`❌ Resume ${i + 1}/${jobIds.length} failed — ${msg.slice(0, 180)}`);
+      // Continue the batch; one bad Claude reply must not abort the remaining jobs.
+      continue;
+    }
     if (withOutreach) {
       try {
         await generateOutreachArtifacts(jobIds[i]);
@@ -81,6 +91,9 @@ export async function runResumePipelineQueue(
         console.error(`Outreach failed for ${jobIds[i]}:`, err);
       }
     }
+  }
+  if (failed > 0) {
+    appendTaskLog(`Batch finished with ${failed} resume failure(s) of ${jobIds.length}.`);
   }
 }
 
@@ -99,7 +112,7 @@ export async function runResumesForScrapedJobs(options?: {
   const limit = options?.limit && options.limit > 0 ? options.limit : 0;
   try {
     // Only jobs that have never left scraped — do not retry failed / partial / generating.
-    const query = Job.find({ status: 'scraped' }).sort({ createdAt: 1 });
+    const query = Job.find({ status: 'scraped', jobType: 'fulltime' }).sort({ createdAt: 1 });
     const jobs = limit ? await query.limit(limit) : await query;
     const jobIds = jobs.map((j) => j.id);
 
@@ -287,13 +300,13 @@ export async function runMasterPipeline(options?: {
   pipelineRunning = true;
   clearStopRequest();
   const totalCap = options?.perSourceCap ?? config.pipeline.perSourceCap;
-  const jobType = options?.jobType ?? 'fulltime';
+  const jobType = 'fulltime' as const;
   let deleted = 0;
   let remaining = totalCap;
 
   startTask(
     'master_pipeline',
-    `Master pipeline started — ${jobType === 'fulltime' ? 'full-time / new-grad' : 'internship (legacy)'} (max ${totalCap} jobs total)`,
+    `Master pipeline started — full-time / new-grad (max ${totalCap} jobs total)`,
     'init'
   );
 

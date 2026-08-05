@@ -6,7 +6,7 @@ BODY ONLY — preamble/header locked.
 
 1) 100% JD keyword match with evidence in Experience/Projects (not Skills-only).
 2) LaTeX letterpaper 11pt Times; exact template geometry; EXACTLY 1 page.
-3) Header: short Title | [Open to Relocate] | Email | Phone | California | LinkedIn | Portfolio | GitHub (drop relocate if wrap).
+3) Header: wrapped in EXACTLY 3 lines (Name / Title+Contact / Links); prune low-priority details (Relocate, Location, Portfolio) on overflow.
 4) Sections: Work Experience → Skills → Key Projects → Education → Certifications; each + \vspace{2pt}.
 5) Experience: \textbf{Title} \hfill \uline{\textbf{Company}} \hfill \hspace{0.1em} \textbf{dates}
 6) Itemize: [itemsep=2pt, topsep=2pt, parsep=0pt, partopsep=0pt, leftmargin=10pt]

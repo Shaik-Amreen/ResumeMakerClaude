@@ -149,7 +149,7 @@ router.post('/run-pipeline', async (req: Request, res: Response) => {
 
     const deleteFirst = req.body?.deleteFirst === true;
     const perSourceCap = Number(req.body?.perSourceCap) || config.pipeline.perSourceCap;
-    const jobType = req.body?.jobType === 'internship' ? 'internship' : 'fulltime';
+    const jobType = 'fulltime' as const;
 
     runMasterPipeline({ deleteFirst, perSourceCap, jobType }).catch(console.error);
 
@@ -216,7 +216,7 @@ router.post('/generate-resumes', async (req: Request, res: Response) => {
     }
     const limit = Number(req.body?.limit) || 0;
     const withOutreach = req.body?.withOutreach === true;
-    const pending = await Job.countDocuments({ status: 'scraped' });
+    const pending = await Job.countDocuments({ status: 'scraped', jobType: 'fulltime' });
     const count = limit > 0 ? Math.min(limit, pending) : pending;
 
     runResumesForScrapedJobs({ limit: limit || undefined, withOutreach }).catch(console.error);
@@ -240,7 +240,7 @@ router.post('/scrape/jobright', async (req: Request, res: Response) => {
       return res.status(409).json({ message: 'Scrape or pipeline already running.' });
     }
     const cap = parseScrapeCap(req.body);
-    const jobType = req.body?.jobType === 'internship' ? 'internship' : 'fulltime';
+    const jobType = 'fulltime' as const;
     runScrapeJobright(cap, jobType).catch(console.error);
     res.json({ message: `Jobright scrape started — up to ${cap} new jobs. Karthik Chrome must stay open.` });
   } catch (error) {
@@ -254,7 +254,7 @@ router.post('/scrape/linkedin', async (req: Request, res: Response) => {
       return res.status(409).json({ message: 'Scrape or pipeline already running.' });
     }
     const cap = parseScrapeCap(req.body);
-    const jobType = req.body?.jobType === 'internship' ? 'internship' : 'fulltime';
+    const jobType = 'fulltime' as const;
     runScrapeLinkedIn(cap, jobType).catch(console.error);
     res.json({ message: `LinkedIn scrape started — up to ${cap} new jobs (skips duplicates).` });
   } catch (error) {
@@ -268,9 +268,9 @@ router.post('/scrape/indeed', async (req: Request, res: Response) => {
       return res.status(409).json({ message: 'Scrape or pipeline already running.' });
     }
     const cap = parseScrapeCap(req.body);
-    const jobType = req.body?.jobType === 'internship' ? 'internship' : 'fulltime';
+    const jobType = 'fulltime' as const;
     runScrapeIndeed(cap, jobType).catch(console.error);
-    res.json({ message: `Indeed scrape started — up to ${cap} new ${jobType} jobs.` });
+    res.json({ message: `Indeed scrape started — up to ${cap} new full-time jobs.` });
   } catch (error) {
     res.status(500).json({ message: 'Error starting Indeed scrape', error });
   }
@@ -282,10 +282,10 @@ router.post('/scrape/ats', async (req: Request, res: Response) => {
       return res.status(409).json({ message: 'Scrape or pipeline already running.' });
     }
     const cap = parseScrapeCap(req.body);
-    const jobType = req.body?.jobType === 'internship' ? 'internship' : 'fulltime';
+    const jobType = 'fulltime' as const;
     runScrapeAts(cap, jobType).catch(console.error);
     res.json({
-      message: `ATS board scrape started (Greenhouse + Lever, free public APIs) — up to ${cap} new ${jobType} jobs.`,
+      message: `ATS board scrape started (Greenhouse + Lever, free public APIs) — up to ${cap} new full-time jobs.`,
     });
   } catch (error) {
     res.status(500).json({ message: 'Error starting ATS scrape', error });
@@ -298,10 +298,10 @@ router.post('/scrape/faang-portals', async (req: Request, res: Response) => {
       return res.status(409).json({ message: 'Scrape or pipeline already running.' });
     }
     const cap = parseScrapeCap(req.body);
-    const jobType = req.body?.jobType === 'internship' ? 'internship' : 'fulltime';
+    const jobType = 'fulltime' as const;
     runScrapeFaangPortals(cap, jobType).catch(console.error);
     res.json({
-      message: `FAANG portal scrape started (Amazon/Microsoft/Meta/Apple/Google) — up to ${cap} new ${jobType} jobs. Karthik Chrome must stay open.`,
+      message: `FAANG portal scrape started (Amazon/Microsoft/Meta/Apple/Google) — up to ${cap} new full-time jobs. Karthik Chrome must stay open.`,
     });
   } catch (error) {
     res.status(500).json({ message: 'Error starting FAANG portal scrape', error });
@@ -314,10 +314,10 @@ router.post('/scrape/github-lists', async (req: Request, res: Response) => {
       return res.status(409).json({ message: 'Scrape or pipeline already running.' });
     }
     const cap = parseScrapeCap(req.body);
-    const jobType = req.body?.jobType === 'internship' ? 'internship' : 'fulltime';
+    const jobType = 'fulltime' as const;
     runScrapeGithubLists(cap, jobType).catch(console.error);
     res.json({
-      message: `GitHub + Simplify list scrape started (New-Grad-Positions + Top-New-Grad) — up to ${cap} new ${jobType} jobs.`,
+      message: `GitHub + Simplify list scrape started (New-Grad-Positions + Top-New-Grad) — up to ${cap} new full-time jobs.`,
     });
   } catch (error) {
     res.status(500).json({ message: 'Error starting GitHub list scrape', error });
@@ -330,9 +330,9 @@ router.post('/scrape/career-portals', async (req: Request, res: Response) => {
       return res.status(409).json({ message: 'Scrape or pipeline already running.' });
     }
     const cap = parseScrapeCap(req.body);
-    const jobType = req.body?.jobType === 'internship' ? 'internship' : 'fulltime';
+    const jobType = 'fulltime' as const;
     runScrapeCareerPortals(cap, jobType).catch(console.error);
-    res.json({ message: `Google Jobs scrape started (US) — up to ${cap} new ${jobType} jobs.` });
+    res.json({ message: `Google Jobs scrape started (US) — up to ${cap} new full-time jobs.` });
   } catch (error) {
     res.status(500).json({ message: 'Error starting Google Jobs scrape', error });
   }
@@ -475,7 +475,7 @@ router.post('/scrape', async (_req: Request, res: Response) => {
     runScrapeOnly().catch(console.error);
     res.json({
       message:
-        'Scraping Google Jobs (United States) for Summer 2027 software internships.',
+        'Scraping Google Jobs (United States) for full-time / new-grad software roles.',
     });
   } catch (error) {
     res.status(500).json({ message: 'Error starting scrape', error });
@@ -647,9 +647,7 @@ router.post('/:id/approve-resume', async (req: Request, res: Response) => {
         ? '🚨 FAANG/MANGO — resume approved. Apply yourself on the company site (no auto-apply).'
         : /linkedin\.com\/(jobs|job)/i.test(job.url)
           ? 'Resume approved. Click Auto-Apply for LinkedIn Easy Apply — you must approve before final Submit.'
-          : job.jobType === 'internship'
-            ? 'Resume approved. Apply manually on the company site for this internship.'
-            : 'Resume approved. Click Auto-Apply when ready (submit still requires your approval).';
+          : 'Resume approved. Click Auto-Apply when ready (submit still requires your approval).';
     await job.save();
     res.json(normalizeJob(job.toObject() as unknown as Record<string, unknown>));
   } catch (error) {
@@ -737,10 +735,9 @@ router.post('/:id/apply', async (req: Request, res: Response) => {
           'FAANG/MANGO roles are never auto-applied. Open the job URL and apply yourself.',
       });
     }
-    if (job.jobType === 'internship' && !/linkedin\.com\/(jobs|job)/i.test(job.url)) {
+    if (String(job.jobType) === 'internship') {
       return res.status(400).json({
-        message:
-          'LinkedIn Easy Apply is only for LinkedIn listings. Open the company site and apply manually for this internship.',
+        message: 'Internship listings are ignored. This tracker is full-time / new-grad only.',
       });
     }
 

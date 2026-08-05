@@ -39,11 +39,17 @@ BOLD MAP (mandatory):
 - NOT bold: header role {Software Engineer}, project stack after \textbar {React, ...}
 
 ================================================================================
-HEADER
+HEADER — EXACTLY 3 LINES
 ================================================================================
-- Short role title + optional "Open to Relocate" (drop if the line wraps) + contact/links.
-- Title examples: Software Engineer / Backend Engineer / Frontend Engineer / Full Stack Engineer.
-- Never paste the full JD title. Header title stays on ONE printed line.
+- The centered header MUST ALWAYS BE WRAPPED IN EXACTLY 3 LINES:
+  Line 1: \textbf{\Huge \scshape Karthik Kovi}\\[-2pt]
+  Line 2: {short Title} \,\textbar\, {Open to Relocate} \,\textbar\, email \,\textbar\, phone \,\textbar\, California, USA\\
+  Line 3: linkedin.com/in/karthikkovi \,\textbar\, karthikkovi.com \,\textbar\, github.com/kovikarthik
+- If Line 2 would overflow (>92 plain chars due to a long role title):
+  1) Drop "Open to Relocate" first.
+  2) Drop "California, USA" second if still overflowing.
+- If Line 3 would overflow: drop "karthikkovi.com".
+- Never paste full JD titles; keep role title short (Software Engineer / Backend Engineer / Frontend Engineer).
 
 ================================================================================
 EXPERIENCE
@@ -156,7 +162,7 @@ NUMBERED QUICK INDEX (for checklists)
 ================================================================================
 RULE 1: 100% JD keyword match with evidence (not Skills-only)
 RULE 2: LaTeX Times letterpaper; EXACTLY 1 page; design lock
-RULE 3: Header short title; Open to Relocate only if one line
+RULE 3: Header wrapped in EXACTLY 3 lines (Name / Title+Contact / Links); prune low-priority details (Relocate, Location, Portfolio) on overflow
 RULE 4: Section order Work Experience → Skills → Key Projects → Education → Certifications
 RULE 5: Experience layout \textbf + \uline + template itemize
 RULE 6: One complete line bullets 80–95 chars, period, no mid-phrase cuts
@@ -174,7 +180,7 @@ RULE 16: Certs template style
 RULE 17: Workflow JD → keywords → title → tailor → 100% → body
 RULE 18: Never mix C++ with Node/Python/Java/Go on one tech line
 RULE 19: Change ≤2 project stacks for unmatched JD skills only
-RULE 20: Header one printed line
+RULE 20: Header EXACTLY 3 lines; auto-prune low priority details on overflow
 RULE 21: 3–5 bullets/job; Amazon → ASI → Infobell
 RULE 22: Key Projects template style
 RULE 23: Adaptable coverage — JD skills in Skills/tech lines OK; no fake Experience claims

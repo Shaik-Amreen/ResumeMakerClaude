@@ -451,13 +451,13 @@ async function scrapeSearchPage(
 /** Scrape LinkedIn until scrapeTargetTotal new jobs saved. Returns all IDs saved this run. */
 export async function scrapeLinkedInJobs(
   existingIds: string[] = [],
-  jobType: 'internship' | 'fulltime' = 'internship'
+  _jobType: 'internship' | 'fulltime' = 'fulltime'
 ): Promise<string[]> {
+  const jobType = 'fulltime' as const;
   const savedJobIds: string[] = [...existingIds];
   let driver: WebDriver | null = null;
   try {
-    const searches =
-      jobType === 'fulltime' ? config.linkedin.fullTimeSearches : config.linkedin.internshipSearches;
+    const searches = config.linkedin.fullTimeSearches;
     const target = scrapeRunTarget();
     if (!searches.length) {
       throw new Error(`No ${jobType} search URLs configured.`);
@@ -466,8 +466,7 @@ export async function scrapeLinkedInJobs(
     driver = await attachDriver(orangeProfile());
     await syncOrangeSession(driver, searches[0]);
 
-    const label =
-      jobType === 'fulltime' ? 'full-time software roles' : 'Summer 2027 internship';
+    const label = 'full-time software roles';
     console.log(`\n🔍 LinkedIn ${label} scrape — stop at ${target} new jobs`);
 
     for (let q = 0; q < searches.length; q++) {

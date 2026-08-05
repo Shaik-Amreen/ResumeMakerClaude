@@ -169,7 +169,8 @@ async function saveAtsJobs(
  * Scrape all configured Greenhouse + Lever boards directly (no Selenium, free public APIs).
  * This is the direct ATS-coverage equivalent of Tsenta's paid feature.
  */
-export async function scrapeAtsBoards(jobType: JobType = 'internship'): Promise<string[]> {
+export async function scrapeAtsBoards(_requestedType: JobType = 'fulltime'): Promise<string[]> {
+  const jobType: JobType = 'fulltime';
   const savedIds: string[] = [];
   const target = config.pipeline.perSourceCap || 50;
 

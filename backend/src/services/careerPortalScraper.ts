@@ -319,12 +319,13 @@ async function scrapeGoogleSearch(
 }
 
 async function scrapeGoogleJobsSearches(
-  jobType: 'internship' | 'fulltime' = 'fulltime'
+  _requestedType: 'internship' | 'fulltime' = 'fulltime'
 ): Promise<string[]> {
+  const jobType = 'fulltime' as const;
   const savedIds: string[] = [];
   const target = resolvePortalTarget('priority');
   let driver: WebDriver | null = null;
-  const modeLabel = jobType === 'fulltime' ? 'full-time / new-grad' : 'internship';
+  const modeLabel = 'full-time / new-grad';
 
   try {
     driver = await attachDriver(orangeProfile());

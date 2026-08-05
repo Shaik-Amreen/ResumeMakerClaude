@@ -15,7 +15,7 @@ Source files in `resume-assets/`:
 7. **Resume employers** = Amazon → ASI → Infobell only. **Redbee removed** from template.
 8. **Bullets** = one **complete** printed line each (target 80 - 95 plain chars, max 95); ends with period; never mid-phrase cut. Pipeline humanizes AI buzzwords and finishes truncated tails.
 9. **Design lock** = user Overleaf LaTeX (`amazonResumeTemplate.tex`): letterpaper 11pt Times, section titlerules, `\vspace{2pt}`, `\uline{\textbf{company}}`, Skills categories, Key Projects `\textbar`, exact itemize gaps.
-10. **Header title** = short role only; **Open to Relocate** only if that line still fits.
+10. **Header title** = EXACTLY 3 lines (Name / Title+Contact / Links); prune low-priority details (Relocate, Location, Portfolio) on overflow.
 11. **Bold map** = titles/companies/dates/tech+metrics/skill labels/project names; stacks after `\textbar` and header role stay unbolded.
 12. **Content vs look** = tailor bullets/skills/projects per JD; never change margins, itemsep, or bold scheme.
 13. **Length** = EXACTLY **1 page** (never 2). Pipeline auto-trims / rejects multi-page PDFs.

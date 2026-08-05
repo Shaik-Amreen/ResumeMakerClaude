@@ -2,7 +2,7 @@ import type { Job, JobStatus, JobType } from './types';
 
 export type { JobType };
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5001/api';
 export const UPLOADS_BASE = API.replace(/\/api\/?$/, '');
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -19,7 +19,7 @@ export interface SchedulerStatus {
   timezone: string;
   localTime: string;
   currentWindow: 'job_cycle' | 'internship_cycle' | 'idle' | 'night_faang_mango' | 'morning_faang_mango' | 'fulltime_jobs';
-  jobType?: 'internship' | 'fulltime';
+  jobType?: 'fulltime';
   running: boolean;
   windowCompleted?: boolean;
   cooldownMinutesRemaining?: number;

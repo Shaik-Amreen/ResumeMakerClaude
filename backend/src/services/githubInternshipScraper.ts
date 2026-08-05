@@ -84,6 +84,9 @@ export function parseGithubInternshipTable(markdown: string): GhRow[] {
 
 function titleLooksProfileCompatible(title: string): boolean {
   // Hard title skips before fetching JD (saves time)
+  if (/\b(intern(ship)?|co-?op)\b/i.test(title)) {
+    return false;
+  }
   if (/\bundergrad(?:uate)?\b/i.test(title) && !/\bmaster|grad(?:uate)?\b/i.test(title)) {
     return false;
   }
@@ -105,12 +108,13 @@ function titleLooksProfileCompatible(title: string): boolean {
  */
 export async function scrapeGithubInternshipLists(
   existingIds: string[] = [],
-  jobType: JobType = 'fulltime'
+  _requestedType: JobType = 'fulltime'
 ): Promise<string[]> {
+  const jobType: JobType = 'fulltime';
   const savedIds = [...existingIds];
   const target = scrapeRunTarget();
   const source: ScrapeSource = 'github';
-  const modeLabel = jobType === 'fulltime' ? 'new-grad / full-time' : 'internship';
+  const modeLabel = 'new-grad / full-time';
 
   appendTaskLog(`GitHub lists — ${modeLabel} (up to ${target} new) — fetch real JD from apply links…`);
   console.log(`\n📦 GitHub lists — ${modeLabel} — target ${target} (real JD required)`);

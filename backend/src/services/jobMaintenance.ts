@@ -1,5 +1,5 @@
 import Job from '../models/Job';
-import { isNonSoftwareRole, isSoftwareRole } from './eligibility';
+import { isInternshipTitle, isNonSoftwareRole, isSoftwareRole } from './eligibility';
 import { isInternGraduationEligible } from './internGraduation';
 import { isUndergraduateOnlyJob } from './jobSkipRules';
 import { removeAllResumeFiles, removeJobResumeFiles } from './resumeFiles';
@@ -95,7 +95,9 @@ export async function pruneNonSoftwareJobs(): Promise<number> {
   for (const job of all) {
     if (
       !isSoftwareRole(job.title, job.jobDescription) ||
-      isUndergraduateOnlyJob(job.title, job.jobDescription)
+      isUndergraduateOnlyJob(job.title, job.jobDescription) ||
+      String(job.jobType) === 'internship' ||
+      isInternshipTitle(job.title)
     ) {
       removeJobResumeFiles(job.id, job.pdfPath);
       await job.deleteOne();

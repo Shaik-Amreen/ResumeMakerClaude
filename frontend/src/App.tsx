@@ -15,7 +15,7 @@ import { JobFiltersBar } from './components/JobFiltersBar';
 import { PipelineControlPanel } from './components/PipelineControlPanel';
 import { Background3D } from './components/Background3D';
 import { api, type SchedulerStatus } from './api';
-import type { Job, JobType } from './types';
+import type { Job } from './types';
 import {
   DEFAULT_FILTERS,
   filterAndSortJobs,
@@ -26,8 +26,8 @@ import {
 } from './utils/jobFilters';
 
 const WINDOW_LABELS: Record<string, string> = {
-  job_cycle: '24/7 · Full-time / new-grad (FAANG → GitHub/Simplify → Jobright → LinkedIn → Indeed → Google → ATS → resumes)',
-  internship_cycle: '24/7 · Internships legacy (same sources, internship filters)',
+  job_cycle: '24/7 · Full-time / new-grad only (FAANG → GitHub/Simplify → Jobright → LinkedIn → Indeed → Google → ATS → resumes)',
+  internship_cycle: 'Legacy — internships disabled',
   night_faang_mango: 'Legacy window label',
   morning_faang_mango: 'Legacy window label',
   fulltime_jobs: 'Legacy window label',
@@ -75,7 +75,6 @@ function App() {
   const [scheduler, setScheduler] = useState<SchedulerStatus | null>(null);
   const [filters, setFilters] = useState<JobFilters>(DEFAULT_FILTERS);
   const [panelBusy, setPanelBusy] = useState(false);
-  const [jobType, setJobType] = useState<JobType>('fulltime');
 
   const loadJobs = useCallback(async () => {
     try {
@@ -119,7 +118,7 @@ function App() {
   const startScraper = async () => {
     setPanelBusy(true);
     try {
-      await api.runPipeline({ deleteFirst: false, perSourceCap: 50, jobType });
+      await api.runPipeline({ deleteFirst: false, perSourceCap: 50, jobType: 'fulltime' });
       loadJobs();
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Scraper failed to start');
@@ -138,7 +137,7 @@ function App() {
     }
     setPanelBusy(true);
     try {
-      const r = await api.runPipeline({ deleteFirst: false, perSourceCap: 50, jobType });
+      const r = await api.runPipeline({ deleteFirst: false, perSourceCap: 50, jobType: 'fulltime' });
       alert(r.message);
       loadJobs();
     } catch (e) {
@@ -170,31 +169,15 @@ function App() {
       <div className="relative z-10 flex flex-col flex-1 max-w-[1600px] w-full mx-auto p-4 md:p-6 gap-4 min-h-0">
         <header className="shrink-0 flex flex-col lg:flex-row lg:justify-between lg:items-end gap-4">
           <div>
-            <div className="flex flex-wrap items-center gap-3 mb-2">
-              <label className="text-xs uppercase tracking-widest text-ink-faint">Job search mode</label>
-              <select
-                value={jobType}
-                onChange={(e) => {
-                  const next = e.target.value as JobType;
-                  setJobType(next);
-                  setFilters((f) => ({ ...f, jobType: next }));
-                }}
-                disabled={controlsBusy}
-                className="rounded-xl bg-white border border-teal-200 px-4 py-2 text-sm text-ink shadow-sm focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 min-w-[220px]"
-              >
-                <option value="fulltime">Full-time / new grad</option>
-                <option value="internship">Internships (legacy)</option>
-              </select>
-            </div>
             <p className="text-primary-500 text-sm font-medium tracking-widest uppercase mb-1">
-              Karthik · Job Command Center
+              Karthik · Full-time / new-grad only
             </p>
             <h1 className="text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-ink via-primary-500 to-sky-500">
               AI Job Tracker
             </h1>
             <p className="text-ink-muted text-sm mt-1 max-w-xl">
-              Scrape FAANG, GitHub, Simplify, Jobright, LinkedIn, Indeed, Google Jobs, or ATS —
-              set how many jobs, then generate resumes one by one. Live status updates below.
+              Scrape FAANG, GitHub, Simplify, Jobright, LinkedIn, Indeed, Google Jobs, or ATS for
+              full-time / new-grad SWE roles only — internships are skipped. Live status updates below.
             </p>
             {scheduler && (
               <p className="text-xs text-primary-500 mt-2">
@@ -245,17 +228,12 @@ function App() {
               className="px-4 py-2 rounded-xl text-sm bg-primary-500 text-white border border-primary-500 hover:bg-accent-hover flex items-center gap-2 disabled:opacity-50 shadow-sm"
             >
               {scraping ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-              {jobType === 'internship' ? 'Scrape FAANG + MANGOES' : 'Scrape Indeed'}
+              Scrape Indeed
             </button>
           </div>
         </header>
 
-        <PipelineControlPanel
-          jobType={jobType}
-          onJobsChanged={loadJobs}
-          busy={controlsBusy}
-          setBusy={setPanelBusy}
-        />
+        <PipelineControlPanel onJobsChanged={loadJobs} busy={controlsBusy} setBusy={setPanelBusy} />
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
           <div className="glass-card py-3 px-4 border-l-4 border-l-sky-400">

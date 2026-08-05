@@ -1,4 +1,5 @@
 import express from 'express';
+import http from 'http';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import path from 'path';
@@ -74,12 +75,28 @@ async function startServer() {
     await mongoose.connect(config.mongoUri);
     console.log('MongoDB connected successfully');
 
-    app.listen(PORT, HOST, () => {
+    // Bind IPv4 loopback explicitly. Frontend prefers 127.0.0.1 because macOS
+    // resolves localhost → ::1 first.
+    http.createServer(app).listen(PORT, HOST, () => {
       const baseUrl = `http://${HOST}:${PORT}`;
       console.log(`Server running on ${baseUrl}`);
       console.log(`Swagger UI: ${baseUrl}/api-docs`);
       console.log(`Uploads: ${path.resolve(config.uploadsDir)}`);
     });
+
+    // Also accept IPv6 loopback so http://localhost:5001 works when clients prefer ::1.
+    if (HOST === '127.0.0.1') {
+      http
+        .createServer(app)
+        .listen(PORT, '::1', () => {
+          console.log(`Also listening on http://[::1]:${PORT} (localhost IPv6)`);
+        })
+        .on('error', (err: NodeJS.ErrnoException) => {
+          if (err.code !== 'EADDRINUSE') {
+            console.warn('IPv6 ::1 bind skipped:', err.message);
+          }
+        });
+    }
 
     startJobScheduler();
     if (config.resumeAgent.provider === 'ollama') {

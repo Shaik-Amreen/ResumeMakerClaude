@@ -18,11 +18,19 @@ import {
   countLinkedFeaturedProjects,
 } from './resumeAgent/jdMatch';
 import { getAmazonTemplateLatex, applyJdHeaderTagline } from './resumeAgent/amazonLatexGuard';
+import { isInternshipTitle } from './eligibility';
 import { sendEmailNotification } from './notifier';
 import type { JobType } from '../models/Job';
 
-const MAX_PAGE_REPAIRS = 4;
+const MAX_PAGE_REPAIRS = 2;
 const MIN_LINKED_PROJECTS = 3;
+
+/** Returns elapsed time string like "1m 23s" or "4.2s" */
+function elapsed(startMs: number): string {
+  const sec = (Date.now() - startMs) / 1000;
+  if (sec >= 60) return `${Math.floor(sec / 60)}m ${Math.round(sec % 60)}s`;
+  return `${sec.toFixed(1)}s`;
+}
 
 type ResumeCtx = {
   jobDescription: string;
@@ -80,13 +88,16 @@ async function compileAndFitOnePage(
   let pageCount = 0;
 
   for (let attempt = 0; attempt <= MAX_PAGE_REPAIRS; attempt++) {
+    const compileStart = Date.now();
     try {
       const compiled = compileWithJdHeader(latex, jobId, ctx);
       pdfPath = compiled.pdfPath;
       pageCount = compiled.pageCount;
       latex = compiled.latex;
+      console.log(`  ⏱️ Compile attempt ${attempt + 1}: ${elapsed(compileStart)} → ${pageCount} page(s)`);
     } catch (compileErr) {
       const detail = compileErr instanceof Error ? compileErr.message : 'PDF compile failed';
+      console.log(`  ⏱️ Compile attempt ${attempt + 1}: FAILED after ${elapsed(compileStart)}`);
       if (attempt >= MAX_PAGE_REPAIRS) throw compileErr;
       if (attempt === 0) {
         await onNote?.(
@@ -98,6 +109,7 @@ async function compileAndFitOnePage(
       await onNote?.(
         `Compile failed — repairing LaTeX (attempt ${attempt + 1}/${MAX_PAGE_REPAIRS})…`
       );
+      const repairStart = Date.now();
       latex = enforceMasterRules(
         await reviseResumeLatex(
           ctx,
@@ -105,6 +117,7 @@ async function compileAndFitOnePage(
           `LaTeX failed to compile. Output Work Experience → Certifications only. Fix for EXACTLY 1 page matching amazonResumeTemplate.tex.\n${detail.slice(0, 800)}`
         )
       );
+      console.log(`  ⏱️ Compile-repair revision ${attempt + 1}: ${elapsed(repairStart)}`);
       continue;
     }
 
@@ -117,9 +130,11 @@ async function compileAndFitOnePage(
     await onNote?.(
       `Got ${pageCount} page(s) — auto-trimming to exactly 1 page (attempt ${attempt + 1}/${MAX_PAGE_REPAIRS})…`
     );
+    const repairStart = Date.now();
     latex = enforceMasterRules(
       await reviseResumeLatex(ctx, latex, pageRepairInstruction(pageCount))
     );
+    console.log(`  ⏱️ Page-repair revision ${attempt + 1}: ${elapsed(repairStart)}`);
   }
 
   return { latex, pdfPath, pageCount };
@@ -130,11 +145,21 @@ export async function runResumePipeline(jobId: string) {
   if (!job) throw new Error('Job not found');
 
   const agentLabel = resumeAgentLabel();
+  if (String(job.jobType) === 'internship' || isInternshipTitle(job.title)) {
+    job.status = 'invalid_job';
+    job.resumePhase = 'failed';
+    job.pendingAction = null;
+    job.errorMessage = 'Internship skipped — full-time / new-grad only.';
+    job.approvalNote = 'Skipped internship. This tracker only generates resumes for full-time roles.';
+    await job.save();
+    return;
+  }
+
   const ctx: ResumeCtx = {
     jobDescription: job.jobDescription,
     title: job.title,
     company: job.company,
-    jobType: job.jobType,
+    jobType: 'fulltime',
   };
 
   try {
@@ -150,9 +175,13 @@ export async function runResumePipeline(jobId: string) {
     job.approvalNote = `Generating tailored 1-page resume with ${agentLabel}…`;
     await job.save();
 
+    const pipelineStart = Date.now();
     console.log(`\n📄 Resume agent: ${job.title} @ ${job.company}`);
 
+    const genStart = Date.now();
     const generated = await generateResumeLatex(ctx);
+    console.log(`  ⏱️ LaTeX generation: ${elapsed(genStart)} (${generated.latex.length} chars)`);
+
     let latex = applyJdHeaderTagline(enforceMasterRules(generated.latex), {
       title: ctx.title,
       jobDescription: ctx.jobDescription,
@@ -163,11 +192,14 @@ export async function runResumePipeline(jobId: string) {
     job.approvalNote = 'Compiling LaTeX → PDF and fitting to exactly 1 page…';
     await job.save();
 
+    const fitStart = Date.now();
     let fitted = await compileAndFitOnePage(ctx, latex, job.id, async (note) => {
       job.resumePhase = 'compiling';
       job.approvalNote = note;
       await job.save();
     });
+    console.log(`  ⏱️ Compile+fit total: ${elapsed(fitStart)}`);
+
     latex = fitted.latex;
     job.latexResume = latex;
     job.pdfPath = fitted.pdfPath;
@@ -180,6 +212,7 @@ export async function runResumePipeline(jobId: string) {
       job.errorMessage = `PDF is ${fitted.pageCount} page(s) — must be exactly 1 after auto-repair.`;
       job.approvalNote = `Resume is ${fitted.pageCount} page(s) after auto-repair. Trim content to match the 1-page template, then Build PDF.`;
       await job.save();
+      console.log(`  ⏱️ Pipeline total (page-count fail): ${elapsed(pipelineStart)}`);
       return;
     }
 
@@ -207,6 +240,7 @@ export async function runResumePipeline(jobId: string) {
       job.errorMessage = `PDF is ${fitted.pageCount} page(s) — must be exactly 1.`;
       job.approvalNote = `Stopped with ${fitted.pageCount} page(s). No match-repair retries.`;
       await job.save();
+      console.log(`  ⏱️ Pipeline total (page-count fail): ${elapsed(pipelineStart)}`);
       return;
     }
 
@@ -229,6 +263,7 @@ export async function runResumePipeline(jobId: string) {
       console.warn(
         `⚠️ ${job.title}: stopping without retry — ${!fullMatch ? `JD match ${match.score}%` : `linked projects ${linked}`}`
       );
+      console.log(`  ⏱️ Pipeline total (match fail): ${elapsed(pipelineStart)}`);
       return;
     }
 
@@ -240,9 +275,7 @@ export async function runResumePipeline(jobId: string) {
     job.approvalNote =
       job.priority === 'faang'
         ? `🚨 FAANG/MANGO — 1 page (template lock), 100% JD keywords · resume ${resumeMatchScore}%. Apply yourself (no auto-apply).`
-        : job.jobType === 'internship'
-          ? `1 page — 100% keyword match · resume ${resumeMatchScore}%. Review PDF, then apply manually on the company site.`
-          : `1 page — 100% keyword match · resume ${resumeMatchScore}%. Review PDF, then Approve or Approve & Auto-Apply.`;
+        : `1 page — 100% keyword match · resume ${resumeMatchScore}%. Review PDF, then Approve or Approve & Auto-Apply.`;
     await job.save();
 
     await sendEmailNotification(
@@ -251,7 +284,7 @@ export async function runResumePipeline(jobId: string) {
       }Review PDF in job tracker.`
     );
     console.log(
-      `✅ Resume pipeline complete: ${job.title} (1 page, 100% keywords, resume ${resumeMatchScore}%)`
+      `✅ Resume pipeline complete: ${job.title} (1 page, 100% keywords, resume ${resumeMatchScore}%) — total ${elapsed(pipelineStart)}`
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Resume generation failed';

@@ -173,17 +173,17 @@ async function scrapeIndeedSearch(
 
 export async function scrapeIndeedJobs(
   savedJobIds: string[],
-  jobType: 'internship' | 'fulltime' = 'internship'
+  _jobType: 'internship' | 'fulltime' = 'fulltime'
 ): Promise<string[]> {
-  const searches =
-    jobType === 'fulltime' ? config.indeed.fullTimeSearches : config.indeed.searches;
+  const jobType = 'fulltime' as const;
+  const searches = config.indeed.fullTimeSearches;
   const target = scrapeRunTarget();
   if (!searches.length) return savedJobIds;
 
   let driver: WebDriver | null = null;
   try {
     driver = await attachDriver(orangeProfile());
-    const label = jobType === 'fulltime' ? 'full-time software roles' : 'Summer 2027 software internships';
+    const label = 'full-time software roles';
     console.log(`\n📰 Indeed — ${label} (newest first)`);
 
     for (let q = 0; q < searches.length; q++) {
