@@ -7,6 +7,7 @@ import { scrapeIndeedJobs } from './indeedScraper';
 import { scrapeAtsBoards } from './atsScraper';
 import { scrapeFaangPriorityPortals } from './faangPortalScraper';
 import { scrapeGithubInternshipLists } from './githubInternshipScraper';
+import { scrapeSimplifyNewGradLists } from './simplifyListScraper';
 import { refreshExistingJobs } from './jobRefresher';
 import { deleteAllJobs, pruneNonSoftwareJobs, resetAllJobsToScraped } from './jobMaintenance';
 import { runClaudeOnlyPipeline } from './pipelineService';
@@ -223,25 +224,28 @@ export function runScrapeLinkedIn(cap?: number, jobType: 'internship' | 'fulltim
   );
 }
 
-export function runScrapeCareerPortals(cap?: number) {
+export function runScrapeCareerPortals(cap?: number, jobType: 'internship' | 'fulltime' = 'fulltime') {
   const limit = cap ?? config.pipeline.perSourceCap;
   return runSingleSourceScrape('scraping_career_portals', 'Google Jobs', limit, () =>
-    scrapePriorityCareerPortals()
+    scrapePriorityCareerPortals(jobType)
   );
 }
 
-export function runScrapeFaangPortals(cap?: number) {
+export function runScrapeFaangPortals(cap?: number, jobType: 'internship' | 'fulltime' = 'fulltime') {
   const limit = cap ?? config.pipeline.perSourceCap;
   return runSingleSourceScrape('scraping_faang_portals', 'FAANG portals', limit, () =>
-    scrapeFaangPriorityPortals([])
+    scrapeFaangPriorityPortals([], jobType)
   );
 }
 
-export function runScrapeGithubLists(cap?: number) {
+export function runScrapeGithubLists(cap?: number, jobType: 'internship' | 'fulltime' = 'fulltime') {
   const limit = cap ?? config.pipeline.perSourceCap;
-  return runSingleSourceScrape('scraping_github_lists', 'GitHub internship lists', limit, () =>
-    scrapeGithubInternshipLists([])
-  );
+  return runSingleSourceScrape('scraping_github_lists', 'GitHub + Simplify lists', limit, async () => {
+    const fromGithub = await scrapeGithubInternshipLists([], jobType);
+    if (shouldAbortScrape()) return fromGithub;
+    const fromSimplify = await scrapeSimplifyNewGradLists([], jobType);
+    return [...fromGithub, ...fromSimplify];
+  });
 }
 
 export function runScrapeIndeed(cap?: number, jobType: 'internship' | 'fulltime' = 'fulltime') {
@@ -333,17 +337,18 @@ export async function runMasterPipeline(options?: {
       return ids;
     };
 
-    // Phase 1 — FAANG university portals
-    const faangNew =
-      jobType === 'internship'
-        ? await runPhase('faang', 'FAANG portals', () => scrapeFaangPriorityPortals([]))
-        : [];
+    // Phase 1 — FAANG university / new-grad portals
+    const faangNew = await runPhase('faang', 'FAANG portals', () =>
+      scrapeFaangPriorityPortals([], jobType)
+    );
 
-    // Phase 2 — GitHub lists
-    const githubNew =
-      jobType === 'internship'
-        ? await runPhase('github', 'GitHub lists', () => scrapeGithubInternshipLists([]))
-        : [];
+    // Phase 2 — GitHub curated lists + Simplify Top New Grad
+    const githubNew = await runPhase('github', 'GitHub + Simplify lists', async () => {
+      const fromGithub = await scrapeGithubInternshipLists([], jobType);
+      if (shouldAbortScrape()) return fromGithub;
+      const fromSimplify = await scrapeSimplifyNewGradLists([], jobType);
+      return [...fromGithub, ...fromSimplify];
+    });
 
     // Phase 3 — Jobright
     const jobrightNew = await runPhase('jobright', 'Jobright', () =>
@@ -355,28 +360,36 @@ export async function runMasterPipeline(options?: {
       scrapeLinkedInJobs([], jobType)
     );
 
-    // Phase 5 — Google Jobs (intern) or Indeed (full-time)
-    const portalNew = await runPhase(
-      jobType === 'fulltime' ? 'indeed' : 'portals',
-      jobType === 'fulltime' ? 'Indeed' : 'Google Jobs',
-      () =>
-        jobType === 'fulltime' ? scrapeIndeedJobs([], jobType) : scrapePriorityCareerPortals()
+    // Phase 5 — Indeed
+    const indeedNew = await runPhase('indeed', 'Indeed', () => scrapeIndeedJobs([], jobType));
+
+    // Phase 6 — Google Jobs
+    const portalNew = await runPhase('portals', 'Google Jobs', () =>
+      scrapePriorityCareerPortals(jobType)
     );
 
-    // Phase 6 — ATS boards
+    // Phase 7 — ATS boards
     const atsNew = await runPhase('ats', 'ATS boards', () => scrapeAtsBoards(jobType));
 
-    const allNew = [...faangNew, ...githubNew, ...jobrightNew, ...linkedinNew, ...portalNew, ...atsNew];
+    const allNew = [
+      ...faangNew,
+      ...githubNew,
+      ...jobrightNew,
+      ...linkedinNew,
+      ...indeedNew,
+      ...portalNew,
+      ...atsNew,
+    ];
     if (!shouldAbortScrape() && allNew.length) {
       setTaskPhase('resumes', `Generating ${allNew.length} resume(s) one by one…`);
       await runResumePipelineQueue(allNew, true);
     }
 
-    const fifthLabel = jobType === 'fulltime' ? 'Indeed' : 'Google';
     const total = allNew.length;
     const summary =
       `Pipeline done — ${total}/${totalCap} job(s). FAANG ${faangNew.length}, GitHub ${githubNew.length}, ` +
-      `Jobright ${jobrightNew.length}, LinkedIn ${linkedinNew.length}, ${fifthLabel} ${portalNew.length}, ATS ${atsNew.length}.`;
+      `Jobright ${jobrightNew.length}, LinkedIn ${linkedinNew.length}, Indeed ${indeedNew.length}, ` +
+      `Google ${portalNew.length}, ATS ${atsNew.length}.`;
 
     if (shouldAbortScrape()) abortTask(`Stopped. ${summary}`);
     else finishTask(summary);
@@ -387,7 +400,7 @@ export async function runMasterPipeline(options?: {
       githubLists: githubNew.length,
       jobright: jobrightNew.length,
       linkedin: linkedinNew.length,
-      careerPortals: portalNew.length,
+      careerPortals: portalNew.length + indeedNew.length,
       ats: atsNew.length,
       total,
     };

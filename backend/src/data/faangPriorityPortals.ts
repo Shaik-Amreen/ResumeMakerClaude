@@ -47,10 +47,34 @@ export const FAANG_PRIORITY_PORTALS: FaangPortalTarget[] = [
 export const GITHUB_INTERNSHIP_LISTS = [
   {
     name: 'SimplifyJobs/New-Grad-Positions',
+    /** Primary: https://github.com/SimplifyJobs/New-Grad-Positions */
     rawUrl: 'https://raw.githubusercontent.com/SimplifyJobs/New-Grad-Positions/dev/README.md',
   },
   {
     name: 'speedyapply/2027-SWE-College-Jobs',
     rawUrl: 'https://raw.githubusercontent.com/speedyapply/2027-SWE-College-Jobs/main/README.md',
+  },
+];
+
+/**
+ * Simplify curated web lists (Typesense-backed).
+ * Top-New-Grad: https://simplify.jobs/l/Top-New-Grad
+ */
+export interface SimplifyJobListTarget {
+  name: string;
+  slug: string;
+  listId: string;
+  pageUrl: string;
+  /** Typesense filter fragment(s) AND-ed with job_lists filter */
+  functionFilters?: string[];
+}
+
+export const SIMPLIFY_NEW_GRAD_LISTS: SimplifyJobListTarget[] = [
+  {
+    name: 'Simplify Top New Grad',
+    slug: 'Top-New-Grad',
+    listId: '9d79d24b-7028-4c73-a68b-a2fa322b65e8',
+    pageUrl: 'https://simplify.jobs/l/Top-New-Grad',
+    functionFilters: ['Software Engineering', 'Backend Engineering', 'Frontend Engineering', 'Full Stack'],
   },
 ];

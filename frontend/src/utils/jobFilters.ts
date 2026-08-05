@@ -8,6 +8,7 @@ export type JobSource =
   | 'greenhouse'
   | 'lever'
   | 'github'
+  | 'simplify'
   | 'company_portal'
   | 'other';
 
@@ -19,6 +20,7 @@ export const PLATFORM_LABELS: Record<JobSource, string> = {
   greenhouse: 'Greenhouse',
   lever: 'Lever',
   github: 'GitHub list',
+  simplify: 'Simplify',
   company_portal: 'Company portal',
   other: 'Other',
 };

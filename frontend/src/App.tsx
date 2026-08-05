@@ -26,10 +26,11 @@ import {
 } from './utils/jobFilters';
 
 const WINDOW_LABELS: Record<string, string> = {
-  internship_cycle: '24/7 · Full-time / new-grad (Jobright → LinkedIn → Indeed → resumes → Easy Apply)',
-  night_faang_mango: '11 PM–8 AM · FAANG + MANGOES full-time',
-  morning_faang_mango: '9–11 AM · FAANG + MANGOES full-time',
-  fulltime_jobs: '8–9 AM & 11 AM–11 PM · full-time',
+  job_cycle: '24/7 · Full-time / new-grad (FAANG → GitHub/Simplify → Jobright → LinkedIn → Indeed → Google → ATS → resumes)',
+  internship_cycle: '24/7 · Internships legacy (same sources, internship filters)',
+  night_faang_mango: 'Legacy window label',
+  morning_faang_mango: 'Legacy window label',
+  fulltime_jobs: 'Legacy window label',
   idle: 'Idle / cooldown',
 };
 
@@ -118,11 +119,7 @@ function App() {
   const startScraper = async () => {
     setPanelBusy(true);
     try {
-      if (jobType === 'fulltime') {
-        await api.scrapeIndeed(50, 'fulltime');
-      } else {
-        await api.scrapeCareerPortals(50);
-      }
+      await api.runPipeline({ deleteFirst: false, perSourceCap: 50, jobType });
       loadJobs();
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Scraper failed to start');
@@ -134,7 +131,7 @@ function App() {
   const runFullPipeline = async () => {
     if (
       !confirm(
-        'Run full pipeline (scrape up to 50 new jobs across sources, then generate resumes)? Existing jobs are kept — nothing will be deleted.'
+        'Run full pipeline (FAANG → GitHub → Jobright → LinkedIn → Indeed → Google → ATS, up to 50 new jobs, then resumes)? Existing jobs are kept.'
       )
     ) {
       return;
@@ -196,8 +193,8 @@ function App() {
               AI Job Tracker
             </h1>
             <p className="text-ink-muted text-sm mt-1 max-w-xl">
-              Scrape Jobright, LinkedIn, or Google Jobs separately — set how many jobs, then generate
-              resumes one by one. Live status updates below.
+              Scrape FAANG, GitHub, Simplify, Jobright, LinkedIn, Indeed, Google Jobs, or ATS —
+              set how many jobs, then generate resumes one by one. Live status updates below.
             </p>
             {scheduler && (
               <p className="text-xs text-primary-500 mt-2">

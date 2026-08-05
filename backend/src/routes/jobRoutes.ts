@@ -35,7 +35,7 @@ import {
   forceStopCurrentTask,
   getTaskStatus,
 } from '../services/orchestratorService';
-import { resetAllJobsToScraped, pruneNonSummer2027Jobs, deleteJobById, markJobsWithInvalidJd } from '../services/jobMaintenance';
+import { resetAllJobsToScraped, deleteJobById, markJobsWithInvalidJd } from '../services/jobMaintenance';
 import { getSchedulerStatus } from '../services/schedulerService';
 import { filterJobs, normalizeJob, sortJobs, type JobRecord } from '../utils/jobQuery';
 import type { JobStatus } from '../models/Job';
@@ -149,14 +149,14 @@ router.post('/run-pipeline', async (req: Request, res: Response) => {
 
     const deleteFirst = req.body?.deleteFirst === true;
     const perSourceCap = Number(req.body?.perSourceCap) || config.pipeline.perSourceCap;
-    const jobType = req.body?.jobType === 'fulltime' ? 'fulltime' : 'internship';
+    const jobType = req.body?.jobType === 'internship' ? 'internship' : 'fulltime';
 
     runMasterPipeline({ deleteFirst, perSourceCap, jobType }).catch(console.error);
 
     res.json({
       message: deleteFirst
         ? `Pipeline started: wipe DB → scrape (max ${perSourceCap} total) → resumes. No Easy Apply.`
-        : `Pipeline started: scrape (max ${perSourceCap} jobs total, keep existing) → resumes. No Easy Apply. Orange Chrome must stay open.`,
+        : `Pipeline started: scrape (max ${perSourceCap} jobs total, keep existing) → resumes. No Easy Apply. Karthik Chrome must stay open.`,
       perSourceCap,
       jobType,
     });
@@ -240,9 +240,9 @@ router.post('/scrape/jobright', async (req: Request, res: Response) => {
       return res.status(409).json({ message: 'Scrape or pipeline already running.' });
     }
     const cap = parseScrapeCap(req.body);
-    const jobType = req.body?.jobType === 'fulltime' ? 'fulltime' : 'internship';
+    const jobType = req.body?.jobType === 'internship' ? 'internship' : 'fulltime';
     runScrapeJobright(cap, jobType).catch(console.error);
-    res.json({ message: `Jobright scrape started — up to ${cap} new jobs. Orange Chrome must stay open.` });
+    res.json({ message: `Jobright scrape started — up to ${cap} new jobs. Karthik Chrome must stay open.` });
   } catch (error) {
     res.status(500).json({ message: 'Error starting Jobright scrape', error });
   }
@@ -254,7 +254,7 @@ router.post('/scrape/linkedin', async (req: Request, res: Response) => {
       return res.status(409).json({ message: 'Scrape or pipeline already running.' });
     }
     const cap = parseScrapeCap(req.body);
-    const jobType = req.body?.jobType === 'fulltime' ? 'fulltime' : 'internship';
+    const jobType = req.body?.jobType === 'internship' ? 'internship' : 'fulltime';
     runScrapeLinkedIn(cap, jobType).catch(console.error);
     res.json({ message: `LinkedIn scrape started — up to ${cap} new jobs (skips duplicates).` });
   } catch (error) {
@@ -282,7 +282,7 @@ router.post('/scrape/ats', async (req: Request, res: Response) => {
       return res.status(409).json({ message: 'Scrape or pipeline already running.' });
     }
     const cap = parseScrapeCap(req.body);
-    const jobType = req.body?.jobType === 'fulltime' ? 'fulltime' : 'internship';
+    const jobType = req.body?.jobType === 'internship' ? 'internship' : 'fulltime';
     runScrapeAts(cap, jobType).catch(console.error);
     res.json({
       message: `ATS board scrape started (Greenhouse + Lever, free public APIs) — up to ${cap} new ${jobType} jobs.`,
@@ -298,9 +298,10 @@ router.post('/scrape/faang-portals', async (req: Request, res: Response) => {
       return res.status(409).json({ message: 'Scrape or pipeline already running.' });
     }
     const cap = parseScrapeCap(req.body);
-    runScrapeFaangPortals(cap).catch(console.error);
+    const jobType = req.body?.jobType === 'internship' ? 'internship' : 'fulltime';
+    runScrapeFaangPortals(cap, jobType).catch(console.error);
     res.json({
-      message: `FAANG portal scrape started (Amazon/Microsoft/Meta/Apple/Google) — up to ${cap} new jobs. Orange Chrome must stay open.`,
+      message: `FAANG portal scrape started (Amazon/Microsoft/Meta/Apple/Google) — up to ${cap} new ${jobType} jobs. Karthik Chrome must stay open.`,
     });
   } catch (error) {
     res.status(500).json({ message: 'Error starting FAANG portal scrape', error });
@@ -313,9 +314,10 @@ router.post('/scrape/github-lists', async (req: Request, res: Response) => {
       return res.status(409).json({ message: 'Scrape or pipeline already running.' });
     }
     const cap = parseScrapeCap(req.body);
-    runScrapeGithubLists(cap).catch(console.error);
+    const jobType = req.body?.jobType === 'internship' ? 'internship' : 'fulltime';
+    runScrapeGithubLists(cap, jobType).catch(console.error);
     res.json({
-      message: `GitHub internship list scrape started (SpeedyApply + Vansh Summer2027) — up to ${cap} new jobs.`,
+      message: `GitHub + Simplify list scrape started (New-Grad-Positions + Top-New-Grad) — up to ${cap} new ${jobType} jobs.`,
     });
   } catch (error) {
     res.status(500).json({ message: 'Error starting GitHub list scrape', error });
@@ -328,8 +330,9 @@ router.post('/scrape/career-portals', async (req: Request, res: Response) => {
       return res.status(409).json({ message: 'Scrape or pipeline already running.' });
     }
     const cap = parseScrapeCap(req.body);
-    runScrapeCareerPortals(cap).catch(console.error);
-    res.json({ message: `Google Jobs scrape started (US) — up to ${cap} new jobs.` });
+    const jobType = req.body?.jobType === 'internship' ? 'internship' : 'fulltime';
+    runScrapeCareerPortals(cap, jobType).catch(console.error);
+    res.json({ message: `Google Jobs scrape started (US) — up to ${cap} new ${jobType} jobs.` });
   } catch (error) {
     res.status(500).json({ message: 'Error starting Google Jobs scrape', error });
   }
@@ -337,11 +340,9 @@ router.post('/scrape/career-portals', async (req: Request, res: Response) => {
 
 router.post('/prune-summer-2027', async (_req: Request, res: Response) => {
   try {
-    const { removed, kept } = await pruneNonSummer2027Jobs();
-    res.json({
-      message: `Summer 2027 software-only filter: kept ${kept}, removed ${removed}.`,
-      kept,
-      removed,
+    return res.status(400).json({
+      message:
+        'Blocked: prune-summer-2027 would delete full-time jobs. Use job filters or delete individually. (Internship-only prune is disabled for Karthik FT targeting.)',
     });
   } catch (error) {
     res.status(500).json({ message: 'Error pruning jobs', error });
@@ -584,11 +585,11 @@ router.post('/:id/latex', async (req: Request, res: Response) => {
       job.latexResume = withHeader;
       applyMatchFieldsToJob(job, scoreResumeAgainstJd(job.jobDescription, withHeader));
 
-      if (pageCount !== 2) {
+      if (pageCount !== 1) {
         job.status = 'resume_generated';
         job.pendingAction = 'resume_review';
-        job.errorMessage = `PDF is ${pageCount} page(s) — must be exactly 2. Edit LaTeX and Recompile again.`;
-        job.approvalNote = `Compiled to ${pageCount} page(s). Your edits are in the PDF — trim or expand until exactly 2 pages. Resume match ${job.matchScore ?? '—'}%.`;
+        job.errorMessage = `PDF is ${pageCount} page(s) — must be exactly 1. Edit LaTeX and Recompile again.`;
+        job.approvalNote = `Compiled to ${pageCount} page(s). Your edits are in the PDF — trim until exactly 1 page (template lock). Resume match ${job.matchScore ?? '—'}%.`;
         await job.save();
         return res.status(200).json({
           message: job.errorMessage,
@@ -603,7 +604,7 @@ router.post('/:id/latex', async (req: Request, res: Response) => {
       job.errorMessage = undefined;
       job.approvalNote =
         job.priority === 'faang'
-          ? `🚨 FAANG/MANGO — 2-page PDF ready (${job.matchScore ?? '—'}% JD match). Apply yourself on the company site (no auto-apply).`
+          ? `🚨 FAANG/MANGO — 1-page PDF ready (${job.matchScore ?? '—'}% JD match). Apply yourself on the company site (no auto-apply).`
           : `LaTeX recompiled — PDF preview updated. Resume match ${job.matchScore ?? '—'}% · keyword match ${job.keywordMatchScore ?? '—'}%.`;
       await job.save();
       return res.json({

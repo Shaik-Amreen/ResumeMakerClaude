@@ -1,8 +1,7 @@
 import Job from '../models/Job';
 import {
   compileLatexToPdf,
-  assertExactlyTwoPages,
-  isSecondPageSparse,
+  assertExactlyOnePage,
 } from './latexCompileService';
 import {
   generateResumeLatex,
@@ -23,7 +22,6 @@ import { sendEmailNotification } from './notifier';
 import type { JobType } from '../models/Job';
 
 const MAX_PAGE_REPAIRS = 4;
-const MAX_DENSITY_REPAIRS = 2;
 const MIN_LINKED_PROJECTS = 3;
 
 type ResumeCtx = {
@@ -40,7 +38,6 @@ function compileWithJdHeader(latex: string, jobId: string, ctx: ResumeCtx) {
     company: ctx.company,
   };
   const compiled = compileLatexToPdf(latex, jobId, { header });
-  // Returned latex is what was compiled — ensure header tagline stuck
   return {
     ...compiled,
     latex: applyJdHeaderTagline(compiled.latex, header),
@@ -48,43 +45,36 @@ function compileWithJdHeader(latex: string, jobId: string, ctx: ResumeCtx) {
 }
 
 function pageRepairInstruction(pageCount: number): string {
-  if (pageCount > 2) {
+  if (pageCount > 1) {
     return [
-      `COMPILED PDF HAS ${pageCount} PAGES — it MUST be EXACTLY 2 pages.`,
-      'Output ONLY sections from \\section{\\textbf{Education}} onward (no preamble).',
-      'Shorten: remove weakest project, cut bullets to 1 line, tighten skills.',
-      'Keep ASI Software Developer first. Name is KARTHIK KOVI (header locked).',
+      `COMPILED PDF HAS ${pageCount} PAGES — it MUST be EXACTLY 1 page (match amazonResumeTemplate.tex).`,
+      'Output ONLY sections from \\section{\\textbf{Work Experience}} through Certifications (no preamble).',
+      'TRIM hard without changing margins/itemsep/titlespacing/bold scheme:',
+      '- Drop weakest Key Projects until ≤4 remain (≥3 LINKED).',
+      '- Cap each job at 3–4 ONE-LINE bullets (≤95 plain chars).',
+      '- Shorten Skills lines; remove filler words from bullets.',
+      'Keep Amazon → ASI → Infobell. Name Karthik Kovi (header locked). Visual lock unchanged.',
     ].join(' ');
   }
-  if (pageCount > 0 && pageCount < 2) {
+  if (pageCount === 0) {
     return [
-      `COMPILED PDF HAS ONLY ${pageCount} PAGE — it MUST be EXACTLY 2 FULL pages.`,
-      'Output ONLY sections from \\section{\\textbf{Education}} onward (no preamble).',
-      'Expand projects/experience with metrics so both pages are full.',
+      'Page counter returned 0 (often a false alarm). Still output a complete 1-page resume.',
+      'Output FULL body from \\section{\\textbf{Work Experience}} through Certifications (no preamble).',
+      'Keep amazonResumeTemplate.tex visual lock. Amazon → ASI → Infobell. EXACTLY 1 page.',
     ].join(' ');
   }
   return [
-    'PDF page count invalid. Regenerate amazon.pdf section body only (Education → Certifications).',
-    'No \\documentclass. No fontspec. Candidate KARTHIK KOVI only.',
+    'PDF page count invalid. Regenerate body from Work Experience → Certifications.',
+    'EXACTLY 1 page. Match template layout. No \\documentclass. Karthik Kovi only.',
   ].join(' ');
 }
 
-function sparsePage2RepairInstruction(): string {
-  return [
-    'PAGE 2 IS TOO EMPTY (large white gap; only pubs/certs or a thin slice of content).',
-    'Both pages must look FULL and balanced.',
-    'Fix by: (1) moving 1-2 projects so they start on page 2, OR (2) adding another catalog project with 3-4 strong bullets on page 2, OR (3) expanding experience/project bullets so content fills most of page 2 above Certifications.',
-    'Keep EXACTLY 2 pages total (do not become 3). Keep 100% JD keyword coverage and amazon.pdf \\textbar design.',
-    'Output complete LaTeX only.',
-  ].join(' ');
-}
-
-async function compileAndFitTwoFullPages(
+async function compileAndFitOnePage(
   ctx: ResumeCtx,
   latexIn: string,
   jobId: string,
   onNote?: (note: string) => Promise<void>
-): Promise<{ latex: string; pdfPath: string; pageCount: number; sparse: boolean }> {
+): Promise<{ latex: string; pdfPath: string; pageCount: number }> {
   let latex = latexIn;
   let pdfPath = '';
   let pageCount = 0;
@@ -98,10 +88,9 @@ async function compileAndFitTwoFullPages(
     } catch (compileErr) {
       const detail = compileErr instanceof Error ? compileErr.message : 'PDF compile failed';
       if (attempt >= MAX_PAGE_REPAIRS) throw compileErr;
-      // Weak local models often emit uncompilable LaTeX — lock to amazon template instead of looping.
       if (attempt === 0) {
         await onNote?.(
-          `Compile failed — locking amazon.pdf 2-page template (attempt ${attempt + 1}/${MAX_PAGE_REPAIRS})…`
+          `Compile failed — locking 1-page template (attempt ${attempt + 1}/${MAX_PAGE_REPAIRS})…`
         );
         latex = getAmazonTemplateLatex();
         continue;
@@ -113,61 +102,27 @@ async function compileAndFitTwoFullPages(
         await reviseResumeLatex(
           ctx,
           latex,
-          `LaTeX failed to compile. Output ONLY sections from \\section{\\textbf{Education}} onward (no preamble). Fix errors for EXACTLY 2 FULL pages.\n${detail.slice(0, 800)}`
+          `LaTeX failed to compile. Output Work Experience → Certifications only. Fix for EXACTLY 1 page matching amazonResumeTemplate.tex.\n${detail.slice(0, 800)}`
         )
       );
       continue;
     }
 
-    if (pageCount === 2) break;
+    if (pageCount === 1) break;
 
     if (attempt >= MAX_PAGE_REPAIRS) {
-      return { latex, pdfPath, pageCount, sparse: false };
+      return { latex, pdfPath, pageCount };
     }
 
     await onNote?.(
-      `Got ${pageCount} page(s) — auto-repairing to exactly 2 full pages (attempt ${attempt + 1}/${MAX_PAGE_REPAIRS})…`
+      `Got ${pageCount} page(s) — auto-trimming to exactly 1 page (attempt ${attempt + 1}/${MAX_PAGE_REPAIRS})…`
     );
     latex = enforceMasterRules(
       await reviseResumeLatex(ctx, latex, pageRepairInstruction(pageCount))
     );
   }
 
-  for (let d = 0; d < MAX_DENSITY_REPAIRS && pageCount === 2 && isSecondPageSparse(pdfPath, latex); d++) {
-    console.warn(`⚠️ Page 2 looks sparse — densifying (attempt ${d + 1}/${MAX_DENSITY_REPAIRS})…`);
-    await onNote?.(
-      `Page 2 has a large empty gap — densifying content (attempt ${d + 1}/${MAX_DENSITY_REPAIRS})…`
-    );
-    latex = enforceMasterRules(
-      await reviseResumeLatex(ctx, latex, sparsePage2RepairInstruction())
-    );
-
-    try {
-      const compiled = compileWithJdHeader(latex, jobId, ctx);
-      pdfPath = compiled.pdfPath;
-      pageCount = compiled.pageCount;
-      latex = compiled.latex;
-    } catch {
-      break;
-    }
-
-    if (pageCount > 2) {
-      latex = enforceMasterRules(
-        await reviseResumeLatex(ctx, latex, pageRepairInstruction(pageCount))
-      );
-      try {
-        const compiled = compileWithJdHeader(latex, jobId, ctx);
-        pdfPath = compiled.pdfPath;
-        pageCount = compiled.pageCount;
-        latex = compiled.latex;
-      } catch {
-        break;
-      }
-    }
-  }
-
-  const sparse = pageCount === 2 && isSecondPageSparse(pdfPath, latex);
-  return { latex, pdfPath, pageCount, sparse };
+  return { latex, pdfPath, pageCount };
 }
 
 export async function runResumePipeline(jobId: string) {
@@ -192,7 +147,7 @@ export async function runResumePipeline(jobId: string) {
     job.matchedKeywords = undefined;
     job.missingKeywords = undefined;
     job.skillGaps = undefined;
-    job.approvalNote = `Generating tailored 2-page resume with ${agentLabel}…`;
+    job.approvalNote = `Generating tailored 1-page resume with ${agentLabel}…`;
     await job.save();
 
     console.log(`\n📄 Resume agent: ${job.title} @ ${job.company}`);
@@ -205,10 +160,10 @@ export async function runResumePipeline(jobId: string) {
     });
 
     job.resumePhase = 'compiling';
-    job.approvalNote = 'Compiling LaTeX → PDF and fitting to exactly 2 pages…';
+    job.approvalNote = 'Compiling LaTeX → PDF and fitting to exactly 1 page…';
     await job.save();
 
-    let fitted = await compileAndFitTwoFullPages(ctx, latex, job.id, async (note) => {
+    let fitted = await compileAndFitOnePage(ctx, latex, job.id, async (note) => {
       job.resumePhase = 'compiling';
       job.approvalNote = note;
       await job.save();
@@ -218,12 +173,12 @@ export async function runResumePipeline(jobId: string) {
     job.pdfPath = fitted.pdfPath;
     await job.save();
 
-    if (fitted.pageCount !== 2) {
+    if (fitted.pageCount !== 1) {
       job.status = 'resume_generated';
       job.resumePhase = 'failed';
       job.pendingAction = 'resume_review';
-      job.errorMessage = `PDF is ${fitted.pageCount} page(s) — must be exactly 2 after auto-repair.`;
-      job.approvalNote = `Resume is ${fitted.pageCount} page(s) after auto-repair. Trim/expand manually, then Build PDF.`;
+      job.errorMessage = `PDF is ${fitted.pageCount} page(s) — must be exactly 1 after auto-repair.`;
+      job.approvalNote = `Resume is ${fitted.pageCount} page(s) after auto-repair. Trim content to match the 1-page template, then Build PDF.`;
       await job.save();
       return;
     }
@@ -245,31 +200,17 @@ export async function runResumePipeline(jobId: string) {
     }`;
     await job.save();
 
-    // One-shot only: never re-generate / repair when match is under 100%.
-    if (fitted.pageCount !== 2) {
+    if (fitted.pageCount !== 1) {
       job.status = 'resume_generated';
       job.resumePhase = 'failed';
       job.pendingAction = 'resume_review';
-      job.errorMessage = `PDF is ${fitted.pageCount} page(s) — must be exactly 2.`;
+      job.errorMessage = `PDF is ${fitted.pageCount} page(s) — must be exactly 1.`;
       job.approvalNote = `Stopped with ${fitted.pageCount} page(s). No match-repair retries.`;
       await job.save();
       return;
     }
 
-    if (fitted.sparse) {
-      job.status = 'resume_generated';
-      job.resumePhase = 'failed';
-      job.pendingAction = 'resume_review';
-      job.errorMessage =
-        'PDF is 2 pages but page 2 is too empty (large gap). Needs denser projects/experience on page 2.';
-      job.approvalNote =
-        '2 pages but page 2 still has a large empty gap. Regenerate or edit LaTeX to fill page 2.';
-      await job.save();
-      console.warn(`⚠️ ${job.title}: 2 pages but sparse page 2`);
-      return;
-    }
-
-    assertExactlyTwoPages(fitted.pdfPath);
+    assertExactlyOnePage(fitted.pdfPath);
 
     const fullMatch = isFullJdMatch(match);
     const linkedOk = hasEnoughLinkedProjects(latex, MIN_LINKED_PROJECTS);
@@ -298,19 +239,19 @@ export async function runResumePipeline(jobId: string) {
     applyMatchFieldsToJob(job, match, { skillGaps, resumeMatchScore });
     job.approvalNote =
       job.priority === 'faang'
-        ? `🚨 FAANG/MANGO — 2 full pages, 100% JD keywords · resume ${resumeMatchScore}%. Apply yourself (no auto-apply).`
+        ? `🚨 FAANG/MANGO — 1 page (template lock), 100% JD keywords · resume ${resumeMatchScore}%. Apply yourself (no auto-apply).`
         : job.jobType === 'internship'
-          ? `2 full pages — 100% keyword match · resume ${resumeMatchScore}%. Review PDF, then apply manually on the company site.`
-          : `2 full pages — 100% keyword match · resume ${resumeMatchScore}%. Review PDF, then Approve or Approve & Auto-Apply.`;
+          ? `1 page — 100% keyword match · resume ${resumeMatchScore}%. Review PDF, then apply manually on the company site.`
+          : `1 page — 100% keyword match · resume ${resumeMatchScore}%. Review PDF, then Approve or Approve & Auto-Apply.`;
     await job.save();
 
     await sendEmailNotification(
-      `📄 Resume ready (2 full pages, 100% keywords / resume ${resumeMatchScore}%)\n${job.title} @ ${job.company}\n${
+      `📄 Resume ready (1 page, 100% keywords / resume ${resumeMatchScore}%)\n${job.title} @ ${job.company}\n${
         job.priority === 'faang' ? '🚨 FAANG/MANGO — apply yourself, no auto-apply.\n' : ''
       }Review PDF in job tracker.`
     );
     console.log(
-      `✅ Resume pipeline complete: ${job.title} (2 full pages, 100% keywords, resume ${resumeMatchScore}%)`
+      `✅ Resume pipeline complete: ${job.title} (1 page, 100% keywords, resume ${resumeMatchScore}%)`
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Resume generation failed';

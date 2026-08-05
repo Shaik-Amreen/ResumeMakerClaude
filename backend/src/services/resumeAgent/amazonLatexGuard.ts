@@ -1,18 +1,38 @@
 import fs from 'fs';
 import path from 'path';
 import { sanitizeResumeLatex } from './sanitizeLatex';
+import type { enforceMasterRules as EnforceMasterRulesFn } from './enforceMasterRules';
 
-const TEMPLATE_PATH = path.join(__dirname, '../../data/resume-assets/amazonResumeTemplate.tex');
+function applyMasterRules(latex: string): string {
+  // Lazy require avoids circular init with extractLatex → amazonLatexGuard → enforceMasterRules
+  const { enforceMasterRules } = require('./enforceMasterRules') as {
+    enforceMasterRules: typeof EnforceMasterRulesFn;
+  };
+  return enforceMasterRules(latex);
+}
+
+const TEMPLATE_CANDIDATES = [
+  path.join(__dirname, '../../data/resume-assets/amazonResumeTemplate.tex'),
+  // When compiled to dist/, assets live under src/
+  path.join(__dirname, '../../../src/data/resume-assets/amazonResumeTemplate.tex'),
+  path.join(process.cwd(), 'src/data/resume-assets/amazonResumeTemplate.tex'),
+];
+
+function resolveAmazonTemplatePath(): string {
+  for (const p of TEMPLATE_CANDIDATES) {
+    if (fs.existsSync(p)) return p;
+  }
+  return TEMPLATE_CANDIDATES[0];
+}
 
 let cachedTemplate = '';
 
 function loadAmazonTemplate(): string {
-  // Always re-read so template edits (2-page lock) apply without process restart.
-  cachedTemplate = fs.readFileSync(TEMPLATE_PATH, 'utf8');
+  cachedTemplate = fs.readFileSync(resolveAmazonTemplatePath(), 'utf8');
   return cachedTemplate;
 }
 
-/** Preamble + \begin{document} + centered header from amazon.pdf template. */
+/** Preamble + \begin{document} + centered header from Karthik standard template. */
 export function amazonTemplateShell(): { shellBeforeBody: string; fullTemplate: string } {
   const template = loadAmazonTemplate();
   const center = template.match(/\\begin\{center\}[\s\S]*?\\end\{center\}/);
@@ -30,34 +50,134 @@ export function getAmazonTemplateLatex(): string {
   return applyJdHeaderTagline(sanitizeResumeLatex(loadAmazonTemplate()));
 }
 
-/** Role / title / skills line in the centered header (any variant). */
-const HEADER_ROLE_LINE_RE =
-  /^\s*\{[^}\n]*(?:Software Engineer|Full-Stack|Frontend|Backend|Distributed Systems|MS Computer Science)[^}\n]*\}\s*\\,\s*\\textbar\\,\s*$/gim;
+/** Fixed contact suffix on the title header line (plain text length). */
+const HEADER_CONTACT_PLAIN =
+  'karthikkovik@gmail.com | +1 (562) 284-0297 | California, USA';
 
-const HEADER_ROLE_INLINE_RE =
-  /\{Software Engineer\s*\\,\s*\\textbar\\,\s*Distributed Systems\s*\\&\s*Cloud(?:\s*\\,\s*\\textbar\\,\s*MS Computer Science,\s*CSULB)?\}\s*\\,\s*\\textbar\\,\s*/gi;
+/** ~one Times 11pt header line on letter paper with template margins. */
+export const MAX_HEADER_LINE_PLAIN = 98;
 
 /**
- * Remove title / role / skills from the header.
- * Header keeps name + email + phone + location + LinkedIn + Portfolio only.
+ * Collapse long JD titles to short header roles:
+ * Software Engineer, Backend Engineer, Frontend Engineer, Full Stack Engineer, etc.
+ */
+export function shortenHeaderRoleTitle(
+  rawTitle?: string,
+  jobDescription?: string
+): string {
+  const blob = `${rawTitle || ''} ${jobDescription || ''}`.toLowerCase();
+  const title = (rawTitle || '').replace(/\s+/g, ' ').trim();
+
+  if (/\b(?:full[\s-]?stack|fullstack)\b/i.test(blob)) return 'Full Stack Engineer';
+  if (/\b(?:front[\s-]?end|frontend|react\s+native|ui\s+engineer|mobile\s+engineer)\b/i.test(blob)) {
+    if (/\breact\s+native|mobile\b/i.test(blob)) return 'Mobile Engineer';
+    return 'Frontend Engineer';
+  }
+  if (/\b(?:back[\s-]?end|backend|platform\s+engineer|server[\s-]?side|api\s+engineer)\b/i.test(blob)) {
+    return 'Backend Engineer';
+  }
+  if (/\b(?:data\s+engineer|ml\s+engineer|machine\s+learning|ai\s+engineer)\b/i.test(blob)) {
+    if (/\bdata\s+engineer\b/i.test(blob)) return 'Data Engineer';
+    return 'ML Engineer';
+  }
+  if (/\b(?:devops|sre|site\s+reliability|infrastructure\s+engineer|cloud\s+engineer)\b/i.test(blob)) {
+    if (/\bsre|site\s+reliability\b/i.test(blob)) return 'SRE';
+    if (/\bdevops\b/i.test(blob)) return 'DevOps Engineer';
+    return 'Cloud Engineer';
+  }
+  if (/\b(?:security\s+engineer)\b/i.test(blob)) return 'Security Engineer';
+  if (/\b(?:android\s+engineer|ios\s+engineer)\b/i.test(blob)) {
+    return /\bandroid\b/i.test(blob) ? 'Android Engineer' : 'iOS Engineer';
+  }
+  if (/\b(?:new\s+grad|university\s+grad|entry[\s-]?level|junior)\b/i.test(blob) && /\bsoftware\b/i.test(blob)) {
+    return 'Software Engineer';
+  }
+
+  // Already short enough (and not seniority / new-grad noise)
+  if (
+    title &&
+    title.length <= 28 &&
+    !/\bat\b|\||,/i.test(title) &&
+    !/\b(?:new\s+grad|university|entry|junior|associate|sde\s*i{0,3}|\bi{1,3}\b)\b/i.test(title)
+  ) {
+    const cleaned = title.replace(/[{}%\\]/g, '');
+    if (/engineer|developer/i.test(cleaned)) return cleaned;
+  }
+
+  if (/\bsde\b/i.test(title) || /\bsoftware\s+development\s+engineer\b/i.test(title)) {
+    return 'Software Engineer';
+  }
+
+  // Strip company / seniority noise from JD title
+  let t = title
+    .replace(/\b(?:new\s+grad(?:uate)?|university\s+grad(?:uate)?|entry[\s-]?level|junior|associate|i{1,3}|1|2)\b/gi, '')
+    .replace(/\b(?:full[\s-]?time|remote|hybrid|on[\s-]?site)\b/gi, '')
+    .replace(/\s*[-–—|].*$/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (/\bsoftware\s+(?:engineer|developer|development\s+engineer)\b/i.test(t) || /\bsde\b/i.test(t)) {
+    return 'Software Engineer';
+  }
+  if (/\bdeveloper\b/i.test(t) && !/\bengineer\b/i.test(t)) return 'Software Developer';
+  if (/\bengineer\b/i.test(t)) {
+    const short = t.replace(/[{}%\\]/g, '').slice(0, 28).trim();
+    return short || 'Software Engineer';
+  }
+
+  return 'Software Engineer';
+}
+
+function headerLinePlain(title: string, includeRelocate: boolean): string {
+  const parts = [title];
+  if (includeRelocate) parts.push('Open to Relocate');
+  parts.push(HEADER_CONTACT_PLAIN);
+  return parts.join(' | ');
+}
+
+/**
+ * Lock header to Karthik standard:
+ * Name | short Title | [Open to Relocate] | Email | Phone | California | LinkedIn | Portfolio | GitHub
+ * Drops "Open to Relocate" when the title line would wrap to a second line.
  */
 export function applyJdHeaderTagline(
   latex: string,
-  _opts?: { title?: string; jobDescription?: string; company?: string }
+  opts?: { title?: string; jobDescription?: string; company?: string }
 ): string {
-  return latex
-    .replace(HEADER_ROLE_INLINE_RE, '')
-    .replace(HEADER_ROLE_LINE_RE, '')
-    // Any leftover "Software Engineer | … | MS …" block before the mailto line
-    .replace(
-      /\{\s*(?:Software Engineer|Full-Stack Web Developer|Frontend Engineer|Backend Engineer)[^}]*\}\s*\\,\s*\\textbar\\,\s*(?=\\href\{mailto:)/gi,
-      ''
-    );
+  const safeTitle = shortenHeaderRoleTitle(opts?.title, opts?.jobDescription).replace(/[{}%\\]/g, '');
+  const includeRelocate =
+    headerLinePlain(safeTitle, true).length <= MAX_HEADER_LINE_PLAIN;
+
+  const relocateChunk = includeRelocate
+    ? '\n    {Open to Relocate} \\,\\textbar\\,'
+    : '';
+  const titleLine = `{${safeTitle}} \\,\\textbar\\,${relocateChunk}`;
+
+  // Replace existing title (+ optional Open to Relocate); leave email/phone line intact.
+  const headerBlockRe =
+    /(\\textbf\{\\Huge \\scshape Karthik Kovi\}\\\\(?:\[-2pt\])?\s*\n)\s*\{[^}\n]*\}\s*\\,\s*\\textbar\\,(?:\s*\n\s*\{Open to Relocate\}\s*\\,\s*\\textbar\\,)?/i;
+
+  if (headerBlockRe.test(latex)) {
+    let out = latex.replace(headerBlockRe, `$1${titleLine}\n    `);
+    if (!includeRelocate) {
+      out = out.replace(/\n\s*\{Open to Relocate\}\s*\\,\s*\\textbar\\,/gi, '');
+    }
+    return out;
+  }
+
+  return latex.replace(
+    /(\\textbf\{\\Huge \\scshape Karthik Kovi\}\\\\(?:\[-2pt\])?\s*\n)/i,
+    `$1${titleLine}\n    `
+  );
 }
 
 const FORBIDDEN_NAME =
   /\b(Allen\s+Sun|Nitin\s+Maddi|John\s+Doe|Jane\s+Doe|Your\s+Name|Candidate\s+Name|Amreen\s+Kousar|Shaik\s+Amreen)\b/i;
+const FORBIDDEN_EMPLOYER = /\bRedbee(?:\s+(?:Technologies|365(?:\s+Studio)?))?\b/i;
 const FORBIDDEN_PACKAGES = /\\usepackage\{fontspec\}|\\setmainfont/i;
+const ALLOWED_TECTONIC_FONT =
+  /\\usepackage\{fontspec\}[\s\S]*?\\setmainfont\{(?:TeX Gyre Termes|Times New Roman)\}/i;
+const CANDIDATE_NAME = /Karthik\s+Kovi/i;
 
 export interface AmazonLatexCheck {
   ok: boolean;
@@ -72,27 +192,28 @@ function countEnv(latex: string, name: string): { open: number; close: number } 
 
 function bodyLooksStructurallyBroken(body: string): string | null {
   if (/\\documentclass/i.test(body)) return 'body still contains \\documentclass';
-  if (FORBIDDEN_PACKAGES.test(body)) return 'body contains fontspec';
+  if (FORBIDDEN_PACKAGES.test(body) && !ALLOWED_TECTONIC_FONT.test(body)) {
+    return 'body contains fontspec';
+  }
   if (FORBIDDEN_NAME.test(body)) return 'body contains wrong person name';
+  if (FORBIDDEN_EMPLOYER.test(body)) return 'body contains removed employer Redbee';
   for (const env of ['itemize', 'enumerate', 'center']) {
     const { open, close } = countEnv(body, env);
     if (open !== close) return `unbalanced ${env} (${open} begin / ${close} end)`;
   }
-  // Unescaped & outside known safe patterns often breaks tabular-less resumes
   const amp = body.replace(/\\&/g, '').match(/&/g);
   if (amp && amp.length > 8) return 'too many raw & characters';
+  if (!/\\section\{\\textbf\{Work Experience\}\}/i.test(body) && !/\\section\{Work Experience\}/i.test(body)) {
+    return 'missing Work Experience section';
+  }
+  if (!/\\section\{\\textbf\{Skills\}\}/i.test(body) && !/\\section\{Skills\}/i.test(body)) {
+    return 'missing Skills section';
+  }
+  if (!/\\section\{\\textbf\{Key Projects\}\}/i.test(body) && !/\\section\{Key Projects\}/i.test(body)) {
+    return 'missing Key Projects section';
+  }
   if (!/\\section\{\\textbf\{Education\}\}/i.test(body) && !/\\section\{Education\}/i.test(body)) {
     return 'missing Education section';
-  }
-  if (
-    !/\\section\{\\textbf\{Technical Skills\}\}/i.test(body) &&
-    !/\\section\{\\textbf\{Skills\}\}/i.test(body) &&
-    !/\\section\{Technical Skills\}/i.test(body)
-  ) {
-    return 'missing Technical Skills section';
-  }
-  if (!/\\section\{\\textbf\{Professional Experience\}/i.test(body) && !/\\section\{\\textbf\{Work Experience\}/i.test(body)) {
-    return 'missing Professional Experience section';
   }
   return null;
 }
@@ -103,19 +224,28 @@ export function checkAmazonLatex(latex: string): AmazonLatexCheck {
     reasons.push('wrong/missing letterpaper 11pt documentclass');
   }
   if (!/\\usepackage\{times\}/i.test(latex)) reasons.push('missing times package');
+  if (!/\\usepackage\[normalem\]\{ulem\}/i.test(latex) && !/\\usepackage\{ulem\}/i.test(latex)) {
+    reasons.push('missing ulem (for \\uline companies)');
+  }
   if (!/\\begin\{document\}/i.test(latex)) reasons.push('missing \\begin{document}');
   if (!/\\end\{document\}/i.test(latex)) reasons.push('missing \\end{document}');
-  if (!/KARTHIK\s+KOVI|Karthik\s+Kovi/i.test(latex)) reasons.push('missing candidate name Karthik Kovi');
+  if (!CANDIDATE_NAME.test(latex)) reasons.push('missing candidate name Karthik Kovi');
   if (FORBIDDEN_NAME.test(latex)) reasons.push('hallucinated wrong person name');
-  if (FORBIDDEN_PACKAGES.test(latex)) reasons.push('forbidden fontspec/setmainfont');
-  if (!/\\section\{\\textbf\{Education\}\}/i.test(latex) && !/\\section\{Education\}/i.test(latex)) {
-    reasons.push('missing Education section');
+  if (FORBIDDEN_EMPLOYER.test(latex)) reasons.push('includes removed employer Redbee');
+  if (FORBIDDEN_PACKAGES.test(latex) && !ALLOWED_TECTONIC_FONT.test(latex)) {
+    reasons.push('forbidden fontspec/setmainfont');
   }
-  if (
-    !/\\section\{\\textbf\{Technical Skills\}\}/i.test(latex) &&
-    !/\\section\{\\textbf\{Skills\}\}/i.test(latex)
-  ) {
-    reasons.push('missing Technical Skills section');
+  if (!/\\section\{\\textbf\{Work Experience\}\}/i.test(latex)) reasons.push('missing Work Experience section');
+  if (!/\\section\{\\textbf\{Skills\}\}/i.test(latex)) reasons.push('missing Skills section');
+  if (!/\\section\{\\textbf\{Key Projects\}\}/i.test(latex)) reasons.push('missing Key Projects section');
+  if (!/\\section\{\\textbf\{Education\}\}/i.test(latex)) reasons.push('missing Education section');
+  if (!/\\vspace\{2pt\}/i.test(latex)) reasons.push('missing \\vspace{2pt} section gaps');
+  if (!/\\begin\{itemize\}\[itemsep=2pt,\s*topsep=2pt,\s*parsep=0pt,\s*partopsep=0pt,\s*leftmargin=10pt\]/i.test(latex)) {
+    reasons.push('missing template itemize spacing options');
+  }
+  if (!/\\uline\{\\textbf\{/i.test(latex)) reasons.push('missing \\uline{\\textbf{...}} company/school chrome');
+  if (!/\\textbf\{\\Huge \\scshape Karthik Kovi\}/i.test(latex)) {
+    reasons.push('missing bold small-caps name chrome');
   }
   for (const env of ['itemize', 'enumerate']) {
     const { open, close } = countEnv(latex, env);
@@ -125,8 +255,7 @@ export function checkAmazonLatex(latex: string): AmazonLatexCheck {
 }
 
 /**
- * Force amazon.pdf structure: locked preamble/header + model body from first \section.
- * Prevents llama from inventing wrong templates/names.
+ * Force Karthik standard template: locked preamble/header + model body from first \section.
  */
 export function enforceAmazonLatex(modelOutput: string): string {
   const { shellBeforeBody, fullTemplate } = amazonTemplateShell();
@@ -135,7 +264,6 @@ export function enforceAmazonLatex(modelOutput: string): string {
   const fence = body.match(/```(?:latex|tex)?\s*([\s\S]*?)```/i);
   if (fence?.[1]) body = fence[1].trim();
 
-  // If input is already a locked amazon doc, extract body after header for re-lock
   body = body
     .replace(/^[\s\S]*?\\begin\{document\}/i, '')
     .replace(/\\end\{document\}[\s\S]*$/i, '')
@@ -159,23 +287,45 @@ export function enforceAmazonLatex(modelOutput: string): string {
     .replace(/\\urlstyle\{[^}]+\}/gi, '')
     .trim();
 
-  // Drop any invented header before the first section
   const sectionIdx = body.search(
-    /\\section\*?(\s*\{\\textbf\{|\s*\{\s*)(Education|Technical|Professional|Featured|Work|Skills|Publications|Certificat)/i
+    /\\section\*?(\s*\{\\textbf\{|\s*\{\s*)(Work Experience|Skills|Key Projects|Education|Certificat|Professional|Technical|Featured)/i
   );
   if (sectionIdx > 0) {
     body = body.slice(sectionIdx);
   } else if (sectionIdx < 0) {
-    console.warn('⚠️ No amazon section found — falling back to amazonResumeTemplate.tex');
+    console.warn('⚠️ No template section found — falling back to amazonResumeTemplate.tex');
     return sanitizeResumeLatex(fullTemplate);
   }
 
+  // Normalize alternate section names to Karthik standard template
   body = body
-    .replace(/\\section\*?\s*\{\\textbf\{Work Experience\}\}/gi, '\\section{\\textbf{Professional Experience}}')
-    .replace(/\\section\*?\s*\{\\textbf\{Skills\}\}/gi, '\\section{\\textbf{Technical Skills}}')
-    .replace(/\\section\*?\s*\{\\textbf\{Key Projects\}\}/gi, '\\section{\\textbf{Featured Projects}}')
-    .replace(/\\section\*?\s*\{Work Experience\}/gi, '\\section{\\textbf{Professional Experience}}')
-    .replace(/\\section\*?\s*\{Skills\}/gi, '\\section{\\textbf{Technical Skills}}');
+    .replace(/\\section\*?\s*\{\\textbf\{Professional Experience\}\}/gi, '\\section{\\textbf{Work Experience}}')
+    .replace(/\\section\*?\s*\{\\textbf\{Technical Skills\}\}/gi, '\\section{\\textbf{Skills}}')
+    .replace(/\\section\*?\s*\{\\textbf\{Featured Projects\}\}/gi, '\\section{\\textbf{Key Projects}}')
+    .replace(/\\section\*?\s*\{Professional Experience\}/gi, '\\section{\\textbf{Work Experience}}')
+    .replace(/\\section\*?\s*\{Technical Skills\}/gi, '\\section{\\textbf{Skills}}')
+    .replace(/\\section\*?\s*\{Featured Projects\}/gi, '\\section{\\textbf{Key Projects}}');
+
+  // Revise prompts used to say "start at Education" — recover tailored Skills/Projects
+  // by splicing template Work Experience instead of nuking the whole body.
+  if (
+    !/\\section\{\\textbf\{Work Experience\}\}/i.test(body) &&
+    !/\\section\{Work Experience\}/i.test(body) &&
+    /\\section\{\\textbf\{(?:Skills|Key Projects|Education)\}/i.test(body)
+  ) {
+    const we = fullTemplate.match(
+      /\\section\{\\textbf\{Work Experience\}\}[\s\S]*?(?=\\section\{\\textbf\{Skills\}\})/i
+    );
+    const restIdx = body.search(
+      /\\section\{\\textbf\{(?:Skills|Key Projects|Education|Certificat)/i
+    );
+    if (we && restIdx >= 0) {
+      console.warn(
+        '⚠️ Missing Work Experience — splicing template experience; keeping later tailored sections'
+      );
+      body = `${we[0].trim()}\n\n${body.slice(restIdx).trim()}`;
+    }
+  }
 
   const structural = bodyLooksStructurallyBroken(body);
   if (body.length < 800 || structural) {
@@ -186,13 +336,12 @@ export function enforceAmazonLatex(modelOutput: string): string {
   }
 
   let assembled = `${shellBeforeBody}\n${body}\n\\end{document}\n`;
-  assembled = sanitizeResumeLatex(assembled);
-  // Never keep role/title/skills in the header (name + contact only).
+  assembled = applyMasterRules(assembled);
   assembled = applyJdHeaderTagline(assembled);
 
   const check = checkAmazonLatex(assembled);
-  if (!check.ok || FORBIDDEN_NAME.test(assembled) || !/KARTHIK\s+KOVI|Karthik\s+Kovi/i.test(assembled)) {
-    console.warn(`⚠️ Amazon check failed (${check.reasons.join('; ')}) — using amazon template`);
+  if (!check.ok || FORBIDDEN_NAME.test(assembled) || !CANDIDATE_NAME.test(assembled)) {
+    console.warn(`⚠️ Template check failed (${check.reasons.join('; ')}) — using standard template`);
     return applyJdHeaderTagline(sanitizeResumeLatex(fullTemplate));
   }
 
@@ -212,13 +361,17 @@ export function enforceAmazonLatex(modelOutput: string): string {
 
 export function amazonStructureRepairInstruction(reasons: string[]): string {
   return [
-    'CRITICAL: Your LaTeX must match amazon.pdf EXACTLY.',
-    'Do NOT invent another person, template, fontspec, or A4 geometry.',
-    'Candidate name MUST be KARTHIK KOVI.',
-    'Output ONLY section content starting at \\section{\\textbf{Education}} through Certifications.',
-    'Do NOT output \\documentclass or preamble — the pipeline locks the amazon preamble/header.',
+    'CRITICAL: Your LaTeX must match Karthik Overleaf template EXACTLY (bold map + gaps).',
+    'Do NOT invent another person, template, fontspec, A4 geometry, or alternate bold scheme.',
+    'Candidate name MUST be Karthik Kovi as \\textbf{\\Huge \\scshape Karthik Kovi}.',
+    'After every \\section{\\textbf{...}} use \\vspace{2pt}.',
+    'Experience itemize MUST be [itemsep=2pt, topsep=2pt, parsep=0pt, partopsep=0pt, leftmargin=10pt].',
+    'Companies/schools: \\uline{\\textbf{...}}. Bold tech+metrics in bullets; stacks after \\textbar NOT bold.',
+    'Output ONLY section content starting at \\section{\\textbf{Work Experience}} through Certifications.',
+    'Section order: Work Experience → Skills → Key Projects → Education → Certifications.',
+    'Do NOT output \\documentclass or preamble — the pipeline locks the preamble/header.',
     reasons.length ? `Problems detected: ${reasons.join('; ')}.` : '',
-    'Keep ASI Software Developer as first experience. Exactly content for a 2-page amazon-style resume.',
+    'Keep Amazon Software Engineer Intern as first experience (then ASI, Infobell). EXACTLY 1 page — never 2.',
   ]
     .filter(Boolean)
     .join(' ');

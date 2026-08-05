@@ -83,7 +83,7 @@ export function PipelineControlPanel({ jobType, onJobsChanged, busy, setBusy }: 
         <div>
           <h2 className="text-sm font-semibold text-ink">Pipeline controls</h2>
           <p className="text-xs text-ink-muted mt-0.5">
-            Mode: <span className="text-primary-500 font-medium">{JOB_TYPE_LABELS[jobType]}</span> · Orange Chrome
+            Mode: <span className="text-primary-500 font-medium">{JOB_TYPE_LABELS[jobType]}</span> · Karthik Chrome
             (port 9333) must stay open.
           </p>
         </div>
@@ -166,26 +166,22 @@ export function PipelineControlPanel({ jobType, onJobsChanged, busy, setBusy }: 
       )}
 
       <div className="flex flex-wrap gap-2">
-        {jobType === 'internship' && (
-          <>
-            <button
-              type="button"
-              disabled={busy || active}
-              onClick={() => run('FAANG portals', () => api.scrapeFaangPortals(limit))}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-orange-50 text-orange-900 border border-orange-200 hover:bg-orange-100 disabled:opacity-40"
-            >
-              <Briefcase size={14} /> Scrape FAANG
-            </button>
-            <button
-              type="button"
-              disabled={busy || active}
-              onClick={() => run('GitHub lists', () => api.scrapeGithubLists(limit))}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-slate-800 text-white border border-slate-700 hover:bg-slate-700 disabled:opacity-40"
-            >
-              <Search size={14} /> Scrape GitHub lists
-            </button>
-          </>
-        )}
+        <button
+          type="button"
+          disabled={busy || active}
+          onClick={() => run('FAANG portals', () => api.scrapeFaangPortals(limit, jobType))}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-orange-50 text-orange-900 border border-orange-200 hover:bg-orange-100 disabled:opacity-40"
+        >
+          <Briefcase size={14} /> Scrape FAANG
+        </button>
+        <button
+          type="button"
+          disabled={busy || active}
+          onClick={() => run('GitHub lists', () => api.scrapeGithubLists(limit, jobType))}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-slate-800 text-white border border-slate-700 hover:bg-slate-700 disabled:opacity-40"
+        >
+          <Search size={14} /> Scrape GitHub + Simplify
+        </button>
         <button
           type="button"
           disabled={busy || active}
@@ -202,25 +198,22 @@ export function PipelineControlPanel({ jobType, onJobsChanged, busy, setBusy }: 
         >
           <Globe size={14} /> Scrape LinkedIn
         </button>
-        {jobType === 'internship' ? (
-          <button
-            type="button"
-            disabled={busy || active}
-            onClick={() => run('Google Jobs', () => api.scrapeCareerPortals(limit))}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100 disabled:opacity-40"
-          >
-            <Briefcase size={14} /> Scrape Google
-          </button>
-        ) : (
-          <button
-            type="button"
-            disabled={busy || active}
-            onClick={() => run('Indeed', () => api.scrapeIndeed(limit, jobType))}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100 disabled:opacity-40"
-          >
-            <Briefcase size={14} /> Scrape Indeed
-          </button>
-        )}
+        <button
+          type="button"
+          disabled={busy || active}
+          onClick={() => run('Indeed', () => api.scrapeIndeed(limit, jobType))}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-indigo-50 text-indigo-900 border border-indigo-200 hover:bg-indigo-100 disabled:opacity-40"
+        >
+          <Briefcase size={14} /> Scrape Indeed
+        </button>
+        <button
+          type="button"
+          disabled={busy || active}
+          onClick={() => run('Google Jobs', () => api.scrapeCareerPortals(limit, jobType))}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100 disabled:opacity-40"
+        >
+          <Briefcase size={14} /> Scrape Google
+        </button>
         <button
           type="button"
           disabled={busy || active}

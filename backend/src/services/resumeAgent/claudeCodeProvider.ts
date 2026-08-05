@@ -148,9 +148,10 @@ export async function reviseResumeWithClaudeCode(
   const userPrompt = [
     'Revise this amazon.pdf-style resume.',
     instruction,
-    'OUTPUT RULES: Start at \\section{\\textbf{Education}}. Do NOT output \\documentclass or preamble.',
-    'Keep name KARTHIK KOVI only. No fontspec. No invented people.',
-    'Output ONLY Education → Certifications section LaTeX.',
+    'OUTPUT RULES: Start at \\section{\\textbf{Work Experience}}. Do NOT output \\documentclass or preamble.',
+    'Keep name Karthik Kovi only. No fontspec. No invented people.',
+    'Output FULL body: Work Experience → Skills → Key Projects → Education → Certifications.',
+    'EXACTLY 1 page. Match amazonResumeTemplate.tex bold/gaps. Amazon → ASI → Infobell only.',
     '',
     'CURRENT BODY:',
     latex,

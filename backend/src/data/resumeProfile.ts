@@ -1,94 +1,86 @@
 /**
- * Base resume profile for Karthik Kovi.
- * Used as source context when tailoring LaTeX resumes to job descriptions.
+ * Base resume profile for Karthik Kovi (standard template truth source).
  */
 export const resumeProfile = {
   name: 'Karthik Kovi',
-  /** Exact LaTeX header name (pipeline-locked). */
   preferredResumeName: 'KARTHIK KOVI',
   headline:
-    'Software Engineer | Full Stack Developer | React, React Native, Node.js, GraphQL, AWS | M.S. Computer Science Candidate, CSULB',
+    'Software Engineer | Full-Stack, Mobile, and Cloud Applications | React, React Native, Node.js, GraphQL, AWS',
   email: 'karthikkovik@gmail.com',
-  phone: '+1 562-284-0297',
+  phone: '+1 (562) 284-0297',
   location: 'Long Beach, California',
   linkedin: 'https://www.linkedin.com/in/karthikkovi',
   portfolio: 'https://karthikkovi.com',
+  github: 'https://github.com/kovikarthik', // from standard template; COMPLETE KB previously marked UNKNOWN
   education: [
     {
-      degree: 'Master of Science in Computer Science',
-      school: 'California State University, Long Beach (CSULB)',
-      dates: 'Jan 2025 – Jan 2027 (expected)',
+      degree: 'M.S. in Computer Science (3.67/4)',
+      school: 'California State University, Long Beach',
+      dates: '01/2025 - 01/2027',
       graduation: 'January 2027',
       gpa: '3.67',
     },
     {
-      degree: 'Bachelor of Technology in Computer Science (GPA: 3.60/4.0)',
-      school: 'Madanapalle Institute of Technology and Science (JNTU Anantapur)',
-      dates: 'Aug 2019 – May 2023',
+      degree: 'B.Tech in Computer Science (3.60/4)',
+      school: 'JNTU Anantapur - MITS',
+      dates: '08/2019 - 05/2023',
+      gpa: '3.60',
     },
   ],
   experience: [
-    'Software Developer — Associated Students, Inc. (ASI), CSULB (Feb 2025 – Present): FutureU Mobile App and 22WestMedia website for 12,000+ monthly users; WCAG 2.1/2.2 AA; campus SSO and audio streaming SDK; GitHub Actions CI/CD (−40% deploy effort); WordPress publishing (+50% efficiency); AWS LightSail/S3 (−30% page load).',
-    'Full Stack Developer — Infobell IT Solutions Pvt Ltd, Bengaluru (Jul 2023 – Jan 2025): Led 4-engineer team on NativeNest (30,000+ users); GraphQL APIs (−30% checkout latency); Origem Next.js/Redis storefront; MirrorMate Windows Miracast app (C#); mentored interns; six Agile releases.',
-    'Full Stack Developer Intern — Infobell IT Solutions Pvt Ltd, Bengaluru (Jan 2023 – Jun 2023): Angular dashboards, REST APIs, Jest coverage to 80%, Swagger docs.',
-    'Full Stack Developer (Contract & Intern) — Redbee 365 Studio / Vasukam / Yes Real Technologies (Feb 2021 – Dec 2022): 5+ production MEAN/MERN projects; SQL reporting 2x faster.',
+    'Software Engineer Intern - Amazon, Bellevue, WA (May 26, 2026 - Aug 14, 2026): Public LinkedIn highlights - batch data remediation on AWS Lambda/DynamoDB/SQS; AWS CDK + CI/CD with CloudWatch; AI assistant skill for batch job ops. Amazon internal details remain confidential beyond LinkedIn-public bullets. Skills listed on LinkedIn: Java, Python, AWS, Lambda, DynamoDB, SQS, CDK, IaC, CI/CD.',
+    'Software Developer - Associated Students, Inc. (ASI), CSULB (Feb 2025 - Present): FutureU mobile + 22WestMedia for 12,000+ monthly users; WCAG 2.1/2.2 AA; campus SSO + audio streaming SDK; GitHub Actions/SonarQube/ESLint CI/CD (-40% deploy effort); WordPress/Elementor publishing (+50%); AWS LightSail + S3 (-30% page load).',
+    'Full Stack Developer / Software Engineer - Infobell IT Solutions Pvt Ltd, Bengaluru (Jul 2023 - Jan 2025): Led 4-engineer team; NativeNest 30K+ users; GraphQL/Apollo (-30% checkout latency); Origem Next.js/Redis/ISR (-25% load); MirrorMate C#/Miracast; mentored interns; six on-time releases.',
+    'Full Stack Developer Intern - Infobell IT Solutions Pvt Ltd (Jan 2023 - Jun 2023): Angular dashboards, REST APIs, Jest coverage to 80%, Swagger.',
+    // Redbee intentionally omitted from resume template (Amazon replaces that slot).
+    'Full Stack Developer - Vasukam (Jul 2022 - Aug 2022): Video-on-demand streaming with React/Node/AWS S3.',
+    'Software Engineer Intern - Yes Real Technologies (Feb 2021 - Jun 2022): University ERP / college management (MERN).',
   ],
   skills: {
-    languages: 'JavaScript, TypeScript, Python, Java, C, C++, C#',
-    frontend: 'React, React Native, Angular, Next.js, HTML, CSS, Bootstrap, Tailwind CSS',
-    backend: 'Node.js, Express.js, NestJS, Flask, PHP, GraphQL, REST APIs',
-    databases: 'MongoDB, PostgreSQL, MySQL, Redis',
+    languages: 'Java, Python, JavaScript (React, Node.js), TypeScript, SQL, Bash',
+    frontend: 'Angular, React.js, React Native, Next.js, Vue.js, Redux, Tailwind CSS, HTML5, CSS3, Responsive Design',
+    backend: 'Spring Boot, Express.js, FastAPI, REST, GraphQL, Microservices, PostgreSQL, Redis',
+    databases: 'PostgreSQL, Redis, MongoDB, DynamoDB',
     cloud:
-      'AWS (EC2, S3, Lambda, LightSail), Docker, GitHub Actions, GitOps, CI/CD',
-    practices:
-      'Data Structures, Algorithms, OOP, Agile, WCAG Accessibility, JWT, SonarQube, Swagger, Postman, Jest, Jira, WordPress, Elementor, SEO, Performance Optimization',
+      'AWS (ECS, Lambda, S3, DynamoDB, SQS, CDK, CloudWatch, EC2), Docker, Jenkins, GitHub Actions, CI/CD',
+    monitoring: 'Prometheus, Grafana, ELK Stack, Logging Pipelines',
+    practices: 'Agile/SCRUM, OOP, DSA, System Design, TDD, Code Reviews, Performance Optimization',
   },
   projects: [
-    'NativeNest — Grocery commerce (30,000+ users): React Native, React, GraphQL, Node.js, MongoDB, AWS — https://nativenest.in',
-    'Origem Jewellery — Next.js commerce with Redis/Magento: Next.js, Redis, Node.js, Tailwind, Magento, Razorpay — https://origemindia.com',
-    'FutureU — CSULB student engagement: React Native, Node.js, AWS — https://www.asicsulb.org/corporate/discover/futureu',
-    'ARIKYA — Training/placement SaaS: Angular, React Native, Node.js, AWS — https://arikya.in',
-    'Booking Bee — AI appointment booking: Angular, NestJS, MongoDB, Dasha AI — https://bookingbee.ai',
-    'MirrorMate — Windows screen casting: C#, Miracast',
-    'AI Based Slum Control — Smart India Hackathon: Angular, Node.js, Twilio',
+    'NativeNest - https://nativenest.in - React, React Native, Java, Spring Boot, Redis, AWS - 30K+ users, 99.9% uptime',
+    'Arikya - https://arikya.in - Angular, Node.js, Express, AWS - placement SaaS for 10K+ students',
+    'CloudSync - Java, AWS, Docker, Redis, Kafka - distributed data orchestration (+40% efficiency)',
+    'RenderSync - Python, Flask, Prometheus, Docker - job scheduling & monitoring (+30%)',
+    'Job Tracker - https://jobtracker.karthikkovi.com - React, Node.js, MongoDB, Selenium, AWS - 1k+ automation runs',
   ],
   publications: '',
   certifications: [
-    'HackerRank JavaScript',
-    'HackerRank Python',
-    'HackerRank SQL',
-    'HackerRank AngularJS',
-    'HackerRank Problem Solving',
-    'Wipro TalentNext',
-    'Coursera AI for Everyone',
-    'Coursera HTML',
-    'NPTEL Ethical Hacking',
-    'NPTEL Soft Skills',
+    'Java Spring Boot Developer - 2024',
+    'Docker & Container Orchestration - 2024',
+    'ISTE AP Best Student Innovator (Gold Medal) - 2023',
+    'Smart India Hackathon - National Finalist (Top 1%) - 2022',
   ],
   awards: [
     'ISTE AP Best Student Innovator Gold Medal',
     'Smart India Hackathon National Finalist',
-    'Tech/Web Club Coordinator and Mentor',
   ],
 };
 
 export function formatResumeProfileForPrompt(): string {
   const r = resumeProfile;
   return `
-CANDIDATE PROFILE (use this as the source of truth — tailor emphasis to the JD, do not invent experience):
+CANDIDATE PROFILE (source of truth - tailor to JD, do not invent):
 
 Name: ${r.name}
 Headline: ${r.headline}
 Email: ${r.email} | Phone: ${r.phone} | Location: ${r.location}
-LinkedIn: ${r.linkedin} | Portfolio: ${r.portfolio}
+LinkedIn: ${r.linkedin} | Portfolio: ${r.portfolio} | GitHub: ${r.github}
 
 EDUCATION:
 ${r.education
   .map(
     (e) =>
-      `- ${e.degree} — ${e.school} (${e.dates})${e.graduation ? ` | Grad: ${e.graduation}` : ''}${
-        e.gpa ? ` | GPA: ${e.gpa}` : ''
-      }`
+      `- ${e.degree} - ${e.school} (${e.dates})${e.graduation ? ` | Grad: ${e.graduation}` : ''}`
   )
   .join('\n')}
 
@@ -101,15 +93,12 @@ SKILLS:
 - Backend: ${r.skills.backend}
 - Databases: ${r.skills.databases}
 - Cloud/DevOps: ${r.skills.cloud}
+- Monitoring: ${r.skills.monitoring}
 - Practices: ${r.skills.practices}
 
 PROJECTS:
 ${r.projects.map((p) => `- ${p}`).join('\n')}
 
-PUBLICATIONS: ${r.publications || 'None'}
-
 CERTIFICATIONS: ${r.certifications.join('; ')}
-
-AWARDS: ${r.awards.join('; ')}
 `.trim();
 }

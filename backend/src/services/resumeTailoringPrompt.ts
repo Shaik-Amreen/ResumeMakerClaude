@@ -33,18 +33,22 @@ export function buildResumeSystemPrompt(ctx: ResumeJobContext): string {
   const baseResume = readAsset('baseResume-v10.txt');
   const profileCatalog = readAsset('profileCatalog.txt');
   const projectPool = readAsset('projectPool.txt');
+  // Full career KB is large — include identity/eligibility + experience/project headers for grounding.
+  const careerKb = readAsset('Karthik_COMPLETE_CAREER_KNOWLEDGE_BASE.md').slice(0, 14000);
 
   const gradRule =
     ctx.jobType === 'internship'
       ? 'INTERNSHIP — MS graduation date: January 2027 (legacy mode; prefer full-time).'
       : ctx.jobType === 'fulltime'
         ? 'FULL-TIME — MS graduation date: January 2027.'
-        : 'Prefer full-time (Jan 2027 grad) unless JD clearly says internship.';
+        : 'Prefer full-time (January 2027 grad) unless JD clearly says internship.';
 
   const roleContext = [
     ctx.title && `Target role: ${ctx.title}`,
     ctx.company && `Target company: ${ctx.company}`,
     gradRule,
+    'Candidate override: future visa sponsorship answer = No (even if older docs say Yes).',
+    'Amazon bullets: only LinkedIn-public facts; do not invent confidential internal details.',
   ]
     .filter(Boolean)
     .join('\n');
@@ -52,7 +56,7 @@ export function buildResumeSystemPrompt(ctx: ResumeJobContext): string {
   return [
     '=== MASTER RULEBOOK (ALL 22 RULES — OBEY LITERALLY EVERY TIME) ===',
     'You MUST follow Rules 1–22 in instructions.txt exactly. No career advice. No commentary essays. Output LaTeX (+ MATCH_REPORT) only.',
-    'Violations that are FORBIDDEN: JD prose in Languages/Skills; inventing facts/URLs; >4 bullets/job; >3 bullets/project; mixing C++ with Node/Python/Java/Go; Open to Relocate; dropping sections; copying template projects unchanged when they miss JD skills.',
+    'Violations that are FORBIDDEN: JD prose in Languages/Skills; inventing facts/URLs; inventing Amazon-confidential details; dropping sections; copying template projects unchanged when they miss JD skills.',
     instructions,
     '',
     '=== COMPACT RULE REMINDER ===',
@@ -61,27 +65,43 @@ export function buildResumeSystemPrompt(ctx: ResumeJobContext): string {
     '',
     roleContext,
     '',
-    '=== CRITICAL: DO NOT COPY THE TEMPLATE CONTENT ===',
-    'amazonResumeTemplate.tex is STRUCTURE ONLY (margins, sections, \\textbar).',
-    'You MUST rewrite Technical Skills, experience bullets, and project stacks for THIS JD.',
-    'If the JD asks for a skill missing from projects (e.g. PHP/C++) — put it into at most 2 project tech lines only (Rule 19). Do not rewrite all 5 stacks.',
-    'Header has name + contact only — no job title, no skills, no "Distributed Systems & Cloud" line.',
-    'Put every required JD skill into Skills AND into at least one experience/project bullet with evidence (Rule 1).',
+    '=== CRITICAL: DESIGN LOCK = amazonResumeTemplate.tex ===',
+    'LOOK must be identical to the Overleaf template: same bold map, \\vspace{2pt} gaps, itemize options, \\uline companies, \\textbar.',
+    'CONTENT only is tailored per JD (bullets, Skills tokens, project pick/stacks). NEVER change spacing/margins/bold scheme.',
+    'You MUST rewrite Skills, experience bullets, and project stacks for THIS JD.',
+    'BOLD: job title, \\uline{\\textbf{company}}, dates, tech+metrics in bullets, skill labels, \\href{\\textbf{project}}.',
+    'NOT bold: header role {Software Engineer}, project stack after \\textbar {React, ...}.',
+    'Header: Name | short Title | [Open to Relocate] | Email | Phone | California | LinkedIn | Portfolio | GitHub.',
+    'Title = Software Engineer / Backend Engineer / Frontend Engineer / Full Stack Engineer (never full JD title).',
+    'Drop Open to Relocate if the title+contact line would wrap.',
+    'After every \\section{\\textbf{...}}: \\vspace{2pt}. Between Key Projects: \\vspace{2pt}.',
+    'Experience itemize: [itemsep=2pt, topsep=2pt, parsep=0pt, partopsep=0pt, leftmargin=10pt] (never bare itemize).',
+    'EACH \\item = ONE complete printed line (target 80–95 plain chars, max 95). Ends with period — never mid-phrase cut.',
+    'Fill the line so the 1-page resume looks dense/complete (not short stubs). Drop filler; rewrite shorter if needed.',
+    'VOICE: human template style (built/wrote/shipped/used…). NO AI traces (leveraged/utilized/spearheaded/cutting-edge/seamless/…).',
+    'ADAPTABLE: put ALL JD skills into Skills and/or project tech lines (capability OK).',
+    'LIMIT: do NOT fabricate past-tense Experience claims for genuinely unused different skills — those stay in Skills only.',
+    'SAME-CONCEPT swap OK (Postgres↔MySQL, Express↔Fastify). Different concept (Java→Go, SQS→Kafka) → Skills only.',
+    'Keep real metrics/outcomes; only tool labels may change under substitution. Never invent numbers/URLs.',
+    'Employers ONLY: Amazon → ASI → Infobell. NEVER Redbee.',
+    'Put every required JD skill into Skills AND into at least one experience/project bullet with evidence when truly used (Rule 1).',
     'Copying the template skills/projects unchanged is a FAILURE only when they miss JD-required skills.',
     '',
-    '=== AMAZON.PDF LaTeX TEMPLATE (STRUCTURE ONLY) ===',
-    'Keep section order and \\textbar design. ALWAYS keep ASI Software Developer first under Experience.',
-    'Education: degree + school + dates ONLY (Rule 5). Experience: 3–4 bullets/job (Rule 21). Projects: 3–4 bullets each (Rule 22).',
-    'Rule 7: pick EXACTLY top 5 from the FULL project pool below — NOT the template default set. At least 3 of 5 MUST be LINKED with real URLs.',
+    '=== AMAZON.PDF LaTeX TEMPLATE (STRUCTURE + VISUAL LOCK — layout is mandatory) ===',
+    'Keep section order and \\textbar design. ALWAYS keep Amazon Software Engineer Intern first under Work Experience (then ASI, then Infobell).',
+    'Section order: Work Experience → Skills → Key Projects → Education → Certifications.',
+    'Skills categories exact: Languages / Backend / Frontend / Cloud \\& DevOps / Monitoring / Practices.',
+    'Key Projects: \\href{url}{\\textbf{Name - Tagline}} \\,\\textbar\\, {stack}\\\\ then one evidence sentence; \\vspace{2pt} between projects.',
+    'Rule 7: pick top projects from the FULL project pool below — NOT the template default set blindly.',
     'One frontend + one backend per project (Rules 8/14/18). NEVER mix C++ with Node/Python/Java/Go. Write "C++" only — never C++20/C++23. Never invent facts/URLs (Rule 9).',
     'Rule 19: change project stacks ONLY for unmatched JD skills, and ONLY in 2 projects max.',
     'Rule 1: EXACTLY 100% JD keyword coverage with evidenced bullets (not ~95%).',
-    'AI / agents / LLM JDs: prefer Booking Bee and/or AI Based Slum Control in the top 5 while keeping ≥3 LINKED projects.',
-    'Date ranges use LaTeX -- only. No Unicode em/en dashes.',
+    'AI / agents / LLM JDs: MUST include Booking Bee and/or Instant Backend Generator while keeping ≥3 LINKED projects.',
+    'Date ranges/titles/certs use plain " - " (spaces both sides). NEVER LaTeX -- / --- or Unicode en/em dashes.',
     '',
     template,
     '',
-    '=== PROJECT POOL (Rule 7 — pick top 5 from HERE; ≥3 LINKED) ===',
+    '=== PROJECT POOL (Rule 7 — pick top projects from HERE; ≥3 LINKED) ===',
     projectPool,
     '',
     '=== BASE RESUME TRUTH SOURCE (candidate facts; do not invent beyond this) ===',
@@ -90,22 +110,28 @@ export function buildResumeSystemPrompt(ctx: ResumeJobContext): string {
     '=== DETAILED PROFILE CATALOG (extra verified roles/projects for JD match) ===',
     profileCatalog.slice(0, 9000),
     '',
+    '=== CAREER KNOWLEDGE BASE (verified facts; never invent beyond this) ===',
+    careerKb,
+    '',
     'FINAL CHECKLIST (Rules 1-22 — ALL REQUIRED):',
     '□ R1: every JD tech skill evidenced in a bullet (100%, not skills-list only)',
-    '□ R2/R11: amazon Times LaTeX, exactly 2 pages',
-    '□ R3: header name+contact only (pipeline locks)',
-    '□ R4: Education → Skills → Experience → Projects → Pubs → Certs',
-    '□ R5: Education = degree + school + dates ONLY',
-    '□ R6: ASCII hyphens in prose; LaTeX -- for dates; no Unicode dashes',
-    '□ R7: top 5 from FULL project pool; ≥3 LINKED live URLs',
+    '□ R2/R11: amazon Times LaTeX; VISUAL LOCK; EXACTLY 1 PAGE (never 2) — trim content, never change gaps',
+    '□ R3: header Name|short Title|[Open to Relocate]|Email|Phone|California|LinkedIn|Portfolio|GitHub (drop relocate if wrap)',
+    '□ R4: Work Experience → Skills → Key Projects → Education → Certifications; each section + \\vspace{2pt}',
+    '□ R5: Education matches standard template (GPA/location/dates OK); \\uline{\\textbf{school}}',
+    '□ R6: plain " - " hyphens with spaces both sides; never -- / --- / en/em dashes; no mid-phrase bullet cuts',
+    '□ R7: top 4–5 from FULL project pool; ≥3 LINKED live URLs when possible; \\vspace{2pt} between projects',
     '□ R8/R14/R18: one frontend + one backend; never mix competing frontends; C++ sole backend if used',
     '□ R9/R15: never invent or change facts/URLs; no GitHub project links',
-    '□ R10/R16: pubs/certs as href titles; certs Name \\hfill Date',
+    '□ R10/R16: certs as Name - Year \\\\ (template style)',
     '□ R12/R19: change at most 2 project stacks for unmatched JD skills',
     '□ R13: co-founder ONLY if JD asks',
-    '□ R17: workflow complete; R20 Long Beach CA only; R21 3–4 bullets/job; R22 3–4 bullets/project',
+    '□ R17: workflow complete; R20 short title; R21 3–5 ONE complete line/job (80–95 plain chars, ends with ".")',
+    '□ Bold tech+metrics in bullets; skill labels bold; stacks after \\textbar NOT bold',
+    '□ Human voice / no AI traces (no leveraged/spearheaded/cutting-edge/seamless/meta-LLM talk)',
+    '□ R23/R24: full JD coverage via Skills/tech lines; no fake Experience for unused different skills; same-concept swap OK',
     '□ Languages = programming languages ONLY — never JD sentences',
-    '□ ASI Software Developer first; KARTHIK KOVI; no invented facts',
+    '□ Amazon → ASI → Infobell only; NEVER Redbee; Karthik Kovi; match amazonResumeTemplate.tex layout',
   ]
     .filter(Boolean)
     .join('\n\n');
@@ -124,23 +150,28 @@ export function buildResumeUserPrompt(jobDescription: string): string {
   return [
     'TAILOR a NEW resume for THIS JD. Obey ALL 22 MASTER RULES. Do NOT paste the amazon template skills/projects unchanged.',
     'CRITICAL OUTPUT FORMAT:',
-    '- Start EXACTLY at: \\section{\\textbf{Education}}',
-    '- Then: Technical Skills (REWRITTEN for JD), Professional Experience (ASI Software Developer first, bullets rewritten), Featured Projects (top 5 with JD-aligned stacks), Publications, Certifications.',
-    '- End before \\end{document}. Do NOT output \\documentclass/packages/header — pipeline locks KARTHIK KOVI header.',
-    '- Candidate name is ALWAYS KARTHIK KOVI.',
+    '- Start EXACTLY at: \\section{\\textbf{Work Experience}}',
+    '- Then: Work Experience (Amazon Intern first, then ASI; bullets rewritten), Skills (REWRITTEN for JD), Key Projects, Education, Certifications.',
+    '- End before \\end{document}. Do NOT output \\documentclass/packages/header — pipeline locks Karthik Kovi header.',
+    '- Candidate name is ALWAYS Karthik Kovi.',
     '- NEVER copy HTML tags, &nbsp;, section headers like "Knowledge Skills Abilities", or raw JD sentences into Skills.',
     '- Languages line = programming languages ONLY (Python, Java, C++, …). NEVER paste JD phrases like "Build production systems" or "What You\'ll Bring".',
     '- Skills lines must be clean comma-separated technologies only (e.g. Java, C#, .NET, React, Docker).',
     '- Do NOT write career-advice essays, "overqualified" commentary, or soft-skill lectures in MATCH_REPORT notes.',
     keywordLine,
     'REWRITE RULES FOR THIS JD (tied to Master Rules):',
-    '1) Technical Skills (R1/R19): reorder to put required JD skills first. Do not invent unrelated stacks. Languages = languages only.',
-    '2) Featured Projects (R7): Rank ALL projects in the PROJECT POOL. Pick the TOP 5 for THIS JD. At least 3 MUST use real LINKED URLs from the pool. Do NOT default to the amazon template\'s NativeNest/Origem/B4IGO/ASI/Upturn set unless they are truly the best fit.',
-    '2b) Project stacks (R19/R8/R14/R18): keep original stacks by default. ONLY change stacks for skills that are unmatched vs the JD, and ONLY in at most 2 projects. Leave the other 3 projects unchanged. Keep project names/URLs unchanged. If replacing with C++, C++ must be the SOLE backend on those 2 projects — never C++ with Node/Python/Java/Go. Never write C++20/C++23.',
-    '2c) If this JD is about AI, agents, LLM, Co-Pilot, prompt engineering, machine learning, or data science: prefer Booking Bee and/or AI Based Slum Control in Featured Projects AND still keep ≥3 LINKED projects.',
-    '3) Experience (R21): MINIMUM 3 and MAXIMUM 4 bullets/job; may mention JD skills with evidence.',
-    '4) Projects (R22): MINIMUM 3 and MAXIMUM 4 bullets/project. Education minimal (R5). Exactly content for 2 pages (R2/R11).',
-    '5) Cover EVERY required/preferred JD skill (R1: 100%) in Skills AND an evidenced bullet. Prefer truthful mapping (R9).',
+    '1) Skills (R1/R19): reorder to put required JD skills first. Do not invent unrelated stacks. Languages = languages only.',
+    '2) Key Projects (R7): Rank ALL projects in the PROJECT POOL. Pick the TOP 4–5 for THIS JD. At least 3 MUST use real LINKED URLs from the pool when possible.',
+    '2b) Project stacks (R19): keep original stacks by default. ONLY change stacks for skills that are unmatched vs the JD, and ONLY in at most 2 projects.',
+    '2c) AI / agents / LLM JDs: MUST INCLUDE Booking Bee and/or Instant Backend Generator when relevant, while keeping ≥3 LINKED projects.',
+    '3) Experience (R21): 3–5 ONE complete line each (target 80–95 plain chars). Full sentence + period; never mid-phrase cut. Amazon first; no Redbee.',
+    '3b) Voice: match amazonResumeTemplate.tex (built/wrote/shipped/used…). Ban AI filler (leveraged/spearheaded/cutting-edge/seamless/…).',
+    '3c) Adaptable: ALL JD skills in Skills/tech lines OK. No fake past-tense Experience for unused different skills. Same-concept swap OK.',
+    '4) Education matches standard template. EXACTLY 1 page (never 2) — trim projects/bullets to fit.',
+    '5) Cover EVERY required/preferred JD skill (R1: 100%). Proven work → Experience; capability-only → Skills/tech lines (R23/R24).',
+    '6) VISUAL LOCK + EXACTLY 1 PAGE: amazonResumeTemplate.tex bold/gaps; short header; Open to Relocate only if title line fits.',
+    '7) itemize MUST include [itemsep=2pt, topsep=2pt, parsep=0pt, partopsep=0pt, leftmargin=10pt]; bold tech+metrics in bullets.',
+    '8) If content would spill to page 2: drop weakest projects (keep ≥3 LINKED), cut to 3–4 complete bullets/job — rewrite, do not truncate mid-line.',
     '',
     'AFTER the LaTeX body, you MUST append this exact match report (not optional):',
     '===MATCH_REPORT===',
@@ -168,15 +199,16 @@ export function buildPasteToLatexSystemPrompt(ctx: PasteResumeContext): string {
   const profileCatalog = readAsset('profileCatalog.txt');
   const baseResume = readAsset('baseResume-v10.txt');
 
+  const careerKb = readAsset('Karthik_COMPLETE_CAREER_KNOWLEDGE_BASE.md').slice(0, 10000);
   const gradRule =
     ctx.jobType === 'internship'
       ? 'INTERNSHIP — MS graduation date: January 2027 (legacy mode; prefer full-time).'
       : ctx.jobType === 'fulltime'
         ? 'FULL-TIME — MS graduation date: January 2027.'
-        : 'Prefer full-time (Jan 2027) unless JD clearly says internship.';
+        : 'Prefer full-time (January 2027) unless JD clearly says internship.';
 
   return [
-    'You convert a pasted resume into amazon.pdf-style LaTeX for Karthik Kovi.',
+    'You convert a pasted resume into amazon.pdf-style LaTeX for Karthik Kovi using his standard template.',
     '=== MASTER RULEBOOK ===',
     instructions.slice(0, 12000),
     '',
@@ -185,17 +217,19 @@ export function buildPasteToLatexSystemPrompt(ctx: PasteResumeContext): string {
     ctx.company ? `Target company: ${ctx.company}` : '',
     '',
     '=== STRUCTURE TEMPLATE (amazon.pdf) ===',
-    'Keep section order and \\textbar design. Name is ALWAYS KARTHIK KOVI.',
-    'Output body starting at \\section{\\textbf{Education}} through Certifications (no preamble/header).',
+    'Keep section order and \\textbar design. Name is ALWAYS Karthik Kovi.',
+    'Section order: Work Experience → Skills → Key Projects → Education → Certifications.',
+    'Output body starting at \\section{\\textbf{Work Experience}} through Certifications (no preamble/header).',
     template.slice(0, 8000),
     '',
     '=== VERIFIED FACTS (never invent beyond paste + these) ===',
     baseResume.slice(0, 6000),
     profileCatalog.slice(0, 5000),
+    careerKb,
     '',
     'Use the PASTED resume as the primary content source. Map roles/projects/skills into amazon sections.',
     'If a JD is also provided, reorder skills and rewrite bullets to match it (Rule 1/19).',
-    '3–4 bullets/job (min 3), 3–4 bullets/project (min 3), top 5 from FULL project pool (≥3 LINKED), exactly 2 pages worth of content.',
+    '3–5 bullets/job, Key Projects from pool (4–5 max, ≥3 LINKED), EXACTLY 1 page; short header title; Open to Relocate only if title line fits.',
   ]
     .filter(Boolean)
     .join('\n\n');
@@ -209,10 +243,10 @@ export function buildPasteToLatexUserPrompt(ctx: PasteResumeContext): string {
   const parts = [
     'Convert the PASTED RESUME below into amazon.pdf LaTeX.',
     'CRITICAL OUTPUT FORMAT:',
-    '- Start EXACTLY at: \\section{\\textbf{Education}}',
-    '- Then Technical Skills, Professional Experience (ASI Software Developer first if present), Featured Projects, Publications, Certifications.',
+    '- Start EXACTLY at: \\section{\\textbf{Work Experience}}',
+    '- Then Technical Skills, Work Experience (Amazon Intern first, then ASI), Skills, Key Projects, Education, Certifications.',
     '- Do NOT output \\documentclass / packages / centered header.',
-    '- Candidate name is ALWAYS KARTHIK KOVI.',
+    '- Candidate name is ALWAYS Karthik Kovi.',
     '- Keep real company names, dates, project URLs from the paste when present.',
     '- Do not invent employers, metrics, or URLs that are not in the paste or verified profile.',
     '',

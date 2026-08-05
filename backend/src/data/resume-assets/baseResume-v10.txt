@@ -1,14 +1,20 @@
-KARTHIK KOVI — BASE RESUME TRUTH SOURCE (do not invent beyond this)
+KARTHIK KOVI - BASE RESUME TRUTH SOURCE (do not invent beyond this)
 Software Engineer | Full Stack Developer | React, React Native, Node.js, GraphQL, AWS | M.S. Computer Science Candidate, CSULB
 karthikkovik@gmail.com | +1 562-284-0297 | Long Beach, California
 linkedin.com/in/karthikkovi | karthikkovi.com
 
 EDUCATION
-Master of Science in Computer Science — California State University, Long Beach (CSULB) — Jan 2025 – Jan 2027 (expected graduation January 2027) — GPA 3.67
-Bachelor of Technology in Computer Science — Madanapalle Institute of Technology and Science (JNTU Anantapur) — Aug 2019 – May 2023 — GPA 3.60
+Master of Science in Computer Science - California State University, Long Beach (CSULB) - Jan 2025 - Jan 2027 (expected graduation January 2027) - GPA 3.67
+Bachelor of Technology in Computer Science - Madanapalle Institute of Technology and Science (JNTU Anantapur) - Aug 2019 - May 2023 - GPA 3.60
 
 WORK EXPERIENCE
-Software Developer — Associated Students, Inc. (ASI), CSULB — California, USA — Feb 2025 – Present
+Software Engineer Intern - Amazon - United States (On-site) - May 26, 2026 - Aug 14, 2026
+• Designed and built a batch data remediation tool on AWS Lambda, DynamoDB, and SQS, safely updating records at scale with encryption-aware writes and guardrails to prevent data loss.
+• Automated the infrastructure with AWS CDK (Infrastructure as Code) and shipped through a CI/CD pipeline, with unit + integration tests, CloudWatch metrics, and alarms for operational readiness.
+• Built an AI assistant skill that lets developers run and monitor batch jobs from plain language commands, with built-in safety checks and before/after verification.
+Tech: Java, Python, AWS, AWS Lambda, Amazon DynamoDB, Amazon SQS, AWS CDK, Infrastructure as Code, CI/CD, CloudWatch
+
+Software Developer - Associated Students, Inc. (ASI), CSULB - California, USA - Feb 2025 - Present
 • Developed the FutureU Mobile App and 22WestMedia website serving 12,000+ monthly users.
 • Implemented WCAG 2.1/2.2 AA accessibility standards.
 • Integrated campus Single Sign-On and audio streaming SDK.
@@ -17,7 +23,7 @@ Software Developer — Associated Students, Inc. (ASI), CSULB — California, US
 • Optimized AWS LightSail and S3 deployment reducing page load time by 30%.
 Tech: React Native, React, Node.js, Tailwind CSS, PHP, WordPress, Elementor, AWS LightSail, Amazon S3, GitHub Actions, SonarQube, ESLint
 
-Full Stack Developer — Infobell IT Solutions Pvt Ltd — Bengaluru, India — Jul 2023 – Jan 2025
+Full Stack Developer - Infobell IT Solutions Pvt Ltd - Bengaluru, India - Jul 2023 - Jan 2025
 • Led 4-member engineering team building NativeNest platform serving 30,000+ users.
 • Built GraphQL APIs and reduced checkout latency by 30%.
 • Developed Origem storefront using Next.js, Tailwind and Redis.
@@ -25,22 +31,23 @@ Full Stack Developer — Infobell IT Solutions Pvt Ltd — Bengaluru, India — 
 • Mentored interns and delivered six Agile releases.
 Tech: React, React Native, Next.js, Node.js, GraphQL, Redis, MongoDB, Magento, AWS, C#
 
-Full Stack Developer Intern — Infobell IT Solutions Pvt Ltd — Bengaluru — Jan 2023 – Jun 2023
+Full Stack Developer Intern - Infobell IT Solutions Pvt Ltd - Bengaluru - Jan 2023 - Jun 2023
 • Built Angular dashboards and REST APIs; increased Jest test coverage to 80%; documented APIs with Swagger.
 Tech: Angular, Node.js, REST, Jest, Swagger
 
-Full Stack Developer (Contract & Intern) — Redbee 365 Studio / Vasukam / Yes Real Technologies — Feb 2021 – Dec 2022
-• Delivered 5+ production MEAN/MERN projects; improved SQL reporting performance by 2x.
+Full Stack Developer (Contract & Intern) - Vasukam / Yes Real Technologies - Feb 2021 - Aug 2022
+• Earlier contract/intern roles (NOT listed on standard resume template - Redbee omitted; Amazon replaces that slot).
+• Delivered production MEAN/MERN projects; improved SQL reporting performance by 2x.
 Tech: Angular, React, React Native, Node.js, MongoDB, Express
 
 PROJECTS
-NativeNest — https://nativenest.in — Grocery commerce, 30,000+ users — React Native, React, GraphQL, Node.js, MongoDB, AWS
-Origem Jewellery — https://origemindia.com — Next.js commerce with Redis/Magento — Next.js, Redis, Node.js, Tailwind, Magento, Razorpay
-FutureU — https://www.asicsulb.org/corporate/discover/futureu — CSULB student engagement — React Native, Node.js, AWS
-ARIKYA — https://arikya.in — Training and placement SaaS — Angular, React Native, Node.js, AWS
-Booking Bee — https://bookingbee.ai — AI appointment booking — Angular, NestJS, MongoDB, Dasha AI
-MirrorMate — Windows screen casting — C#, Miracast (no live URL)
-AI Based Slum Control — Smart India Hackathon — Angular, Node.js, Twilio (no live URL)
+NativeNest - https://nativenest.in - Grocery commerce, 30,000+ users - React Native, React, GraphQL, Node.js, MongoDB, AWS
+Origem Jewellery - https://origemindia.com - Next.js commerce with Redis/Magento - Next.js, Redis, Node.js, Tailwind, Magento, Razorpay
+FutureU - https://www.asicsulb.org/corporate/discover/futureu - CSULB student engagement - React Native, Node.js, AWS
+ARIKYA - https://arikya.in - Training and placement SaaS - Angular, React Native, Node.js, AWS
+Booking Bee - https://bookingbee.ai - AI appointment booking - Angular, NestJS, MongoDB, Dasha AI
+MirrorMate - Windows screen casting - C#, Miracast (no live URL)
+AI Based Slum Control - Smart India Hackathon - Angular, Node.js, Twilio (no live URL)
 
 SKILLS
 Languages: JavaScript, TypeScript, Python, Java, C, C++, C#

@@ -140,8 +140,8 @@ async function handleFromJd(req: Request, res: Response) {
           match.missing.length
             ? `Missing keywords to cover: ${match.missing.slice(0, 15).join(', ')}.`
             : '',
-          'Output section body from \\section{\\textbf{Education}} only.',
-          'Do not put any job title or skills line in the header.',
+          'Output FULL body from \\section{\\textbf{Work Experience}} through Certifications (no preamble).',
+          'EXACTLY 1 page. Do not put any job title or skills line in the header.',
           'Append ===MATCH_REPORT=== JSON after the LaTeX.',
         ]
           .filter(Boolean)
@@ -261,8 +261,8 @@ async function handlePasteChat(req: Request, res: Response) {
       ctx,
       latex,
       [
-        'Revise the LaTeX based on this user request. Keep amazon.pdf structure and KARTHIK KOVI.',
-        'Output section body from \\section{\\textbf{Education}} only.',
+        'Revise the LaTeX based on this user request. Keep Karthik standard template structure and Karthik Kovi.',
+        'Output FULL body from \\section{\\textbf{Work Experience}} through Certifications (no preamble). EXACTLY 1 page.',
         `USER REQUEST: ${message}`,
       ].join('\n')
     );
@@ -303,8 +303,8 @@ async function handleCompile(req: Request, res: Response) {
       pdfUrl,
       pageCount,
       warning:
-        pageCount !== 2
-          ? `PDF is ${pageCount} page(s) — aim for exactly 2.`
+        pageCount !== 1
+          ? `PDF is ${pageCount} page(s) — must be exactly 1.`
           : undefined,
     });
   } catch (error) {

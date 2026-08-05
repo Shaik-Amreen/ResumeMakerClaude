@@ -31,7 +31,7 @@ export function answerCommonQuestions(
   }
 
   if (lower.includes('sponsorship') || lower.includes('visa') || lower.includes('h-1b') || lower.includes('h1b')) {
-    // Single ambiguous sponsorship question — prefer future=Yes framing for F-1 OPT.
+    // Single ambiguous sponsorship question — use requireVisa (No).
     return profile.requireVisa;
   }
 

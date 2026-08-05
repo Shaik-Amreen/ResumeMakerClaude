@@ -191,7 +191,8 @@ async function scrapeGoogleSearch(
   driver: WebDriver,
   searchUrl: string,
   savedIds: string[],
-  target: number
+  target: number,
+  jobType: 'internship' | 'fulltime'
 ): Promise<void> {
   console.log(`\n=== Google Jobs search (US) ===`);
   console.log(searchUrl);
@@ -298,7 +299,7 @@ async function scrapeGoogleSearch(
         location,
         posted: details.posted || undefined,
         source: 'career_portal' as ScrapeSource,
-        forcedType: 'internship',
+        forcedType: jobType,
         priority: isFaangMangoCompany(company) ? 'faang' : 'standard',
         pipelinePhase: 'career_portal',
       });
@@ -317,20 +318,23 @@ async function scrapeGoogleSearch(
   }
 }
 
-async function scrapeGoogleJobsSearches(): Promise<string[]> {
+async function scrapeGoogleJobsSearches(
+  jobType: 'internship' | 'fulltime' = 'fulltime'
+): Promise<string[]> {
   const savedIds: string[] = [];
   const target = resolvePortalTarget('priority');
   let driver: WebDriver | null = null;
+  const modeLabel = jobType === 'fulltime' ? 'full-time / new-grad' : 'internship';
 
   try {
     driver = await attachDriver(orangeProfile());
-    console.log(`\n🔎 Google Jobs (United States) — stop at ${target} new jobs`);
+    console.log(`\n🔎 Google Jobs (United States) — ${modeLabel} — stop at ${target} new jobs`);
 
     const searches = config.careerPortal.searches;
     for (let q = 0; q < searches.length; q++) {
       if (shouldAbortScrape() || savedIds.length >= target) break;
       console.log(`\n--- Google query ${q + 1}/${searches.length} (${savedIds.length}/${target} saved) ---`);
-      await scrapeGoogleSearch(driver, searches[q], savedIds, target);
+      await scrapeGoogleSearch(driver, searches[q], savedIds, target, jobType);
     }
   } finally {
     await releaseDriver(driver);
@@ -340,11 +344,15 @@ async function scrapeGoogleJobsSearches(): Promise<string[]> {
 }
 
 /** Pipeline “career portals” phase — Google Jobs search (US). */
-export async function scrapePriorityCareerPortals(): Promise<string[]> {
-  return scrapeGoogleJobsSearches();
+export async function scrapePriorityCareerPortals(
+  jobType: 'internship' | 'fulltime' = 'fulltime'
+): Promise<string[]> {
+  return scrapeGoogleJobsSearches(jobType);
 }
 
 /** Same Google Jobs path (kept for scheduler / API compatibility). */
-export async function scrapeAllCareerPortals(): Promise<string[]> {
-  return scrapeGoogleJobsSearches();
+export async function scrapeAllCareerPortals(
+  jobType: 'internship' | 'fulltime' = 'fulltime'
+): Promise<string[]> {
+  return scrapeGoogleJobsSearches(jobType);
 }

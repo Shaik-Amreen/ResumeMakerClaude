@@ -389,7 +389,7 @@ test('model MATCH_REPORT JSON parses keyword + resume scores and skill gaps', ()
   assert.match(report.skillGaps[0], /Docker/);
 });
 
-test('full JD match requires exactly 100% and ≥3 linked Featured Projects', () => {
+test('full JD match requires exactly 100% and ≥3 linked Key Projects', () => {
   const {
     isFullJdMatch,
     countLinkedFeaturedProjects,
@@ -416,59 +416,234 @@ test('full JD match requires exactly 100% and ≥3 linked Featured Projects', ()
   );
 
   const latex = `
-\\section{\\textbf{Featured Projects}}
-\\href{https://nativenest.in}{\\uline{\\textbf{NativeNest}}} \\\\
-\\href{https://www.origemindia.com}{\\uline{\\textbf{Origem}}} \\\\
-\\href{https://www.b4igo.com}{\\uline{\\textbf{B4IGO}}} \\\\
-\\textbf{AWS AI Summer Camp} \\\\
-\\href{https://www.upturn.io}{\\uline{\\textbf{Upturn}}} \\\\
-\\section{\\textbf{Publications \\& Research}}
+\\section{\\textbf{Key Projects}}
+\\href{https://nativenest.in}{\\textbf{NativeNest}} \\\\
+\\href{https://arikya.in}{\\textbf{Arikya}} \\\\
+\\href{https://jobtracker.karthikkovi.com}{\\textbf{Job Tracker}} \\\\
+\\textbf{CloudSync} \\\\
+\\textbf{RenderSync} \\\\
+\\section{\\textbf{Education}}
 `;
   assert.ok(countLinkedFeaturedProjects(latex) >= 3);
   assert.equal(hasEnoughLinkedProjects(latex, 3), true);
 
   const weak = `
-\\section{\\textbf{Featured Projects}}
-\\textbf{College ERP} \\\\
-\\textbf{Task Forz} \\\\
-\\href{https://nativenest.in}{\\uline{\\textbf{NativeNest}}} \\\\
-\\section{\\textbf{Publications \\& Research}}
+\\section{\\textbf{Key Projects}}
+\\textbf{CloudSync} \\\\
+\\textbf{RenderSync} \\\\
+\\href{https://nativenest.in}{\\textbf{NativeNest}} \\\\
+\\section{\\textbf{Education}}
 `;
   assert.equal(hasEnoughLinkedProjects(weak, 3), false);
 });
 
-test('enforceMasterRules caps bullets, cleans Languages, and strips Open to Relocate', () => {
-  const { enforceMasterRules } = require('../dist/services/resumeAgent/enforceMasterRules');
+test('header title shortens and may drop Open to Relocate', () => {
+  const {
+    applyJdHeaderTagline,
+    shortenHeaderRoleTitle,
+  } = require('../dist/services/resumeAgent/amazonLatexGuard');
+  assert.equal(shortenHeaderRoleTitle('Software Engineer New Grad - Backend'), 'Backend Engineer');
+  assert.equal(shortenHeaderRoleTitle('Frontend Engineer, React'), 'Frontend Engineer');
+  assert.equal(shortenHeaderRoleTitle('Full Stack Software Engineer II'), 'Full Stack Engineer');
+  assert.equal(shortenHeaderRoleTitle('SDE I University Graduate'), 'Software Engineer');
+
+  const base = `
+\\begin{center}
+    \\textbf{\\Huge \\scshape Karthik Kovi}\\\\[-2pt]
+    {Software Engineer} \\,\\textbar\\,
+    {Open to Relocate} \\,\\textbar\\,
+    \\href{mailto:karthikkovik@gmail.com}{karthikkovik@gmail.com} \\,\\textbar\\,
+    \\href{tel:+15622840297}{+1 (562) 284-0297} \\,\\textbar\\, California, USA\\\\
+\\end{center}
+`;
+  const withBackend = applyJdHeaderTagline(base, {
+    title: 'Backend Software Engineer New Grad 2027',
+    jobDescription: 'Build backend APIs',
+  });
+  assert.match(withBackend, /\{Backend Engineer\}/);
+  assert.match(withBackend, /Open to Relocate/);
+  assert.match(withBackend, /karthikkovik@gmail\.com/);
+});
+
+test('enforceMasterRules caps experience bullets, one-line bullets, strips Redbee', () => {
+  const {
+    enforceMasterRules,
+    MAX_BULLET_PLAIN_CHARS,
+    TEMPLATE_ITEMIZE_OPTS,
+  } = require('../dist/services/resumeAgent/enforceMasterRules');
   const dirty = `
-\\section{\\textbf{Professional Experience}}
-\\textbf{Engineer} \\hfill Open to Relocate \\\\
+\\section{\\textbf{Work Experience}}
+\\textbf{Engineer} \\hfill Amazon \\hfill \\hspace{0.1em} \\textbf{01/2025 -- Present}
 \\begin{itemize}
-\\item one
+\\item Designed and built an extremely long bullet that intentionally exceeds the single printed line limit by packing many unnecessary words and clauses so wrapping would occur on letter paper.
 \\item two
 \\item three
 \\item four
-\\item five should go
+\\item five
+\\item six should go
 \\end{itemize}
-\\section{\\textbf{Featured Projects}}
-\\textit{React, Node.js, C++, Python}
+\\textbf{Software Engineer Intern} \\hfill \\uline{\\textbf{Redbee Technologies}} \\hfill \\textbf{08/2022 -- 12/2022}
 \\begin{itemize}
-\\item a
-\\item b
-\\item c
-\\item d should go
+\\item Should be removed with Redbee
 \\end{itemize}
+\\section{\\textbf{Key Projects}}
+\\textit{React, Node.js, C++, Python}
 \\textbf{Languages:} Python, Java ; Build production systems. What You ll Bring \\\\
 `;
   const out = enforceMasterRules(dirty);
-  assert.equal(/Open to Relocate/i.test(out), false);
   assert.equal(/Build production|What You/i.test(out), false);
   assert.match(out, /Python/);
-  // Experience: at most 4 items
-  const exp = out.split(/\\section\{\\textbf\{Featured Projects\}\}/i)[0];
-  assert.ok((exp.match(/\\item\b/g) || []).length <= 4);
-  // Project: at most 4 items
-  const proj = out.split(/\\section\{\\textbf\{Featured Projects\}\}/i)[1] || '';
-  assert.ok((proj.match(/\\item\b/g) || []).length <= 4);
+  assert.equal(/Redbee/i.test(out), false);
+  // Visual lock: section gap + template itemize options
+  assert.match(out, /\\section\{\\textbf\{Work Experience\}\}\n\\vspace\{2pt\}/);
+  assert.match(
+    out,
+    new RegExp(
+      `\\\\begin\\{itemize\\}\\[${TEMPLATE_ITEMIZE_OPTS.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]`
+    )
+  );
+  assert.match(out, /\\uline\{\\textbf\{Amazon\}/);
+  // Experience: at most 5 items (Karthik standard template)
+  const exp = out.split(/\\section\{\\textbf\{Key Projects\}\}/i)[0];
+  assert.ok((exp.match(/\\item\b/g) || []).length <= 5);
   // C++ not mixed with Node/Python on tech line
   assert.equal(/\\textit\{[^}]*C\+\+[^}]*(?:Node|Python)/i.test(out), false);
+  // Every experience bullet plain text fits one line
+  for (const m of exp.matchAll(/\\item\b([\s\S]*?)(?=\\item\b|\\end\{itemize\}|$)/gi)) {
+    const plain = m[1]
+      .replace(/\\textbf\{([^}]*)\}/g, '$1')
+      .replace(/\\[a-zA-Z]+\*?(\[[^\]]*\])?/g, '')
+      .replace(/[{}]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!plain) continue;
+    assert.ok(
+      plain.length <= MAX_BULLET_PLAIN_CHARS + 5,
+      `bullet too long (${plain.length}): ${plain}`
+    );
+  }
+});
+
+test('checkAmazonLatex requires visual lock chrome', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const { checkAmazonLatex } = require('../dist/services/resumeAgent/amazonLatexGuard');
+  const template = fs.readFileSync(
+    path.join(__dirname, '../src/data/resume-assets/amazonResumeTemplate.tex'),
+    'utf8'
+  );
+  const good = checkAmazonLatex(template);
+  assert.equal(good.ok, true, good.reasons.join('; '));
+});
+test('countPdfPages reads tectonic/object-stream PDFs via PyPDF2', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const { countPdfPages } = require('../dist/services/latexCompileService');
+  const uploads = path.join(__dirname, '../uploads');
+  const pdfs = fs.existsSync(uploads)
+    ? fs.readdirSync(uploads).filter((f) => f.endsWith('-resume.pdf'))
+    : [];
+  assert.ok(pdfs.length > 0, 'expected at least one compiled resume PDF in uploads/');
+  const preferred = pdfs.find((f) => f.includes('1785882327563')) || pdfs[0];
+  const pages = countPdfPages(path.join(uploads, preferred));
+  assert.ok(pages >= 1, `expected ≥1 page, got ${pages} for ${preferred}`);
+});
+
+test('enforceAmazonLatex splices Work Experience when model omits it', () => {
+  const { enforceAmazonLatex } = require('../dist/services/resumeAgent/amazonLatexGuard');
+  const withSkills = `
+\\section{\\textbf{Skills}}
+\\vspace{2pt}
+\\textbf{Languages:} Java, Python, TypeScript, SQL, Bash \\\\
+\\textbf{Backend:} Spring Boot, Express.js, FastAPI, REST, GraphQL, PostgreSQL, Redis \\\\
+\\textbf{Frontend:} React.js, Next.js, Redux, Tailwind CSS \\\\
+\\textbf{Cloud \\& DevOps:} AWS, Docker, Jenkins, GitHub Actions, CI/CD \\\\
+\\textbf{Monitoring:} Prometheus, Grafana, ELK Stack \\\\
+\\textbf{Practices:} Agile/SCRUM, OOP, DSA, System Design, TDD \\\\
+\\section{\\textbf{Key Projects}}
+\\vspace{2pt}
+\\href{https://nativenest.in}{\\textbf{NativeNest -- Commerce}} \\,\\textbar\\, {React, Spring Boot, AWS}\\\\
+Delivered production e-commerce for 30K+ users with \\textbf{99.9\\% uptime}.
+\\vspace{2pt}
+\\href{https://arikya.in}{\\textbf{Arikya -- SaaS}} \\,\\textbar\\, {Angular, Node.js, AWS}\\\\
+Built assessment dashboards for 10K+ students.
+\\vspace{2pt}
+\\textbf{CloudSync -- Orchestration} \\,\\textbar\\, {Java, AWS, Docker, Redis}\\\\
+Built multi-service data orchestration improving efficiency by \\textbf{40\\%}.
+\\section{\\textbf{Education}}
+\\vspace{2pt}
+\\textbf{M.S. in Computer Science (3.67/4)} \\hfill \\uline{\\textbf{California State University}} \\hfill \\textit{Long Beach, CA, USA} \\hspace{0.1em} \\textbf{01/2025 -- 01/2027}\\\\
+\\textbf{B.Tech in Computer Science (3.60/4)} \\hfill \\uline{\\textbf{JNTU Anantapur -- MITS}} \\hfill \\textit{Andhra Pradesh, India} \\hspace{0.1em} \\textbf{08/2019 -- 05/2023}
+\\section{\\textbf{Certifications}}
+\\vspace{2pt}
+Java Spring Boot Developer -- 2024 \\\\
+Docker \\& Container Orchestration -- 2024 \\\\
+`;
+  const out = enforceAmazonLatex(withSkills);
+  assert.match(out, /\\section\{\\textbf\{Work Experience\}\}/);
+  assert.match(out, /Amazon/);
+  assert.match(out, /\\section\{\\textbf\{Skills\}\}/);
+  assert.match(out, /NativeNest/);
+});
+
+test('normalizePlainHyphens converts en/em dashes to spaced plain hyphens', () => {
+  const { normalizePlainHyphens, sanitizeResumeLatex } = require('../dist/services/resumeAgent/sanitizeLatex');
+
+  const dirty = [
+    'Java Spring Boot Developer –2024',
+    '01/2025 –01/2027',
+    '08/2019 -- 05/2023',
+    'NativeNest – Cross-Platform',
+    'Amazon -- Bellevue, WA',
+    'JNTU Anantapur -- MITS',
+    '(-40\\% deploy)',
+    '\\\\[-2pt]',
+    '\\href{https://nativenest.in}{NativeNest}',
+  ].join('\n');
+
+  const out = normalizePlainHyphens(dirty);
+  assert.match(out, /Developer - 2024/);
+  assert.match(out, /01\/2025 - 01\/2027/);
+  assert.match(out, /08\/2019 - 05\/2023/);
+  assert.match(out, /NativeNest - Cross-Platform/);
+  assert.match(out, /Amazon - Bellevue/);
+  assert.match(out, /Anantapur - MITS/);
+  assert.match(out, /\(-40\\% deploy\)/);
+  assert.match(out, /\\\\\[-2pt\]/);
+  assert.match(out, /\\href\{https:\/\/nativenest\.in\}/);
+  assert.equal(/[–—]|--|---/.test(out.replace(/\\\\\[-2pt\]/, '').replace(/\\href\{[^}]*\}/, '')), false);
+
+  const spaced = sanitizeResumeLatex(
+    '\\textbf{M.S.} \\textbf{01/2025--01/2027}\\\\ Java Spring Boot Developer--2024'
+  );
+  assert.match(spaced, /01\/2025 - 01\/2027/);
+  assert.match(spaced, /Developer - 2024/);
+});
+
+test('shortenBulletToOneLine humanizes AI voice and finishes incomplete tails', () => {
+  const {
+    shortenBulletToOneLine,
+    finishCompleteBullet,
+    humanizeBulletVoice,
+    MAX_BULLET_PLAIN_CHARS,
+  } = require('../dist/services/resumeAgent/enforceMasterRules');
+
+  assert.match(humanizeBulletVoice('Leveraged Docker to ship'), /Used Docker/);
+  assert.equal(finishCompleteBullet('Built services with accessibility compliance in'), 'Built services with accessibility compliance.');
+  assert.match(finishCompleteBullet('Built \\textbf{Docker'), /\\textbf\{Docker\}/);
+
+  const longAi =
+    '\\item Successfully leveraged cutting-edge robust Docker and seamlessly orchestrated CI/CD pipelines ensuring scalable deployment consistency across the organization while delivering impactful results for stakeholders.';
+  const out = shortenBulletToOneLine(longAi);
+  assert.equal(/leveraged|cutting-edge|seamlessly|orchestrated|impactful/i.test(out), false);
+  assert.match(out, /\.$/);
+  const plain = out
+    .replace(/^\\item\s*/i, '')
+    .replace(/\\textbf\{([^}]*)\}/g, '$1')
+    .replace(/\\[a-zA-Z]+\*?(\[[^\]]*\])?/g, '')
+    .replace(/[{}]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  assert.ok(plain.length <= MAX_BULLET_PLAIN_CHARS + 2, `too long: ${plain.length} ${plain}`);
+  assert.equal(/\b(with|in|and|for|to|the|a)\s*\.?$/i.test(plain.replace(/\.$/, '')), false);
 });

@@ -66,6 +66,7 @@ export interface IJob extends Document {
     | 'greenhouse'
     | 'lever'
     | 'github'
+    | 'simplify'
     | 'company_portal'
     | 'other';
   /** FAANG + MANGOES companies get email alerts and sort to top */
@@ -118,6 +119,7 @@ const JobSchema: Schema = new Schema(
         'greenhouse',
         'lever',
         'github',
+        'simplify',
         'company_portal',
         'other',
       ],

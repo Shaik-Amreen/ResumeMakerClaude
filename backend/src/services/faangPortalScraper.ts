@@ -80,7 +80,7 @@ async function fetchAmazonJobs(query: string): Promise<PortalJob[]> {
         title: (j.title || '').trim(),
         company: j.company_name?.trim() || 'Amazon',
         url: abs,
-        jobDescription: desc || `${j.title} internship at Amazon. Summer software engineering internship.`,
+        jobDescription: desc || `${j.title} at Amazon. Software engineering role.`,
         location: j.location || 'United States',
         posted: j.posted_date,
       };
@@ -150,7 +150,7 @@ async function readJobPage(driver: WebDriver, company: string): Promise<PortalJo
     url: data.url || (await driver.getCurrentUrl()),
     jobDescription:
       data.description?.trim() ||
-      `${data.title} — software engineering internship at ${company}. Summer 2027.`,
+      `${data.title} — software engineering role at ${company}.`,
     location: data.location || 'United States',
   };
 }
@@ -159,7 +159,8 @@ async function savePortalJobs(
   jobs: PortalJob[],
   savedIds: string[],
   target: number,
-  source: ScrapeSource
+  source: ScrapeSource,
+  jobType: 'internship' | 'fulltime'
 ): Promise<void> {
   for (const job of jobs) {
     if (shouldAbortScrape() || savedIds.length >= target) return;
@@ -174,7 +175,7 @@ async function savePortalJobs(
       location: job.location || 'United States',
       posted: job.posted,
       source,
-      forcedType: 'internship',
+      forcedType: jobType,
       priority: 'faang',
       pipelinePhase: 'career_portal',
     });
@@ -188,34 +189,46 @@ async function savePortalJobs(
 }
 
 /**
- * Phase 1 — Amazon / Microsoft / Meta / Apple / Google university internship portals.
+ * Phase 1 — Amazon / Microsoft / Meta / Apple / Google university / new-grad portals.
  */
-export async function scrapeFaangPriorityPortals(existingIds: string[] = []): Promise<string[]> {
+export async function scrapeFaangPriorityPortals(
+  existingIds: string[] = [],
+  jobType: 'internship' | 'fulltime' = 'fulltime'
+): Promise<string[]> {
   const savedIds = [...existingIds];
   const target = scrapeRunTarget();
-  appendTaskLog(`FAANG portals (up to ${target} new)…`);
-  console.log(`\n⭐ FAANG priority portals — target ${target}`);
+  const modeLabel = jobType === 'fulltime' ? 'new-grad / full-time' : 'internship';
+  appendTaskLog(`FAANG portals — ${modeLabel} (up to ${target} new)…`);
+  console.log(`\n⭐ FAANG priority portals — ${modeLabel} — target ${target}`);
 
   // Amazon JSON API (no browser)
-  const amazonQueries = [
-    'Software Development Engineer Intern 2027',
-    'SDE Intern Summer 2027',
-    'software engineering intern 2027',
-    'Software Development Engineer Intern',
-  ];
+  const amazonQueries =
+    jobType === 'fulltime'
+      ? [
+          'Software Development Engineer New Grad',
+          'Software Engineer University Graduate',
+          'SDE I new grad',
+          'Software Development Engineer I',
+        ]
+      : [
+          'Software Development Engineer Intern 2027',
+          'SDE Intern Summer 2027',
+          'software engineering intern 2027',
+          'Software Development Engineer Intern',
+        ];
   for (const q of amazonQueries) {
     if (shouldAbortScrape() || savedIds.length >= target) break;
     appendTaskLog(`Amazon API search: "${q}"`);
     const jobs = await fetchAmazonJobs(q);
     appendTaskLog(`  Amazon API "${q}": ${jobs.length} hit(s)`);
     console.log(`  Amazon API "${q}": ${jobs.length} hit(s)`);
-    await savePortalJobs(jobs, savedIds, target, 'company_portal');
+    await savePortalJobs(jobs, savedIds, target, 'company_portal', jobType);
   }
 
   // Browser harvest for Microsoft / Meta / Apple / Google search pages
   let driver: WebDriver | null = null;
   try {
-    appendTaskLog('Opening Orange Chrome for FAANG career portals…');
+    appendTaskLog('Opening Karthik Chrome for FAANG career portals…');
     driver = await attachDriver(orangeProfile());
     for (const portal of FAANG_PRIORITY_PORTALS) {
       if (portal.apiKind === 'amazon') continue;
@@ -239,8 +252,8 @@ export async function scrapeFaangPriorityPortals(existingIds: string[] = []): Pr
             const job = await readJobPage(driver, portal.name);
             if (!job) continue;
             // Skip pure program pages without a real job title
-            if (!/\bintern|co-?op|software|engineer|developer|sde\b/i.test(job.title)) continue;
-            await savePortalJobs([job], savedIds, target, 'company_portal');
+            if (!/\bintern|co-?op|software|engineer|developer|sde|new\s*grad|graduate\b/i.test(job.title)) continue;
+            await savePortalJobs([job], savedIds, target, 'company_portal', jobType);
           } catch (err) {
             console.warn(`  Skip link ${link}:`, err instanceof Error ? err.message : err);
             appendTaskLog(`  ↳ Skip ${link.slice(0, 80)}…`);

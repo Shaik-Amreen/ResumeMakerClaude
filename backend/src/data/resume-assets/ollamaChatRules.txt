@@ -1,34 +1,32 @@
-MASTER RULEBOOK — ALL 22 RULES (obey every time; Karthik Kovi / KARTHIK KOVI only)
+MASTER RULES (Karthik — amazonResumeTemplate.tex)
+LOOK: template visual lock (bold, gaps, itemize, \textbar). Times New Roman Bold in PDF.
+LENGTH: EXACTLY 1 PAGE. LINES: each \item = one COMPLETE sentence (80–95 chars, max 95, ends ".").
+VOICE: human template tone. No AI traces. CONTENT tailored to JD; design never changes.
+BODY ONLY — preamble/header locked.
 
-1) 100% JD MATCH (exact 100%, not ~95%): every JD skill appears with EVIDENCE in a work/project bullet (not skills-list only).
-2) LaTeX ONLY, 11pt \usepackage{times}, narrow margins, EXACTLY 2 pages.
-3) Header: Name | Email | Phone | Location | LinkedIn | Portfolio using \,\textbar\, (pipeline locks KARTHIK KOVI header).
-4) Sections IN ORDER: Education → Technical Skills → Professional Experience → Featured Projects → Publications & Research → Certifications. Never drop a section.
-5) Education MINIMAL: degree + school + dates ONLY. No GPA, coursework, honors, location, or descriptions.
-6) \titleformat{\section}{\scshape\raggedright\large}{}{0em}{}[\titlerule]; \textbf{L}\hfill\textbf{C}\hfill\textbf{R}; ASCII hyphens in prose; LaTeX -- for date ranges only; no Unicode — or –.
-7) Top 5 from the FULL project pool (projectPool.txt) — not a fixed default set. At least 3 of 5 MUST have live URLs. No keyword stuffing.
-8) Project titles \href{URL}{\uline{\textbf{text}}}; NO GitHub links; year ranges only; ONE frontend + ONE backend per project.
-9) Never invent/change facts, metrics, companies, dates, or URLs.
-10) Pubs/certs as underlined href titles; certs = Name \hfill Date (no middle org).
-11) Times font + exactly 2 pages always.
-12) Prefer existing project stacks. Only replace skills when JD-unmatched, and only in at most 2 projects (Rule 19).
-13) Co-founder/entrepreneurship ONLY if JD explicitly asks.
-14) Never mix React/Angular/Vue (or competing frontends) in the same project.
-15) Never modify project URLs.
-16) Cert lines: Name \hfill Date — no HackerRank in the middle.
-17) Every JD: analyze → cover 100% keywords with evidence → keep facts → amazon LaTeX → 2 pages.
-18) ONE main backend per project (Node OR Python OR Java OR Go OR C++ OR C#). NEVER mix C++ with Node/Python/Java/Go. Write "C++" only — never C++20/C++23. Python in Node projects = scripting only.
-19) Change project skills ONLY when unmatched vs JD, and ONLY in 2 projects max; leave the other 3 stacks alone.
-20) Never add "Open to Relocate"; location = Long Beach, CA.
-21) Work experience: MINIMUM 3 and MAXIMUM 4 bullets per job.
-22) Featured Projects: MINIMUM 3 and MAXIMUM 4 bullets per project.
-
-ALWAYS:
-- Obey ALL 22 rules in instructions.txt — no shortcuts, no career-advice commentary.
-- Software Developer, Associated Students, Inc. (ASI), CSULB, Feb 2025 -- Present FIRST under Professional Experience.
-- Full-time MS graduation January 2027.
-- Output LaTeX only (body from \section{\textbf{Education}} when pipeline asks). No commentary essays.
-- Use amazonResumeTemplate.tex design; select top 5 from the FULL project pool, not the template's default 5.
-- At least 3 of the 5 Featured Projects MUST use real catalog URLs (NativeNest, Origem, FutureU, ARIKYA, Booking Bee).
-- AI / agents / LLM JDs: prefer Booking Bee and/or AI Based Slum Control in the top 5 (still keep ≥3 LINKED).
-- Languages line = programming languages ONLY — never paste JD sentences into Skills.
+1) 100% JD keyword match with evidence in Experience/Projects (not Skills-only).
+2) LaTeX letterpaper 11pt Times; exact template geometry; EXACTLY 1 page.
+3) Header: short Title | [Open to Relocate] | Email | Phone | California | LinkedIn | Portfolio | GitHub (drop relocate if wrap).
+4) Sections: Work Experience → Skills → Key Projects → Education → Certifications; each + \vspace{2pt}.
+5) Experience: \textbf{Title} \hfill \uline{\textbf{Company}} \hfill \hspace{0.1em} \textbf{dates}
+6) Itemize: [itemsep=2pt, topsep=2pt, parsep=0pt, partopsep=0pt, leftmargin=10pt]
+7) Bold tech+metrics in bullets only; skill labels bold; stacks after \textbar NOT bold.
+8) Bullets 3–5/job; Amazon → ASI → Infobell; NEVER Redbee. Complete lines — no mid-phrase cuts.
+9) Skills: Languages / Backend / Frontend / Cloud \& DevOps / Monitoring / Practices.
+10) Projects: \href{\textbf{Name - Tagline}} \,\textbar\, {stack}\\ + evidence; \vspace{2pt}; ≥3 LINKED when possible.
+11) Education/Certs: template patterns. Certs = Name - Year.
+12) No invented facts/metrics/URLs. Amazon = LinkedIn-public only. Arikya = https://arikya.in.
+13) Dates/titles/certs: plain " - " only (spaces both sides). NEVER LaTeX -- / --- or Unicode en/em dashes.
+14) One frontend + one backend family per project; never mix C++ with Node/Python/Java/Go.
+15) Change ≤2 project stacks for unmatched JD skills only. Co-founder ONLY if JD asks.
+16) FULL JD coverage: put JD skills in Skills/tech lines even if not yet used (capability OK).
+17) LIMIT: do NOT fabricate past-tense Experience claims for genuinely unused different skills.
+18) Same-concept substitution OK (Postgres↔MySQL, Express↔Fastify, …). Different concept → Skills only.
+19) Keep real numbers/outcomes; only tool labels may change under substitution.
+20) Ban AI words: leveraged, utilized, spearheaded, orchestrated, cutting-edge, seamless, robust,
+    holistic, synergy, streamline, delve, showcase, empower, foster, unlock, elevate, pivotal,
+    myriad, plethora, best-in-class, state-of-the-art, impactful, passionate, excited, landscape.
+21) Prefer: built, wrote, shipped, fixed, cut, added, owned, led, used, automated, optimized, …
+22) No first person; no "it's not just X, it's Y" / "from A to B"; no emoji.
+23) Pipeline auto: trim ≤95 without mid-phrase cut; strip Redbee; humanize buzzwords; finish incomplete lines.
+24) Small diffs: change only what the JD needs; keep template voice; LaTeX body only (+ MATCH_REPORT when asked).

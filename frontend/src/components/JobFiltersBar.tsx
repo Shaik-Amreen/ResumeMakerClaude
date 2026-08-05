@@ -52,6 +52,7 @@ export function JobFiltersBar({ filters, onChange, total, visible }: Props) {
           <option value="all">All platforms</option>
           <option value="company_portal">FAANG / company</option>
           <option value="github">GitHub list</option>
+          <option value="simplify">Simplify</option>
           <option value="jobright">Jobright</option>
           <option value="linkedin">LinkedIn</option>
           <option value="indeed">Indeed</option>

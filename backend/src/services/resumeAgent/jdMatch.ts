@@ -330,32 +330,32 @@ export function isFullJdMatch(result: JdMatchResult): boolean {
   return result.missing.length === 0 && result.score >= 100;
 }
 
-/** Count live project URLs in Featured Projects (excludes pubs/certs/linkedin). */
+/** Count live project URLs in Key Projects / Featured Projects. */
 export function countLinkedFeaturedProjects(latex: string): number {
   const projects =
     latex.match(
-      /\\section\{\\textbf\{Featured Projects\}\}([\s\S]*?)(?=\\section\{\\textbf\{Publications|\\section\{\\textbf\{Certifications|\\end\{document\})/i
+      /\\section\{\\textbf\{(?:Key Projects|Featured Projects)\}\}([\s\S]*?)(?=\\section\{\\textbf\{(?:Education|Publications|Certifications)|\\end\{document\})/i
     )?.[1] || '';
   const known = [
     'nativenest.in',
     'origemindia.com',
-    'b4igo.com',
-    'adp-scraper-vercel.vercel.app',
-    'upturn.io',
+    'arikya.in',
     'arikya.com',
+    'bookingbee.ai',
+    'jobtracker.karthikkovi.com',
+    'karthikkovi.com',
+    'asicsulb.org',
     'apps.apple.com',
     'play.google.com',
   ];
   const hrefs = [...projects.matchAll(/\\href\{(https?:\/\/[^}]+)\}/gi)].map((m) =>
     m[1].toLowerCase()
   );
-  // Count unique project domains (app-store links for same product still count as one project if paired)
   const titles = [
-    ...projects.matchAll(/\\href\{https?:\/\/[^}]+\}\{\\uline\{\\textbf\{([^}]+)/gi),
+    ...projects.matchAll(/\\href\{https?:\/\/[^}]+\}\{(?:\\uline\{\\textbf\{|\\textbf\{)([^}]+)/gi),
   ];
   if (titles.length >= 3) return titles.length;
   const linked = hrefs.filter((u) => known.some((k) => u.includes(k)));
-  // Dedupe by hostname
   const hosts = new Set(
     linked.map((u) => {
       try {
@@ -365,7 +365,6 @@ export function countLinkedFeaturedProjects(latex: string): number {
       }
     })
   );
-  // App stores alone don't count without a primary project domain
   hosts.delete('apps.apple.com');
   hosts.delete('play.google.com');
   return hosts.size;
@@ -440,10 +439,10 @@ export function injectMissingJdKeywords(latex: string, missing: string[]): strin
         /(\\textbf\{(?:Cloud(?:\/DevOps)?|Tools|Frameworks):\}[^\\\n]*)/i,
         `$1, ${joinedOther}`
       );
-    } else if (/\\section\{\\textbf\{Technical Skills\}\}/i.test(out)) {
+    } else if (/\\section\{\\textbf\{(?:Technical Skills|Skills)\}\}/i.test(out)) {
       const line = `\\textbf{JD Keywords:} ${joinedOther} \\\\`;
       out = out.replace(
-        /(\\section\{\\textbf\{Technical Skills\}\}\s*(?:\\vspace\{[^}]+\})?\s*)/i,
+        /(\\section\{\\textbf\{(?:Technical Skills|Skills)\}\}\s*(?:\\vspace\{[^}]+\})?\s*)/i,
         `$1${line}\n`
       );
     }

@@ -47,11 +47,30 @@ function findTectonic(): string | null {
   return findBinary(TECTONIC_CANDIDATES);
 }
 
-/** Strip pdfTeX-only lines so XeTeX/tectonic can compile Jake-style resumes. */
+/**
+ * Adapt pdfTeX-oriented Amazon/Jake resumes for XeTeX/tectonic.
+ * Critical: \usepackage{times} is pdfTeX-only — under tectonic it silently falls back
+ * to Latin Modern Regular, so \textbf / \uline appear with NO visual bold.
+ * Use macOS Times New Roman (Bold/Italic faces) via fontspec to match Overleaf.
+ */
 export function adaptLatexForTectonic(latex: string): string {
-  return latex
+  let out = latex
     .replace(/^\s*\\input\{glyphtounicode\}\s*$/gim, '% glyphtounicode omitted (XeTeX)')
     .replace(/^\s*\\pdfgentounicode\s*=\s*1\s*$/gim, '% pdfgentounicode omitted (XeTeX)');
+
+  if (/\\usepackage\{times\}/i.test(out) && !/\\setmainfont\{/i.test(out)) {
+    out = out.replace(
+      /\\usepackage\{times\}/i,
+      [
+        '% times.sty → Times New Roman (XeTeX/tectonic): real Bold/Italic like Overleaf',
+        '\\usepackage{fontspec}',
+        '\\defaultfontfeatures{Ligatures=TeX}',
+        '\\setmainfont{Times New Roman}',
+      ].join('\n')
+    );
+  }
+
+  return out;
 }
 
 /** Wrap Ollama snippets that are not a full LaTeX document. Prefer amazon lock elsewhere. */
@@ -164,7 +183,9 @@ export function compileLatexToPdf(
     // callers should pass header; this is a safety net only for locked compiles.
   }
 
-  let engine: 'pdflatex' | 'tectonic' = pdflatex ? 'pdflatex' : 'tectonic';
+  // Prefer tectonic when available: BasicTeX pdflatex often lacks titlesec/enumitem,
+  // and tectonic + Times New Roman yields Overleaf-matching bold (times.sty alone does not).
+  let engine: 'pdflatex' | 'tectonic' = tectonic ? 'tectonic' : 'pdflatex';
   let source =
     engine === 'tectonic'
       ? ensureLatexDocument(adaptLatexForTectonic(lockedLatex))
@@ -185,8 +206,30 @@ export function compileLatexToPdf(
   try {
     tryCompile(source);
   } catch (err) {
-    // pdflatex failed → try tectonic with same source
-    if (engine === 'pdflatex' && tectonic) {
+    // tectonic failed → try pdflatex (or vice versa)
+    if (engine === 'tectonic' && pdflatex) {
+      try {
+        engine = 'pdflatex';
+        source = ensureLatexDocument(lockedLatex);
+        tryCompile(source);
+      } catch {
+        if (preserveUser) {
+          throw new Error(`LaTeX compile failed.\n${readCompileLog(workDir, baseName)}`);
+        }
+        console.warn('⚠️ Compile failed — falling back to amazonResumeTemplate.tex');
+        lockedLatex = getAmazonTemplateLatex();
+        engine = tectonic ? 'tectonic' : 'pdflatex';
+        source =
+          engine === 'tectonic'
+            ? ensureLatexDocument(adaptLatexForTectonic(lockedLatex))
+            : ensureLatexDocument(lockedLatex);
+        try {
+          tryCompile(source);
+        } catch {
+          throw new Error(`LaTeX compile failed.\n${readCompileLog(workDir, baseName)}`);
+        }
+      }
+    } else if (engine === 'pdflatex' && tectonic) {
       try {
         engine = 'tectonic';
         source = ensureLatexDocument(adaptLatexForTectonic(lockedLatex));
@@ -195,14 +238,10 @@ export function compileLatexToPdf(
         if (preserveUser) {
           throw new Error(`LaTeX compile failed.\n${readCompileLog(workDir, baseName)}`);
         }
-        // Last resort: known-good amazon 2-page template (never ship broken/hallucinated LaTeX)
         console.warn('⚠️ Compile failed — falling back to amazonResumeTemplate.tex');
         lockedLatex = getAmazonTemplateLatex();
-        engine = pdflatex ? 'pdflatex' : 'tectonic';
-        source =
-          engine === 'tectonic'
-            ? ensureLatexDocument(adaptLatexForTectonic(lockedLatex))
-            : ensureLatexDocument(lockedLatex);
+        engine = 'tectonic';
+        source = ensureLatexDocument(adaptLatexForTectonic(lockedLatex));
         try {
           tryCompile(source);
         } catch {
@@ -215,7 +254,7 @@ export function compileLatexToPdf(
     } else {
       console.warn('⚠️ Compile failed — falling back to amazonResumeTemplate.tex');
       lockedLatex = getAmazonTemplateLatex();
-      engine = pdflatex ? 'pdflatex' : 'tectonic';
+      engine = tectonic ? 'tectonic' : 'pdflatex';
       source =
         engine === 'tectonic'
           ? ensureLatexDocument(adaptLatexForTectonic(lockedLatex))
@@ -252,26 +291,43 @@ export function compileLatexToPdf(
   return { pdfPath: destPdf, texPath: destTex, engine, pageCount, latex: source };
 }
 
-/** Count pages in a PDF (pypdf first — reliable for fresh files; then mdls/heuristic). */
+/** Count pages in a PDF (PyPDF2/pypdf first — reliable for tectonic object streams). */
 export function countPdfPages(pdfPath: string): number {
   try {
     const py = `
 import sys
 path = sys.argv[1]
-try:
-    from pypdf import PdfReader
-    print(len(PdfReader(path).pages))
-    raise SystemExit(0)
-except Exception:
-    pass
-try:
-    from Foundation import NSURL
-    import Quartz
-    url = NSURL.fileURLWithPath_(path)
-    pdf = Quartz.PDFDocument.alloc().initWithURL_(url)
-    print(int(pdf.pageCount()) if pdf is not None else 0)
-except Exception:
-    print(0)
+
+def try_pypdf():
+    try:
+        from pypdf import PdfReader
+        return len(PdfReader(path).pages)
+    except Exception:
+        return None
+
+def try_pypdf2():
+    try:
+        from PyPDF2 import PdfReader
+        return len(PdfReader(path).pages)
+    except Exception:
+        return None
+
+def try_quartz():
+    try:
+        from Foundation import NSURL
+        import Quartz
+        url = NSURL.fileURLWithPath_(path)
+        pdf = Quartz.PDFDocument.alloc().initWithURL_(url)
+        return int(pdf.pageCount()) if pdf is not None else None
+    except Exception:
+        return None
+
+for fn in (try_pypdf, try_pypdf2, try_quartz):
+    n = fn()
+    if isinstance(n, int) and n > 0:
+        print(n)
+        raise SystemExit(0)
+print(0)
 `;
     const out = execFileSync('python3', ['-c', py, pdfPath], {
       encoding: 'utf8',
@@ -296,6 +352,7 @@ except Exception:
     // fall through
   }
 
+  // Last resort: uncompressed PDF dictionaries (fails on FlateDecode object streams)
   try {
     const text = fs.readFileSync(pdfPath).toString('latin1');
     const counts = [...text.matchAll(/\/Type\s*\/Pages[^>]*?\/Count\s+(\d+)/g)].map((m) =>
@@ -310,9 +367,8 @@ except Exception:
 }
 
 /**
- * Detect likely sparse page-2 resumes from LaTeX structure.
- * (PDF text extractors are unavailable in this env; visual gaps usually mean
- * too few bullets/projects, so page 2 only gets pubs/certs.)
+ * Detect content that is so light it likely looks empty on a 1-page resume
+ * (kept for tooling; 1-page pipeline no longer densifies to fill page 2).
  */
 export function isResumeContentTooLightForFullTwoPages(latex: string): boolean {
   const items = (latex.match(/\\item\b/g) || []).length;
@@ -321,35 +377,29 @@ export function isResumeContentTooLightForFullTwoPages(latex: string): boolean {
     latex.match(/\\textbf\{[^}]*(?:NativeNest|Origem|B4IGO|Upturn|Arikya|Project)/gi) ||
     []
   ).length;
-  // Rules 21/22: 3–4 bullets/job + 3–4/project → denser floor is lower (~14–24 items, 4–5 projects)
-  if (items < 14) return true;
-  if (projectTitles < 4) return true;
-
-  // Certs/pubs dominate the tail → page 2 often empty visually
-  const certIdx = latex.search(/\\section\{[^}]*Certificat/i);
-  const projIdx = latex.search(/\\section\{[^}]*Project/i);
-  if (certIdx > 0 && projIdx >= 0) {
-    const projectBlock = latex.slice(projIdx, certIdx);
-    const projectItems = (projectBlock.match(/\\item\b/g) || []).length;
-    if (projectItems < 8) return true;
-  }
+  if (items < 8) return true;
+  if (projectTitles < 3) return true;
   return false;
 }
 
-/** @deprecated Prefer isResumeContentTooLightForFullTwoPages(latex). PDF path kept for API compat. */
+/** @deprecated 1-page pipeline does not use page-2 sparsity. */
 export function isSecondPageSparse(pdfPath: string, latex?: string): boolean {
   if (latex && latex.trim()) return isResumeContentTooLightForFullTwoPages(latex);
-  // Without LaTeX we cannot reliably read page-2 text here
   return false;
 }
 
-/** Throws if PDF is not exactly 2 pages. */
-export function assertExactlyTwoPages(pdfPath: string): number {
+/** Throws if PDF is not exactly 1 page. */
+export function assertExactlyOnePage(pdfPath: string): number {
   const pages = countPdfPages(pdfPath);
-  if (pages !== 2) {
+  if (pages !== 1) {
     throw new Error(
-      `Resume PDF must be exactly 2 pages (got ${pages || 'unknown'}). Edit LaTeX to fill/trim content, then Build PDF again.`
+      `Resume PDF must be exactly 1 page (got ${pages || 'unknown'}). Trim content to match amazonResumeTemplate.tex, then Build PDF again.`
     );
   }
   return pages;
+}
+
+/** @deprecated Use assertExactlyOnePage — Karthik standard is exactly 1 page. */
+export function assertExactlyTwoPages(pdfPath: string): number {
+  return assertExactlyOnePage(pdfPath);
 }

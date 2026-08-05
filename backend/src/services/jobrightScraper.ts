@@ -164,8 +164,8 @@ async function collectCardsByScrolling(
       40000
     );
   } catch {
-    console.log('  ↳ Listings did not load — log into jobright.ai in Orange Chrome and retry.');
-    appendTaskLog('Jobright: listings did not load (login/refresh Orange Chrome).');
+    console.log('  ↳ Listings did not load — log into jobright.ai in Karthik Chrome and retry.');
+    appendTaskLog('Jobright: listings did not load (login/refresh Karthik Chrome).');
     return [];
   }
 

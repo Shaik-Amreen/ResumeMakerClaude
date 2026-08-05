@@ -35,6 +35,7 @@ export type JobSource =
   | 'greenhouse'
   | 'lever'
   | 'github'
+  | 'simplify'
   | 'company_portal'
   | 'other';
 

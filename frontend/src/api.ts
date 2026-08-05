@@ -18,7 +18,8 @@ export interface SchedulerStatus {
   enabled: boolean;
   timezone: string;
   localTime: string;
-  currentWindow: 'internship_cycle' | 'idle' | 'night_faang_mango' | 'morning_faang_mango' | 'fulltime_jobs';
+  currentWindow: 'job_cycle' | 'internship_cycle' | 'idle' | 'night_faang_mango' | 'morning_faang_mango' | 'fulltime_jobs';
+  jobType?: 'internship' | 'fulltime';
   running: boolean;
   windowCompleted?: boolean;
   cooldownMinutesRemaining?: number;
@@ -58,17 +59,17 @@ export const api = {
   getSchedulerStatus: () => request<SchedulerStatus>('/jobs/scheduler/status'),
   getJob: (id: string) => request<Job>(`/jobs/${id}`),
   startScraper: () => request<{ message: string }>('/jobs/scrape/career-portals', { method: 'POST' }),
-  scrapeFaangPortals: (limit: number) =>
+  scrapeFaangPortals: (limit: number, jobType: JobType = 'fulltime') =>
     request<{ message: string }>('/jobs/scrape/faang-portals', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ limit }),
+      body: JSON.stringify({ limit, jobType }),
     }),
-  scrapeGithubLists: (limit: number) =>
+  scrapeGithubLists: (limit: number, jobType: JobType = 'fulltime') =>
     request<{ message: string }>('/jobs/scrape/github-lists', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ limit }),
+      body: JSON.stringify({ limit, jobType }),
     }),
   scrapeJobright: (limit: number, jobType: JobType = 'fulltime') =>
     request<{ message: string }>('/jobs/scrape/jobright', {
@@ -88,11 +89,11 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ limit, jobType }),
     }),
-  scrapeCareerPortals: (limit: number) =>
+  scrapeCareerPortals: (limit: number, jobType: JobType = 'fulltime') =>
     request<{ message: string }>('/jobs/scrape/career-portals', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ limit }),
+      body: JSON.stringify({ limit, jobType }),
     }),
   scrapeAts: (limit: number, jobType: JobType = 'fulltime') =>
     request<{ message: string }>('/jobs/scrape/ats', {

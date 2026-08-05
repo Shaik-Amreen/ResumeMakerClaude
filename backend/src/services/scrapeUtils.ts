@@ -22,6 +22,7 @@ export type ScrapeSource =
   | 'greenhouse'
   | 'lever'
   | 'github'
+  | 'simplify'
   | 'company_portal'
   | 'other';
 

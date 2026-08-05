@@ -26,7 +26,7 @@ export interface ApplicationProfile {
   legallyAuthorizedToWorkInUS: string;
   /** "Do you now require sponsorship?" — No while on F-1 OPT. */
   nowRequireSponsorship: string;
-  /** "Will you require sponsorship in the future?" — Yes (H-1B). */
+  /** "Will you require sponsorship in the future?" — No. */
   futureRequireSponsorship: string;
   usCitizenship: string;
   gender: string;
@@ -68,25 +68,30 @@ export const applicationProfile: ApplicationProfile = {
   country: 'United States',
   linkedin: resumeProfile.linkedin,
   website: resumeProfile.portfolio,
-  recentEmployer: 'Associated Students, Inc. (ASI), CSULB',
+  recentEmployer: 'Amazon',
   linkedinHeadline:
-    'Software Engineer | MS Computer Science @ CSULB | Full Stack Engineer | React • Node.js • React Native • AWS • GraphQL | Building Scalable Software',
+    'Software Engineer Intern @ Amazon | MS Computer Science @ CSULB | Full Stack | React • Node.js • Java • AWS • GraphQL',
   linkedinSummary:
-    'Software engineer and M.S. Computer Science student at California State University, Long Beach with 3+ years of experience building production web, mobile, and cloud applications. I enjoy building scalable software, improving developer productivity, and delivering accessible user experiences using React, React Native, Node.js, GraphQL, AWS, and modern engineering practices. I am seeking full-time Software Engineering opportunities beginning after graduation.',
+    'Software engineer and M.S. Computer Science student at California State University, Long Beach with 3+ years of experience building production web, mobile, and cloud applications. Currently a Software Engineer Intern at Amazon (May–Aug 2026), working on AWS Lambda, DynamoDB, SQS, CDK, and CI/CD. I enjoy building scalable software and delivering accessible user experiences. Seeking full-time Software Engineering opportunities beginning after graduation in January 2027.',
   coverLetter:
-    'I am excited to apply for this full-time Software Engineer opportunity. Through professional experience at Associated Students, Inc. at CSULB and Infobell IT Solutions, I have built production web and mobile applications serving thousands of users while improving accessibility, performance, and deployment automation. I look forward to contributing strong full-stack engineering skills and collaborating with your team to build reliable software that delivers measurable customer impact.',
+    'I am excited to apply for this full-time Software Engineer opportunity. As a Software Engineer Intern at Amazon, I built batch data remediation on AWS Lambda, DynamoDB, and SQS, automated infrastructure with AWS CDK and CI/CD, and shipped an AI assistant skill for operational workflows. Combined with experience at Associated Students, Inc. at CSULB and Infobell IT Solutions, I look forward to contributing strong full-stack and cloud engineering skills to your team.',
   yearsOfExperience: '3+',
-  requireVisa: 'Yes',
+  /**
+   * Visa answers:
+   * Career KB says future sponsorship Yes (H-1B).
+   * User override (2026-08-03): future sponsorship No.
+   */
+  requireVisa: 'No',
   legallyAuthorizedToWorkInUS: 'Yes',
   nowRequireSponsorship: 'No',
-  futureRequireSponsorship: 'Yes',
+  futureRequireSponsorship: 'No',
   usCitizenship:
-    'Not a U.S. citizen or permanent resident. Requires employment sponsorship for long-term work authorization.',
+    'Not a U.S. citizen or permanent resident. Authorized to work under F-1 OPT; does not require sponsorship now. Future sponsorship: No (per candidate).',
   gender: 'Decline',
   ethnicity: 'Decline',
   disabilityStatus: 'Decline',
   veteranStatus: 'Decline',
-  desiredSalary: 150000,
+  desiredSalary: 0, // UNKNOWN per career KB — do not invent $150k
   currentCtc: 0,
   noticePeriodDays: 0,
   confidenceLevel: '8',

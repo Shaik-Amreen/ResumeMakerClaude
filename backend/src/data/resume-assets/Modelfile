@@ -13,7 +13,7 @@ RULE 2: LaTeX only, 11pt times package, exactly 2 pages.
 RULE 3: Header Name|Title|Email|Phone|Location|LinkedIn|Portfolio with \\,\\textbar\\,.
 RULE 4: Sections order: Education, Technical Skills, Professional Experience, Featured Projects, Publications & Research, Certifications.
 RULE 5: Education = degree + school + dates ONLY (no GPA/coursework/honors).
-RULE 6: Small-caps section + titlerule; 3-column hfill rows; ASCII hyphens in prose; LaTeX -- for dates; no Unicode em/en dashes.
+RULE 6: Small-caps section + titlerule; 3-column hfill rows; plain ASCII " - " with spaces both sides for dates/titles; never LaTeX -- / --- or Unicode em/en dashes.
 RULE 7: Top 5 JD projects only; prefer linked projects.
 RULE 8: \\href{URL}{\\uline{\\textbf{title}}}; no GitHub links; one frontend + one backend per project.
 RULE 9: Never invent or change facts/URLs/metrics.

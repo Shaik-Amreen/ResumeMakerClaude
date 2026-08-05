@@ -9,15 +9,15 @@ export const config = {
   port: Number(process.env.PORT) || 5001,
   /** Local-only by default because the API controls browsers and destructive job actions. */
   host: process.env.HOST || '127.0.0.1',
-  mongoUri: process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/job-tracker',
+  mongoUri: process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/karthikjobs',
   uploadsDir: path.join(backendRoot, 'uploads'),
 
   chatgpt: {
     url:
       process.env.CHATGPT_URL ||
       'https://chatgpt.com/g/g-p-6a26fbe080bc8191b6dfecd57dc7054e/c/6a26fc87-0070-8330-ba08-527437041530',
-    profileDirectory: process.env.GREEN_PROFILE_DIR || 'Profile 16',
-    accountEmail: process.env.GREEN_ACCOUNT_EMAIL || 'karthikkovik@gmail.com',
+    profileDirectory: process.env.GREEN_PROFILE_DIR || 'Default',
+    accountEmail: process.env.GREEN_ACCOUNT_EMAIL || 'karthik.kovi2001@gmail.com',
     debugPort: Number(process.env.GREEN_DEBUG_PORT) || 9224,
     userDataDir: path.join(backendRoot, '.green_chrome_automation'),
     headless: process.env.GREEN_HEADLESS === 'true',
@@ -28,7 +28,7 @@ export const config = {
 
   claude: {
     url: process.env.CLAUDE_URL || 'https://claude.ai/chats',
-    profileDirectory: process.env.GREEN_PROFILE_DIR || 'Profile 16',
+    profileDirectory: process.env.GREEN_PROFILE_DIR || 'Default',
     debugPort: Number(process.env.GREEN_DEBUG_PORT) || 9224,
     userDataDir: path.join(backendRoot, '.green_chrome_automation'),
     headless: process.env.GREEN_HEADLESS === 'true',
@@ -50,7 +50,7 @@ export const config = {
     chatId: process.env.OLLAMA_CHAT_ID || '',
     /** Ollama desktop UI port — 0 = auto-detect from lsof */
     desktopPort: Number(process.env.OLLAMA_DESKTOP_PORT) || 0,
-    profileDirectory: process.env.GREEN_PROFILE_DIR || 'Profile 16',
+    profileDirectory: process.env.GREEN_PROFILE_DIR || 'Default',
     debugPort: Number(process.env.GREEN_DEBUG_PORT) || 9224,
     userDataDir: path.join(backendRoot, '.green_chrome_automation'),
     headless: process.env.GREEN_HEADLESS === 'true',
@@ -88,8 +88,9 @@ export const config = {
   },
 
   linkedin: {
-    profileDirectory: process.env.ORANGE_PROFILE_DIR || 'Profile 26',
-    accountEmail: process.env.ORANGE_ACCOUNT_EMAIL || 'karthikkovik@gmail.com',
+    /** Daily Chrome profile used for LinkedIn/Jobright/Indeed/FAANG scrape + Easy Apply. */
+    profileDirectory: process.env.ORANGE_PROFILE_DIR || 'Default',
+    accountEmail: process.env.ORANGE_ACCOUNT_EMAIL || 'karthik.kovi2001@gmail.com',
     debugPort: Number(process.env.ORANGE_DEBUG_PORT) || 9333,
     userDataDir: path.join(backendRoot, '.orange_chrome_automation'),
     headless: process.env.ORANGE_HEADLESS === 'false' ? false : process.env.ORANGE_HEADLESS === 'true',

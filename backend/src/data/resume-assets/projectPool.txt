@@ -1,23 +1,30 @@
-PROJECT POOL — pick Featured Projects ONLY from this list (Rule 7).
-NEVER invent a project outside this pool.
-Select exactly the TOP 5 strongest for THIS JD.
-HARD REQUIREMENT: at least 3 of the 5 MUST be LINKED (use the exact URL with \href{URL}{\uline{\textbf{title}}}).
-The other 0–2 may be NO-LINK (plain \textbf{title} only — do not invent URLs).
-Prefer JD skill fit first; among equal fits, prefer LINKED projects.
+PROJECT POOL - pick Key Projects ONLY from this list.
+NEVER invent a project outside this pool. Prefer JD skill fit; prefer LINKED projects.
 
-=== LINKED PROJECTS (have live URLs — prefer these for the required 3+) ===
-1. NativeNest — https://nativenest.in — React, React Native, GraphQL, Node.js, MongoDB, AWS — grocery commerce, 30K+ users
-2. Origem India — https://origemindia.com — Next.js, Redis, Node.js, Tailwind, Magento, Razorpay — jewellery e-commerce
-3. FutureU — https://www.asicsulb.org/corporate/discover/futureu — React Native, Node.js, AWS — CSULB student engagement
-4. ARIKYA — https://arikya.in — Angular, React Native, Node.js, AWS — training/placement SaaS
-5. Booking Bee — https://bookingbee.ai — Angular, NestJS, MongoDB, Dasha AI — AI appointment booking
+=== LINKED PROJECTS ===
+1. NativeNest - https://nativenest.in - React, React Native, Java/Node, GraphQL, Redis, AWS - 30K+ users
+ Android: https://play.google.com/store/apps/details?id=com.nativeroot.nativenest&hl=en_US
+ iOS: https://apps.apple.com/in/app/nativenest/id6504481125
+2. Origem India - https://origemindia.com - Next.js, Redis, Node.js, Magento, Razorpay
+3. Arikya - https://arikya.in - Angular, Node.js, Express, AWS - placement SaaS / HeedSites
+4. Booking Bee - https://bookingbee.ai - Angular, NestJS, MongoDB, Dasha AI
+5. FutureU - https://www.asicsulb.org/corporate/discover/futureu - React Native, Node.js, AWS, WCAG, SSO
+6. Instant Backend Generator - https://instantbackend.heedsites.com - Next.js, Node.js, Express (HeedSites)
+7. Job Tracker - https://jobtracker.karthikkovi.com - React, Node.js, MongoDB, Selenium, AWS
+8. HeedSites - https://www.heedsites.com - SaaS / automation / product org
 
-=== NO-LINK PROJECTS (valid; use when they best match the JD; max 2 of the 5) ===
-6. MirrorMate — C#, Miracast — Windows screen casting
-7. AI Based Slum Control (Smart India Hackathon) — Angular, Node.js, Twilio — AI platform
+=== NO-LINK PROJECTS ===
+9. MirrorMate - C#, Miracast - Windows screen casting (Infobell)
+10. NextZEN ERP HRMS - React Native, Node, MongoDB, AWS
+11. AI Based Slum Control - Angular, Node.js, Twilio - Smart India Hackathon
+12. Video Streaming / VOD - React, Node, AWS S3 (Vasukam)
+13. University ERP / College Management - MERN (Yes Real)
+14. CloudSync - Java, AWS, Docker, Redis, Kafka - from standard resume template
+15. RenderSync - Python, Flask, Prometheus, Docker - from standard resume template
 
-SELECTION ALGORITHM (mandatory):
-1. Rank ALL pool projects by relevance to THIS JD's required skills/responsibilities.
-2. Take the best 5. If fewer than 3 LINKED are in those 5, swap in the next-best LINKED projects until ≥3 have URLs.
-3. Cover 100% of JD tech keywords with evidenced bullets across Experience + these 5 projects (Rule 1).
-4. Never invent URLs. Never change existing URLs. Never add GitHub links.
+SELECTION:
+1. Rank by JD relevance.
+2. Prefer 4 - 5 projects; at least 3 LINKED when possible.
+3. AI/LLM JDs: prefer Booking Bee and Instant Backend Generator when relevant.
+4. Never invent URLs or Amazon-confidential details beyond LinkedIn-public bullets.
+5. Never invent metrics beyond the verified catalog.

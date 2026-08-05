@@ -5,7 +5,7 @@ import { isDuplicateJob } from './jobDedup';
 import { shouldAbortScrape } from './scrapeContext';
 import { appendTaskLog, incrementScraped, logScrapingUrl, setTaskProgress } from './taskStatusService';
 import { scrapeRunTarget } from '../utils/scrapeLimits';
-import { isSoftwareRole } from './eligibility';
+import { isSoftwareRole, isEligibleJob } from './eligibility';
 import {
   fetchJobDescriptionFromApplyUrl,
   closeJdFetchSession,
@@ -13,8 +13,8 @@ import {
   type JdFetchSession,
 } from './applyPageJdFetcher';
 import { shouldSkipJobDescription } from './jobSkipRules';
-import { isSummer2027InternTarget } from './jobMaintenance';
 import { isUsJobLocation } from './usLocation';
+import type { JobType } from '../models/Job';
 
 interface GhRow {
   company: string;
@@ -100,16 +100,20 @@ function titleLooksProfileCompatible(title: string): boolean {
 }
 
 /**
- * Phase 2 — curated GitHub Summer 2027 SWE internship lists.
- * Always opens the apply URL for a real JD; only saves if it matches Karthik’s MS / full-time profile.
+ * Phase 2 — curated GitHub new-grad / early-career SWE lists (also usable in internship mode).
+ * Always opens the apply URL for a real JD; only saves if it matches Karthik's profile for jobType.
  */
-export async function scrapeGithubInternshipLists(existingIds: string[] = []): Promise<string[]> {
+export async function scrapeGithubInternshipLists(
+  existingIds: string[] = [],
+  jobType: JobType = 'fulltime'
+): Promise<string[]> {
   const savedIds = [...existingIds];
   const target = scrapeRunTarget();
   const source: ScrapeSource = 'github';
+  const modeLabel = jobType === 'fulltime' ? 'new-grad / full-time' : 'internship';
 
-  appendTaskLog(`GitHub internship lists (up to ${target} new) — fetch real JD from apply links…`);
-  console.log(`\n📦 GitHub Summer 2027 lists — target ${target} (real JD required)`);
+  appendTaskLog(`GitHub lists — ${modeLabel} (up to ${target} new) — fetch real JD from apply links…`);
+  console.log(`\n📦 GitHub lists — ${modeLabel} — target ${target} (real JD required)`);
 
   const session: JdFetchSession = { driver: null };
 
@@ -191,8 +195,8 @@ export async function scrapeGithubInternshipLists(existingIds: string[] = []): P
         console.log(`  ↳ Skipped — ${skip.reason}`);
         continue;
       }
-      if (!isSummer2027InternTarget(title, description)) {
-        console.log(`  ↳ Skipped — not Summer 2027 SWE intern target`);
+      if (!isEligibleJob(jobType, title, description)) {
+        console.log(`  ↳ Skipped — not eligible for ${modeLabel}`);
         continue;
       }
 
@@ -203,7 +207,7 @@ export async function scrapeGithubInternshipLists(existingIds: string[] = []): P
         jobDescription: description,
         location: row.location || 'United States',
         source,
-        forcedType: 'internship',
+        forcedType: jobType,
         priority: isFaangMangoCompany(company) ? 'faang' : 'standard',
         pipelinePhase: 'career_portal',
       });
