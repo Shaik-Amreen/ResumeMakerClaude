@@ -14,7 +14,7 @@ Software Engineer Intern - Amazon - United States (On-site) - May 26, 2026 - Aug
 • Built an AI assistant skill that lets developers run and monitor batch jobs from plain language commands, with built-in safety checks and before/after verification.
 Tech: Java, Python, AWS, AWS Lambda, Amazon DynamoDB, Amazon SQS, AWS CDK, Infrastructure as Code, CI/CD, CloudWatch
 
-Software Developer - Associated Students, Inc. (ASI), CSULB - California, USA - Feb 2025 - Present
+Software Engineer - Associated Students, Inc. (ASI), CSULB - California, USA - Feb 2025 - Present
 • Developed the FutureU Mobile App and 22WestMedia website serving 12,000+ monthly users.
 • Implemented WCAG 2.1/2.2 AA accessibility standards.
 • Integrated campus Single Sign-On and audio streaming SDK.

@@ -29,7 +29,7 @@ export const resumeProfile = {
   ],
   experience: [
     'Software Engineer Intern - Amazon, Bellevue, WA (May 26, 2026 - Aug 14, 2026): Public LinkedIn highlights - batch data remediation on AWS Lambda/DynamoDB/SQS; AWS CDK + CI/CD with CloudWatch; AI assistant skill for batch job ops. Amazon internal details remain confidential beyond LinkedIn-public bullets. Skills listed on LinkedIn: Java, Python, AWS, Lambda, DynamoDB, SQS, CDK, IaC, CI/CD.',
-    'Software Developer - Associated Students, Inc. (ASI), CSULB (Feb 2025 - Present): FutureU mobile + 22WestMedia for 12,000+ monthly users; WCAG 2.1/2.2 AA; campus SSO + audio streaming SDK; GitHub Actions/SonarQube/ESLint CI/CD (-40% deploy effort); WordPress/Elementor publishing (+50%); AWS LightSail + S3 (-30% page load).',
+    'Software Engineer - Associated Students, Inc. (ASI), CSULB (Feb 2025 - Present): FutureU mobile + 22WestMedia for 12,000+ monthly users; WCAG 2.1/2.2 AA; campus SSO + audio streaming SDK; GitHub Actions/SonarQube/ESLint CI/CD (-40% deploy effort); WordPress/Elementor publishing (+50%); AWS LightSail + S3 (-30% page load).',
     'Full Stack Developer / Software Engineer - Infobell IT Solutions Pvt Ltd, Bengaluru (Jul 2023 - Jan 2025): Led 4-engineer team; NativeNest 30K+ users; GraphQL/Apollo (-30% checkout latency); Origem Next.js/Redis/ISR (-25% load); MirrorMate C#/Miracast; mentored interns; six on-time releases.',
     'Full Stack Developer Intern - Infobell IT Solutions Pvt Ltd (Jan 2023 - Jun 2023): Angular dashboards, REST APIs, Jest coverage to 80%, Swagger.',
     // Redbee intentionally omitted from resume template (Amazon replaces that slot).

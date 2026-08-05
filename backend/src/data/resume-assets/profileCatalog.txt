@@ -18,7 +18,7 @@ WORK EXPERIENCE (verified - Amazon FIRST; Redbee REMOVED from resume):
  - Skills: Java, Python, AWS, Lambda, DynamoDB, SQS, CDK, IaC, CI/CD, CloudWatch, AI Skill, Forecasting
  - Bullets MUST stay ONE printed line (≤95 plain chars); drop low-priority filler to fit
 
-2. Software Developer - Associated Students, Inc. - CSULB - 02/2025 - Present
+2. Software Engineer - Associated Students, Inc. - CSULB - 02/2025 - Present
  - Java Spring Boot + Node.js/React portals for 12K+ users
  - Docker, GitHub Actions, AWS ECS CI/CD (-40% release time)
  - REST/GraphQL + Redis (-35% latency)
