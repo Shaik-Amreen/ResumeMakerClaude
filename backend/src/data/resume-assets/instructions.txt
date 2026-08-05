@@ -94,12 +94,14 @@ EDUCATION / CERTIFICATIONS
 SKILL COVERAGE — ADAPTABLE CANDIDATE & EVIDENCE REQUIREMENT (RULE 1)
 ================================================================================
 - Aim for 100% JD skill coverage with EVIDENCE in Experience/Projects (never Skills-only).
-- Kubernetes, K8s, Docker, Helm, Microservices, Kafka, Terraform, Jenkins, Prometheus, Grafana,
-  gRPC, GraphQL, REST APIs, Redis, AWS (ECS/EKS/Lambda/S3) are explicitly verified as learned
-  skills across Infobell IT Solutions projects, ASI, and Key Projects (e.g. CloudSync, NativeNest).
-- When a JD requires Kubernetes or related Cloud/DevOps/Backend tools, you MUST include it
-  in an Experience bullet (e.g. under Infobell IT Solutions or ASI) or a Key Project bullet
-  with concrete evidence — listing it ONLY under Skills is a match failure (0% evidence).
+- Verified Skills & Evidence Locations:
+  - Forecasting / Predictive Analytics: Amazon Internship AI Assistant Skill (predictive batch job run/monitoring & failure forecasting).
+  - Computer Vision / Image Recognition: B.Tech CS coursework & projects (OpenCV, PyTorch, image recognition/inspection).
+  - Kubernetes, K8s, Docker, Helm, Microservices, Kafka, Terraform, Jenkins, Prometheus, Grafana,
+    gRPC, GraphQL, REST APIs, Redis, AWS: Infobell IT Solutions, ASI, and Key Projects (CloudSync, NativeNest).
+- When a JD requires Forecasting, Computer Vision, Kubernetes, or any target skill, you MUST include it
+  in an Experience bullet (Amazon/Infobell/ASI) or a Key Project bullet with concrete evidence.
+  Listing a required skill ONLY under Skills is a match failure (0% evidence).
 
 ================================================================================
 SAME-CONCEPT SKILL SUBSTITUTION & INFOBELL EXPERIENCE (ALLOWED)
