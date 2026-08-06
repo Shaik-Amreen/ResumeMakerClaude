@@ -174,7 +174,7 @@ export async function runResumePipeline(jobId: string) {
     job.skillGaps = undefined;
     const pipelineStart = Date.now();
     const genStart = Date.now();
-    job.approvalNote = `Tailoring resume with ${agentLabel}…`;
+    job.approvalNote = `Tailoring resume…`;
     await job.save();
 
     console.log(`\n📄 Resume agent started: ${job.title} @ ${job.company} (Provider: ${agentLabel})`);
