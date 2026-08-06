@@ -170,7 +170,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-paper text-ink relative font-sans flex flex-col">
-      <ToastContainer position="top-right" autoClose={3500} theme="colored" />
+      <ToastContainer position="top-right" autoClose={3500} theme="light" className="text-sm font-sans" toastClassName="rounded-2xl shadow-lg border border-slate-200" />
       <Background3D />
 
       <div className="relative z-10 flex flex-col flex-1 max-w-[1600px] w-full mx-auto p-4 md:p-6 gap-4 min-h-0">
@@ -184,7 +184,7 @@ function App() {
             </h1>
             <p className="text-ink-muted text-sm mt-1 max-w-xl">
               Scrape FAANG, GitHub, Simplify, Jobright, LinkedIn, Indeed, Google Jobs, or ATS for
-              full-time / new-grad SWE roles only — internships are skipped. Live status updates below.
+              full-time / new-grad SWE roles only · internships are skipped. Live status updates below.
             </p>
             {scheduler && (
               <p className="text-xs text-primary-500 mt-2">

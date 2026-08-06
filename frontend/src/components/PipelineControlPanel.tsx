@@ -118,7 +118,12 @@ export function PipelineControlPanel({ onJobsChanged, busy, setBusy }: Props) {
           )}
           {statusTitle}
         </div>
-        <p className="mt-1 text-xs opacity-90">{status?.message || '—'}</p>
+        <p className="mt-1 text-xs opacity-90">
+          {(status?.message || 'Idle: ready to scrape or generate resumes.')
+            .replace(/\s*—\s*/g, ' · ')
+            .replace(/—/g, ' - ')
+            .replace(/\.\./g, '…')}
+        </p>
         {progress && progress.total > 0 && (
           <div className="mt-2">
             <div className="h-1.5 rounded-full bg-white/80 border border-slate-200 overflow-hidden">
@@ -155,7 +160,7 @@ export function PipelineControlPanel({ onJobsChanged, busy, setBusy }: Props) {
                 line.startsWith('🔗') ? 'text-teal-800' : 'text-ink-muted'
               }`}
             >
-              {line}
+              {line.replace(/\.\./g, '…').replace(/\s*—\s*/g, ' · ')}
             </p>
           ))}
         </div>
