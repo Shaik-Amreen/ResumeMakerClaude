@@ -172,15 +172,13 @@ export async function runResumePipeline(jobId: string) {
     job.matchedKeywords = undefined;
     job.missingKeywords = undefined;
     job.skillGaps = undefined;
-    job.approvalNote = `Generating tailored 1-page resume with ${agentLabel}…`;
+    job.approvalNote = `[0s] Tailoring resume with ${agentLabel}…`;
     await job.save();
 
     const pipelineStart = Date.now();
     console.log(`\n📄 Resume agent started: ${job.title} @ ${job.company} (Provider: ${agentLabel})`);
 
     const genStart = Date.now();
-    job.approvalNote = `[0s] Tailoring resume with ${agentLabel}…`;
-    await job.save();
 
     const generated = await generateResumeLatex(ctx);
     const activeProvider = generated.usedProvider || agentLabel;
