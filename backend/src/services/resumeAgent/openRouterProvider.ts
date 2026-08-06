@@ -107,13 +107,22 @@ export async function openRouterChatCompletion(
   if (!res.ok) {
     const text = await res.text();
     let msg = text.slice(0, 400);
+    let recovery = '';
     try {
-      const errJson = JSON.parse(text) as OpenRouterChatResponse;
+      const errJson = JSON.parse(text) as OpenRouterChatResponse & {
+        recovery_hint?: { next_step?: string };
+        diagnostics?: { recovery?: { next_step?: string } };
+      };
       if (errJson.error?.message) msg = errJson.error.message;
+      recovery =
+        errJson.recovery_hint?.next_step ||
+        errJson.diagnostics?.recovery?.next_step ||
+        '';
     } catch {
       /* keep raw */
     }
-    throw new Error(`OpenRouter error (${res.status}): ${msg}`);
+    const hint = recovery ? ` — ${recovery}` : '';
+    throw new Error(`OpenRouter error (${res.status}): ${msg}${hint}`);
   }
 
   let content = '';

@@ -105,7 +105,25 @@ export async function runResumePipelineQueue(
   }
 }
 
-/** Generate resumes one-by-one for jobs still in scraped status only. */
+/**
+ * Jobs eligible for the "Generate resumes" batch:
+ * - scraped (never attempted)
+ * - failed with resumePhase failed (prior generation failed — retry)
+ * - stuck resume_generating (crashed mid-run)
+ * Does not retry apply failures or manually skipped jobs that already have a done resume.
+ */
+export function resumeQueueJobFilter(): Record<string, unknown> {
+  return {
+    jobType: 'fulltime',
+    $or: [
+      { status: 'scraped' },
+      { status: 'failed', resumePhase: 'failed' },
+      { status: 'resume_generating' },
+    ],
+  };
+}
+
+/** Generate resumes one-by-one for scraped jobs and failed resume retries. */
 export async function runResumesForScrapedJobs(options?: {
   limit?: number;
   withOutreach?: boolean;
@@ -119,25 +137,24 @@ export async function runResumesForScrapedJobs(options?: {
 
   const limit = options?.limit && options.limit > 0 ? options.limit : 0;
   try {
-    // Only jobs that have never left scraped — do not retry failed / partial / generating.
-    const query = Job.find({ status: 'scraped', jobType: 'fulltime' }).sort({ createdAt: 1 });
+    const query = Job.find(resumeQueueJobFilter()).sort({ createdAt: 1 });
     const jobs = limit ? await query.limit(limit) : await query;
     const jobIds = jobs.map((j) => j.id);
 
     if (!jobIds.length) {
-      finishTask('No scraped jobs waiting for resume generation.');
+      finishTask('No scraped or failed jobs waiting for resume generation.');
       return { count: 0 };
     }
 
     setTaskPhase(
       'resumes',
-      `Generating ${jobIds.length} resume(s) for scraped jobs only (one by one)…`
+      `Generating ${jobIds.length} resume(s) (scraped + failed retries, one by one)…`
     );
     await runResumePipelineQueue(jobIds, options?.withOutreach ?? false);
     if (shouldAbortScrape()) {
       abortTask(`Stopped — processed ${jobIds.length} resume slot(s) before stop.`);
     } else {
-      finishTask(`Resume queue complete — ${jobIds.length} scraped job(s) processed.`);
+      finishTask(`Resume queue complete — ${jobIds.length} job(s) processed.`);
     }
     return { count: jobIds.length };
   } catch (err) {

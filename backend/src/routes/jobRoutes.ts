@@ -18,6 +18,7 @@ import {
   isScrapeRunning,
   isPipelineRunning,
   runResumesForScrapedJobs,
+  resumeQueueJobFilter,
   prepareAndGenerateResumes,
   enqueueSingleResume,
   rerunClaudeForJobsWithLatex,
@@ -216,12 +217,12 @@ router.post('/generate-resumes', async (req: Request, res: Response) => {
     }
     const limit = Number(req.body?.limit) || 0;
     const withOutreach = req.body?.withOutreach === true;
-    const pending = await Job.countDocuments({ status: 'scraped', jobType: 'fulltime' });
+    const pending = await Job.countDocuments(resumeQueueJobFilter());
     const count = limit > 0 ? Math.min(limit, pending) : pending;
 
     runResumesForScrapedJobs({ limit: limit || undefined, withOutreach }).catch(console.error);
     res.json({
-      message: `Resume generation started for up to ${count} scraped job(s) only (one by one, ${resumeAgentLabel()}). Failed/partial resumes are not retried.`,
+      message: `Resume generation started for ${count} job(s) — scraped + failed retries (${resumeAgentLabel()}).`,
       count,
     });
   } catch (error) {

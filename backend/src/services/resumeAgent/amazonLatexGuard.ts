@@ -133,7 +133,7 @@ export function shortenHeaderRoleTitle(
  * Line 1: KARTHIK KOVI
  * Line 2: Title | [Open to Relocate] | Email | Phone | [California, USA]
  * Line 3: LinkedIn | [Portfolio] | GitHub
- * Prunes low-priority details (Open to Relocate -> California, USA -> Portfolio) if any line exceeds 92 plain chars.
+ * Prunes low-priority details (Open to Relocate -> California, USA -> Portfolio) if any line exceeds MAX_HEADER_LINE_PLAIN.
  */
 export function applyJdHeaderTagline(
   latex: string,
@@ -146,7 +146,7 @@ export function applyJdHeaderTagline(
   const relocate = '{Open to Relocate}';
   const location = 'California, USA';
 
-  // Determine line 2 items based on plain length (target <= 92 plain chars)
+  // Determine line 2 items based on plain length (target <= MAX_HEADER_LINE_PLAIN)
   let includeRelocate = true;
   let includeLocation = true;
 
@@ -158,10 +158,10 @@ export function applyJdHeaderTagline(
     return p.join(' | ');
   };
 
-  if (getLine2Plain(true, true).length > 92) {
+  if (getLine2Plain(true, true).length > MAX_HEADER_LINE_PLAIN) {
     includeRelocate = false;
   }
-  if (getLine2Plain(false, true).length > 92) {
+  if (getLine2Plain(false, true).length > MAX_HEADER_LINE_PLAIN) {
     includeLocation = false;
   }
 
@@ -184,7 +184,7 @@ export function applyJdHeaderTagline(
     return p.join(' | ');
   };
 
-  if (getLine3Plain(true).length > 92) {
+  if (getLine3Plain(true).length > MAX_HEADER_LINE_PLAIN) {
     includePortfolio = false;
   }
 

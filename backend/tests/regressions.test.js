@@ -117,8 +117,19 @@ test('resume queue deduplicates jobs, reports failures, and becomes idle again',
     assert.equal(queue.isResumeQueueIdle(), true);
   } finally {
     pipeline.runResumePipeline = originalRun;
+
     delete require.cache[queuePath];
   }
+});
+
+test('resume queue filter includes scraped and failed resume retries', () => {
+  const { resumeQueueJobFilter } = require('../dist/services/orchestratorService');
+  const filter = resumeQueueJobFilter();
+  assert.equal(filter.jobType, 'fulltime');
+  assert.ok(Array.isArray(filter.$or));
+  assert.deepEqual(filter.$or[0], { status: 'scraped' });
+  assert.deepEqual(filter.$or[1], { status: 'failed', resumePhase: 'failed' });
+  assert.deepEqual(filter.$or[2], { status: 'resume_generating' });
 });
 
 test('masters F-1 eligibility skips citizenship-only but keeps no-sponsorship jobs', () => {

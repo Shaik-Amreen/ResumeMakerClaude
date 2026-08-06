@@ -59,7 +59,7 @@ function pageRepairInstruction(pageCount: number): string {
       'Output ONLY sections from \\section{\\textbf{Work Experience}} through Certifications (no preamble).',
       'TRIM hard without changing margins/itemsep/titlespacing/bold scheme:',
       '- Drop weakest Key Projects until ≤4 remain (≥3 LINKED).',
-      '- Cap each job at 3–4 ONE-LINE bullets (≤95 plain chars).',
+      '- Cap each job at 3–4 complete bullets (110–130 plain chars, filling 90%–100% of line width).',
       '- Shorten Skills lines; remove filler words from bullets.',
       'Keep Amazon → ASI → Infobell. Name Karthik Kovi (header locked). Visual lock unchanged.',
     ].join(' ');

@@ -10,9 +10,9 @@ export const TEMPLATE_ITEMIZE_OPTS =
   'itemsep=2pt, topsep=2pt, parsep=0pt, partopsep=0pt, leftmargin=10pt';
 
 /** ~one Times 11pt line on letter paper with template margins (plain text). */
-export const MAX_BULLET_PLAIN_CHARS = 95;
-/** Prefer bullets that fill most of the line so the 1-page resume looks complete. */
-export const TARGET_BULLET_PLAIN_CHARS = 88;
+export const MAX_BULLET_PLAIN_CHARS = 135;
+/** Prefer bullets that fill most of the line (90-100% width) so the 1-page resume looks complete. */
+export const TARGET_BULLET_PLAIN_CHARS = 120;
 
 /** Trailing fluff / low-priority clauses safe to drop when compressing to one line. */
 const LOW_PRIORITY_TRAILING =

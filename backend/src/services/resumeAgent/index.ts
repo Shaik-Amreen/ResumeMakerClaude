@@ -27,9 +27,13 @@ function shouldFallbackToLocalOllama(err: unknown): boolean {
   return (
     msg.includes('402') ||
     msg.includes('429') ||
+    msg.includes('503') ||
     msg.includes('Insufficient credits') ||
     msg.includes('rate limit') ||
-    msg.includes('insufficient_quota')
+    msg.includes('insufficient_quota') ||
+    /temporarily unavailable|all upstream accounts are inactive|ALL_ACCOUNTS_INACTIVE|service_unavailable/i.test(
+      msg
+    )
   );
 }
 
