@@ -772,6 +772,7 @@ Desktop software, C#, networking, Windows APIs, real-time media, systems integra
 
 ### Technology
 
+- Go (Golang) — used for backend service tasks during Infobell trainee period
 - React
 - JavaScript
 - Bootstrap
@@ -1471,7 +1472,7 @@ Strong/currently evidenced:
 Additional language/tooling exposure requiring careful positioning:
 
 - PHP
-- Golang, mainly backend integration/familiarity
+- Go (Golang) — confirmed backend development at Infobell IT Solutions (server management / backend service tasks during Jul 2023–Jan 2025)
 - Shell scripting, basic
 
 ## Frontend and web

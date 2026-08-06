@@ -26,10 +26,11 @@ Tech: React Native, React, Node.js, Tailwind CSS, PHP, WordPress, Elementor, AWS
 Full Stack Developer - Infobell IT Solutions Pvt Ltd - Bengaluru, India - Jul 2023 - Jan 2025
 • Led 4-member engineering team building NativeNest platform serving 30,000+ users.
 • Built GraphQL APIs and reduced checkout latency by 30%.
+• Developed Go (Golang) backend services for server management and real-time monitoring dashboard (WebSockets, REST).
 • Developed Origem storefront using Next.js, Tailwind and Redis.
 • Built MirrorMate Windows application using C# and Miracast.
 • Mentored interns and delivered six Agile releases.
-Tech: React, React Native, Next.js, Node.js, GraphQL, Redis, MongoDB, Magento, AWS, C#
+Tech: React, React Native, Next.js, Node.js, Go, GraphQL, Redis, MongoDB, Magento, AWS, C#
 
 Full Stack Developer Intern - Infobell IT Solutions Pvt Ltd - Bengaluru - Jan 2023 - Jun 2023
 • Built Angular dashboards and REST APIs; increased Jest test coverage to 80%; documented APIs with Swagger.
@@ -50,7 +51,7 @@ MirrorMate - Windows screen casting - C#, Miracast (no live URL)
 AI Based Slum Control - Smart India Hackathon - Angular, Node.js, Twilio (no live URL)
 
 SKILLS
-Languages: JavaScript, TypeScript, Python, Java, C, C++, C#
+Languages: JavaScript, TypeScript, Python, Java, Go, C, C++, C#
 Frontend: React, React Native, Angular, Next.js, HTML, CSS, Bootstrap, Tailwind CSS
 Backend: Node.js, Express.js, NestJS, Flask, PHP, GraphQL, REST APIs
 Databases: MongoDB, PostgreSQL, MySQL, Redis
