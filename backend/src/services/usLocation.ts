@@ -11,11 +11,15 @@ const US_STATE_CODE =
   /,\s*(?:A[LKZR]|C[AOT]|D[CE]|FL|GA|HI|I[ADLN]|K[SY]|LA|M[ADEHINOST]|N[CDEHJMVY]|O[HKR]|P[AR]|RI|S[CD]|T[NX]|UT|V[AIT]|W[AIVY])\b/;
 
 const NON_US_COUNTRY =
-  /\b(?:canada|mexico|united\s+kingdom|england|scotland|wales|ireland|germany|france|spain|italy|netherlands|holland|belgium|switzerland|sweden|norway|denmark|finland|poland|portugal|austria|australia|new\s+zealand|india|singapore|japan|china|hong\s+kong|south\s+korea|korea|taiwan|philippines|indonesia|vietnam|thailand|malaysia|brazil|argentina|chile|colombia|israel|uae|united\s+arab\s+emirates|saudi\s+arabia|south\s+africa|nigeria|kenya|egypt|turkey|pakistan|bangladesh|sri\s+lanka|russia|ukraine|romania|czech|hungary|greece|emirates)\b/i;
+  /\b(?:canada|mexico|united\s+kingdom|uk|u\.?k\.?|great\s+britain|gb|england|scotland|wales|ireland|germany|france|spain|italy|netherlands|holland|belgium|switzerland|sweden|norway|denmark|finland|poland|portugal|austria|australia|new\s+zealand|india|singapore|japan|china|hong\s+kong|south\s+korea|korea|taiwan|philippines|indonesia|vietnam|thailand|malaysia|brazil|argentina|chile|colombia|israel|uae|united\s+arab\s+emirates|saudi\s+arabia|south\s+africa|nigeria|kenya|egypt|turkey|pakistan|bangladesh|sri\s+lanka|russia|ukraine|romania|czech|hungary|greece|emirates)\b/i;
+
+/** ", UK" / ", U.K." / ", GB" / ", EU" / ", CA" suffix pattern */
+const NON_US_COUNTRY_SUFFIX =
+  /,\s*(?:UK|U\.K\.|GB|G\.B\.|EU|AU|NZ|IN|SG|CA|DE|FR|NL|IE|ES|IT)\b/i;
 
 /** Major non-US cities that often appear without a country name. */
 const NON_US_CITY =
-  /\b(?:amsterdam|rotterdam|utrecht|the\s+hague|eindhoven|london|manchester|berlin|munich|frankfurt|paris|lyon|dublin|cork|toronto|vancouver|montreal|ottawa|sydney|melbourne|singapore|tokyo|osaka|seoul|shanghai|beijing|bangalore|bengaluru|hyderabad|mumbai|delhi|zurich|geneva|stockholm|copenhagen|oslo|helsinki|warsaw|prague|vienna|lisbon|madrid|barcelona|milan|rome|sao\s+paulo|mexico\s+city|tel\s+aviv|dubai)\b/i;
+  /\b(?:amsterdam|rotterdam|utrecht|the\s+hague|eindhoven|london|manchester|cambridge|oxford|edinburgh|bristol|birmingham|berlin|munich|frankfurt|paris|lyon|dublin|cork|toronto|vancouver|montreal|ottawa|sydney|melbourne|singapore|tokyo|osaka|seoul|shanghai|beijing|bangalore|bengaluru|hyderabad|mumbai|delhi|zurich|geneva|stockholm|copenhagen|oslo|helsinki|warsaw|prague|vienna|lisbon|madrid|barcelona|milan|rome|sao\s+paulo|mexico\s+city|tel\s+aviv|dubai)\b/i;
 
 const NON_US_REGION =
   /\b(?:emea|apac|latam|europe|asia|africa|middle\s+east|eu\s+only|outside\s+(?:the\s+)?(?:us|u\.?s\.?a?\.?|united\s+states)|ing\s+nl|netherlands)\b/i;
@@ -44,6 +48,7 @@ export function isUsJobLocation(location?: string | null, description?: string):
   if (
     NON_US_REGION.test(loc) ||
     NON_US_COUNTRY.test(loc) ||
+    NON_US_COUNTRY_SUFFIX.test(loc) ||
     NON_US_CITY.test(loc) ||
     CANADIAN_HINT.test(loc)
   ) {
