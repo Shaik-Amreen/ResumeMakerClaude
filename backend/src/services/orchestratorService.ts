@@ -67,21 +67,25 @@ export async function runResumePipelineQueue(
   startIndex = 0
 ) {
   let failed = 0;
-  for (let i = startIndex; i < jobIds.length; i++) {
+  const total = jobIds.length;
+  const startBatch = Date.now();
+
+  for (let i = startIndex; i < total; i++) {
     if (shouldAbortScrape()) {
-      appendTaskLog(`Resume queue stopped at ${i}/${jobIds.length}`);
+      appendTaskLog(`Resume queue stopped at ${i}/${total}`);
       break;
     }
-    setResumeProgress(i + 1, jobIds.length);
-    appendTaskLog(`📄 Resume ${i + 1}/${jobIds.length}`);
+    setResumeProgress(i + 1, total);
+    const job = await Job.findById(jobIds[i]);
+    const jobTitle = job ? `${job.title} @ ${job.company}` : `Job ${i + 1}`;
+    appendTaskLog(`📄 Resume ${i + 1}/${total}: ${jobTitle}…`);
     try {
       await enqueueResume(jobIds[i]);
     } catch (err) {
       failed += 1;
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`Resume ${i + 1}/${jobIds.length} failed:`, err);
-      appendTaskLog(`❌ Resume ${i + 1}/${jobIds.length} failed — ${msg.slice(0, 180)}`);
-      // Continue the batch; one bad Claude reply must not abort the remaining jobs.
+      console.error(`Resume ${i + 1}/${total} failed:`, err);
+      appendTaskLog(`❌ Resume ${i + 1}/${total} failed: ${msg.slice(0, 180)}`);
       continue;
     }
     if (withOutreach) {
@@ -92,8 +96,12 @@ export async function runResumePipelineQueue(
       }
     }
   }
+  const totalSec = Math.round((Date.now() - startBatch) / 1000);
+  const totalTimeStr = totalSec >= 60 ? `${Math.floor(totalSec / 60)}m ${totalSec % 60}s` : `${totalSec}s`;
   if (failed > 0) {
-    appendTaskLog(`Batch finished with ${failed} resume failure(s) of ${jobIds.length}.`);
+    appendTaskLog(`Batch finished with ${failed} failure(s) out of ${total} resumes in ${totalTimeStr}.`);
+  } else {
+    appendTaskLog(`Batch complete: ${total} resume(s) generated in ${totalTimeStr}.`);
   }
 }
 
