@@ -89,7 +89,7 @@ export function buildResumeSystemPrompt(ctx: ResumeJobContext): string {
     'Skills categories exact: Languages / Backend / Frontend / Cloud \\& DevOps / Monitoring / Practices.',
     'Key Projects: \\href{url}{\\textbf{Name - Tagline}} \\,\\textbar\\, {stack}\\\\ then one evidence sentence; \\vspace{2pt} between projects.',
     'Rule 7: pick top projects from the FULL project pool below — NOT the template default set blindly.',
-    'One frontend + one backend per project (Rules 8/14/18). NEVER mix C++ with Node/Python/Java/Go. Write "C++" only — never C++20/C++23. You may invent features/metrics within existing projects.',',
+    'One frontend + one backend per project (Rules 8/14/18). NEVER mix C++ with Node/Python/Java/Go. Write "C++" only — never C++20/C++23. You may invent features/metrics within existing projects.',
     'Rule 19: change project stacks ONLY for unmatched JD skills, and ONLY in 2 projects max.',
     'Rule 1: EXACTLY 100% JD keyword coverage with evidenced bullets (not ~95%).',
     'AI / agents / LLM JDs: MUST include Booking Bee and/or Instant Backend Generator while keeping ≥3 LINKED projects.',
