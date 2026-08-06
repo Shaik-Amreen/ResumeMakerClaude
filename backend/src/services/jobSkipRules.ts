@@ -12,6 +12,13 @@ export interface JobSkipResult {
   reason?: string;
 }
 
+/**
+ * Non-US country explicitly called out in the job title.
+ * e.g. "Software Engineer (New Graduates: Canada)" or "SWE – UK Only"
+ */
+const NON_US_TITLE_COUNTRY =
+  /\b(?:canada|uk|united\s+kingdom|great\s+britain|australia|new\s+zealand|india|germany|france|netherlands|ireland|singapore|mexico|brazil|europe|emea|latam)\b/i;
+
 export interface ExperienceRequirement {
   /** Lowest stated requirement (e.g. 3 from "3+ years" or "3-5 years"). */
   min: number;
@@ -164,6 +171,11 @@ export function shouldSkipJobDescription(
   const rules = config.skipRules;
   const text = `${title}\n${description}`;
   const lower = description.toLowerCase();
+
+  // Country explicitly called out in the title (e.g. "New graduates: Canada")
+  if (NON_US_TITLE_COUNTRY.test(title)) {
+    return { skip: true, reason: `Non-US country in job title: "${title}"` };
+  }
 
   if (isUndergraduateOnlyJob(title, description)) {
     return { skip: true, reason: 'Undergraduate students only (MS candidates skipped)' };

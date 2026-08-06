@@ -58,8 +58,8 @@ export async function saveJobIfNew(payload: ScrapedJobPayload): Promise<string |
 
   if (!isSoftwareRole(title, jobDescription)) return null;
 
-  if (!isUsJobLocation(payload.location, jobDescription)) {
-    console.log(`  ↳ Skipped — not a U.S. location (${payload.location || 'unknown'})`);
+  if (!isUsJobLocation(payload.location, `${title}\n${jobDescription}`)) {
+    console.log(`  ↳ Skipped — not a U.S. location (title: "${title}", location: ${payload.location || 'unknown'})`);
     return null;
   }
 
