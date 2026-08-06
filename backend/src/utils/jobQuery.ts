@@ -83,8 +83,20 @@ export function normalizeJob<T extends Record<string, unknown>>(job: T): T & {
   const pdfPath = job.pdfPath as string | undefined;
   const pdfUrl = pdfPath ? `/uploads/${path.basename(pdfPath)}` : undefined;
 
+  let approvalNote = job.approvalNote as string | undefined;
+  if (approvalNote) {
+    approvalNote = approvalNote.replace(/\s*—\s*/g, ' • ').replace(/—/g, ' - ');
+  }
+
+  let errorMessage = job.errorMessage as string | undefined;
+  if (errorMessage) {
+    errorMessage = errorMessage.replace(/\s*—\s*/g, ' : ').replace(/—/g, ' - ');
+  }
+
   return {
     ...job,
+    approvalNote,
+    errorMessage,
     applicants,
     posted,
     postedAt,

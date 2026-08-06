@@ -384,7 +384,19 @@ function App() {
           </aside>
 
           <main className="lg:col-span-3 glass rounded-2xl overflow-hidden min-h-[50vh] lg:sticky lg:top-[1.5vh] lg:h-[97vh] lg:max-h-[97vh] lg:self-start bg-white/95 border border-slate-200/80 shadow-xs">
-            {selected ? (
+            {loading ? (
+              <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8 text-center space-y-4">
+                <div className="h-16 w-16 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600 shadow-2xs">
+                  <Loader2 size={32} className="animate-spin" />
+                </div>
+                <div className="max-w-sm space-y-1">
+                  <h3 className="text-sm font-bold text-slate-800">Loading Job Database...</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Fetching latest jobs, keyword match scores, and resume pipeline state.
+                  </p>
+                </div>
+              </div>
+            ) : selected ? (
               <JobDetailPanel
                 job={selected}
                 onUpdated={loadJobs}
@@ -392,7 +404,7 @@ function App() {
               />
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8 text-center space-y-3">
-                <div className="h-16 w-16 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400">
+                <div className="h-16 w-16 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 shadow-2xs">
                   <Briefcase size={32} />
                 </div>
                 <div className="max-w-sm space-y-1">

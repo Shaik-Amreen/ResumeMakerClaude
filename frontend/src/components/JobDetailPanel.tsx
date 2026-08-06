@@ -561,7 +561,7 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-4 bg-white">
         {current.approvalNote && (
           <div className="border border-teal-200 bg-teal-50 rounded-xl px-3 py-3 text-sm text-teal-900">
-            {current.approvalNote}
+            {current.approvalNote.replace(/\s*—\s*/g, ' • ').replace(/—/g, ' - ')}
           </div>
         )}
 
