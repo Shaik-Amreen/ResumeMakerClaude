@@ -166,57 +166,57 @@ export function PipelineControlPanel({ onJobsChanged, busy, setBusy }: Props) {
           type="button"
           disabled={busy || active}
           onClick={() => run('FAANG portals', () => api.scrapeFaangPortals(limit, 'fulltime'))}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-orange-50 text-orange-900 border border-orange-200 hover:bg-orange-100 disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200/80 hover:bg-amber-100/80 disabled:opacity-40 shadow-2xs transition-all active:scale-[0.98]"
         >
-          <Briefcase size={14} /> Scrape FAANG
+          <Briefcase size={14} className="text-amber-600" /> Scrape FAANG
         </button>
         <button
           type="button"
           disabled={busy || active}
           onClick={() => run('GitHub lists', () => api.scrapeGithubLists(limit, 'fulltime'))}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-slate-800 text-white border border-slate-700 hover:bg-slate-700 disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 text-white border border-slate-800 hover:bg-slate-800 disabled:opacity-40 shadow-2xs transition-all active:scale-[0.98]"
         >
-          <Search size={14} /> Scrape GitHub + Simplify
+          <Search size={14} className="text-teal-400" /> Scrape GitHub + Simplify
         </button>
         <button
           type="button"
           disabled={busy || active}
           onClick={() => run('Jobright', () => api.scrapeJobright(limit, 'fulltime'))}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-violet-50 text-violet-800 border border-violet-200 hover:bg-violet-100 disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-violet-50 text-violet-900 border border-violet-200/80 hover:bg-violet-100/80 disabled:opacity-40 shadow-2xs transition-all active:scale-[0.98]"
         >
-          <Search size={14} /> Scrape Jobright
+          <Search size={14} className="text-violet-600" /> Scrape Jobright
         </button>
         <button
           type="button"
           disabled={busy || active}
           onClick={() => run('LinkedIn', () => api.scrapeLinkedIn(limit, 'fulltime'))}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-sky-50 text-sky-800 border border-sky-200 hover:bg-sky-100 disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-sky-50 text-sky-900 border border-sky-200/80 hover:bg-sky-100/80 disabled:opacity-40 shadow-2xs transition-all active:scale-[0.98]"
         >
-          <Globe size={14} /> Scrape LinkedIn
+          <Globe size={14} className="text-sky-600" /> Scrape LinkedIn
         </button>
         <button
           type="button"
           disabled={busy || active}
           onClick={() => run('Indeed', () => api.scrapeIndeed(limit, 'fulltime'))}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-indigo-50 text-indigo-900 border border-indigo-200 hover:bg-indigo-100 disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-50 text-indigo-900 border border-indigo-200/80 hover:bg-indigo-100/80 disabled:opacity-40 shadow-2xs transition-all active:scale-[0.98]"
         >
-          <Briefcase size={14} /> Scrape Indeed
+          <Briefcase size={14} className="text-indigo-600" /> Scrape Indeed
         </button>
         <button
           type="button"
           disabled={busy || active}
           onClick={() => run('Google Jobs', () => api.scrapeCareerPortals(limit, 'fulltime'))}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100 disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-blue-50 text-blue-900 border border-blue-200/80 hover:bg-blue-100/80 disabled:opacity-40 shadow-2xs transition-all active:scale-[0.98]"
         >
-          <Briefcase size={14} /> Scrape Google
+          <Briefcase size={14} className="text-blue-600" /> Scrape Google
         </button>
         <button
           type="button"
           disabled={busy || active}
           onClick={() => run('ATS boards', () => api.scrapeAts(limit, 'fulltime'))}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-teal-50 text-teal-800 border border-teal-200 hover:bg-teal-100 disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-teal-50 text-teal-900 border border-teal-200/80 hover:bg-teal-100/80 disabled:opacity-40 shadow-2xs transition-all active:scale-[0.98]"
         >
-          <Globe size={14} /> Scrape ATS (Greenhouse/Lever)
+          <Globe size={14} className="text-teal-600" /> Scrape ATS (Greenhouse/Lever)
         </button>
         <button
           type="button"
@@ -224,23 +224,23 @@ export function PipelineControlPanel({ onJobsChanged, busy, setBusy }: Props) {
           onClick={() =>
             run('Resumes', () => api.generateResumes({ limit, withOutreach: true }))
           }
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-fuchsia-50 text-fuchsia-800 border border-fuchsia-200 hover:bg-fuchsia-100 disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-fuchsia-50 text-fuchsia-900 border border-fuchsia-200/80 hover:bg-fuchsia-100/80 disabled:opacity-40 shadow-2xs transition-all active:scale-[0.98]"
           title="Only jobs still in Scraped status — does not retry failed or already-generated resumes"
         >
-          <FileText size={14} /> Generate resumes (scraped only)
+          <FileText size={14} className="text-fuchsia-600" /> Generate resumes (scraped only)
         </button>
         {active && (
           <button
             type="button"
             onClick={() => run('Stop', () => api.stopTask())}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-red-50 text-red-800 border border-red-200 hover:bg-red-100"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-red-50 text-red-900 border border-red-200/80 hover:bg-red-100 disabled:opacity-40 shadow-2xs transition-all active:scale-[0.98]"
           >
-            <Octagon size={14} /> {stopping ? 'Stopping…' : 'Stop'}
+            <Octagon size={14} className="text-red-600" /> {stopping ? 'Stopping…' : 'Stop'}
           </button>
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-100">
+      <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
         <button
           type="button"
           disabled={busy || active}
@@ -256,9 +256,9 @@ export function PipelineControlPanel({ onJobsChanged, busy, setBusy }: Props) {
               api.runPipeline({ deleteFirst: false, perSourceCap: limit, jobType: 'fulltime' })
             );
           }}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-40"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700 border border-emerald-600 disabled:opacity-40 shadow-md shadow-emerald-500/20 transition-all active:scale-[0.98]"
         >
-          <Play size={14} /> Full pipeline
+          <Play size={14} /> Run Full Pipeline
         </button>
         <button
           type="button"
@@ -273,7 +273,7 @@ export function PipelineControlPanel({ onJobsChanged, busy, setBusy }: Props) {
             if (!ok) return;
             run('Delete all', () => api.deleteAll());
           }}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-red-50 text-red-800 border border-red-200 hover:bg-red-100 disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-red-50 text-red-800 border border-red-200/80 hover:bg-red-100 disabled:opacity-40 shadow-2xs transition-all active:scale-[0.98]"
         >
           <Trash2 size={14} /> Delete all jobs
         </button>

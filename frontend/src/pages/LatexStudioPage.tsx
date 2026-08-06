@@ -169,18 +169,18 @@ export function LatexStudioPage() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Role title (optional)"
-                  className="rounded-xl bg-white border border-slate-200 px-3 py-2 text-sm"
+                  className="rounded-xl bg-white border border-slate-200/90 px-3 py-2 text-sm text-slate-800 shadow-2xs focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all"
                 />
                 <input
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
                   placeholder="Company (optional)"
-                  className="rounded-xl bg-white border border-slate-200 px-3 py-2 text-sm"
+                  className="rounded-xl bg-white border border-slate-200/90 px-3 py-2 text-sm text-slate-800 shadow-2xs focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all"
                 />
                 <select
                   value={jobType}
                   onChange={(e) => setJobType(e.target.value as JobType | '')}
-                  className="rounded-xl bg-white border border-slate-200 px-3 py-2 text-sm"
+                  className="rounded-xl bg-white border border-slate-200/90 px-3 py-2 text-sm text-slate-800 shadow-2xs focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all"
                 >
                   <option value="internship">Internship</option>
                   <option value="fulltime">Full-time</option>
@@ -192,23 +192,23 @@ export function LatexStudioPage() {
                 onChange={(e) => setResumeText(e.target.value)}
                 rows={6}
                 placeholder="Paste resume text from LinkedIn / Jobright / Word / PDF copy…"
-                className="w-full rounded-xl bg-white border border-slate-200 p-3 text-sm font-mono"
+                className="w-full rounded-xl bg-white border border-slate-200/90 p-3 text-sm font-mono text-slate-800 shadow-2xs focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all"
               />
               <textarea
                 value={jobDescription}
                 onChange={(e) => setJobDescription(e.target.value)}
                 rows={3}
                 placeholder="Optional: paste JD to tailor skills/bullets…"
-                className="w-full rounded-xl bg-white border border-slate-200 p-3 text-sm"
+                className="w-full rounded-xl bg-white border border-slate-200/90 p-3 text-sm text-slate-800 shadow-2xs focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all"
               />
               <button
                 type="button"
                 disabled={busy || resumeText.trim().length < 80}
                 onClick={generate}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500 text-white text-sm font-semibold hover:bg-accent-hover disabled:opacity-40 shadow-sm"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 text-white text-sm font-bold hover:from-teal-700 hover:to-teal-800 disabled:opacity-40 shadow-md shadow-teal-500/20 transition-all active:scale-[0.98]"
               >
                 {busy ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                Generate LaTeX
+                Generate LaTeX Resume
               </button>
             </div>
 
@@ -216,26 +216,26 @@ export function LatexStudioPage() {
               {messages.map((m) => (
                 <div
                   key={m.id}
-                  className={`rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${
+                  className={`rounded-2xl px-3.5 py-2.5 text-xs font-medium leading-relaxed whitespace-pre-wrap shadow-2xs ${
                     m.role === 'user'
-                      ? 'bg-teal-50 border border-teal-200 text-teal-950 ml-8'
+                      ? 'bg-teal-50 border border-teal-200/90 text-teal-950 ml-8'
                       : m.role === 'assistant'
-                        ? 'bg-sky-50 border border-sky-200 text-sky-950 mr-8'
-                        : 'bg-slate-50 border border-slate-200 text-ink-muted'
+                        ? 'bg-sky-50 border border-sky-200/90 text-sky-950 mr-8'
+                        : 'bg-slate-50 border border-slate-200/90 text-slate-600'
                   }`}
                 >
                   {m.text}
                 </div>
               ))}
               {busy && (
-                <p className="text-xs text-ink-faint inline-flex items-center gap-2">
-                  <Loader2 size={14} className="animate-spin" /> Working…
+                <p className="text-xs text-slate-400 font-medium inline-flex items-center gap-2">
+                  <Loader2 size={14} className="animate-spin text-teal-600" /> Generating content…
                 </p>
               )}
               <div ref={chatEndRef} />
             </div>
 
-            <div className="p-3 border-t border-slate-200 flex gap-2 shrink-0 bg-white">
+            <div className="p-3 border-t border-slate-200/80 flex gap-2 shrink-0 bg-white">
               <input
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
@@ -247,15 +247,15 @@ export function LatexStudioPage() {
                 }}
                 disabled={busy || !latex}
                 placeholder="Chat: e.g. put PHP first in skills…"
-                className="flex-1 rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 text-sm disabled:opacity-50"
+                className="flex-1 rounded-xl bg-slate-50 border border-slate-200/90 px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 transition-all disabled:opacity-50"
               />
               <button
                 type="button"
                 disabled={busy || !latex || !chatInput.trim()}
                 onClick={sendChat}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-600 text-white text-sm font-medium disabled:opacity-40"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 text-white text-xs font-bold hover:bg-sky-700 disabled:opacity-40 shadow-sm transition-all active:scale-[0.98]"
               >
-                <Send size={15} /> Send
+                <Send size={14} /> Send
               </button>
             </div>
           </div>

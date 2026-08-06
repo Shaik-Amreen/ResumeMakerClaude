@@ -10,7 +10,7 @@ interface Props {
 }
 
 const inputClass =
-  'w-full rounded-lg bg-white border border-slate-200 px-2.5 py-1.5 text-xs text-ink shadow-sm focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-100';
+  'w-full rounded-xl bg-white border border-slate-200/90 px-3 py-1.5 text-xs text-slate-800 shadow-2xs focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all font-medium';
 
 export function JobFiltersBar({ filters, onChange, total, visible }: Props) {
   const set = (patch: Partial<JobFilters>) => onChange({ ...filters, ...patch });
@@ -27,27 +27,29 @@ export function JobFiltersBar({ filters, onChange, total, visible }: Props) {
   ].filter(Boolean).length;
 
   return (
-    <div className="p-3 border-b border-slate-200 bg-gradient-to-r from-teal-50/80 to-sky-50/60 shrink-0 space-y-2">
+    <div className="p-3.5 border-b border-slate-200/80 bg-gradient-to-r from-slate-50/90 via-teal-50/40 to-sky-50/40 shrink-0 space-y-2.5">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 text-sm font-semibold text-ink">
-          <Filter size={14} className="text-primary-500" />
-          Jobs
+        <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700">
+          <Filter size={14} className="text-teal-600" />
+          Filter Jobs
         </div>
-        <span className="text-[10px] text-ink-faint">
-          {visible}/{total}
-          {activeCount > 0 ? ` · ${activeCount} filter(s)` : ''}
+        <span className="text-[10px] font-semibold text-slate-500 bg-white/80 px-2 py-0.5 rounded-full border border-slate-200/80 shadow-2xs">
+          Showing {visible} of {total}
+          {activeCount > 0 ? ` · ${activeCount} active` : ''}
         </span>
       </div>
 
-      <input
-        type="search"
-        placeholder="Search title, company, JD…"
-        value={filters.search}
-        onChange={(e) => set({ search: e.target.value })}
-        className={inputClass}
-      />
+      <div className="relative">
+        <input
+          type="search"
+          placeholder="Search title, company, JD keywords…"
+          value={filters.search}
+          onChange={(e) => set({ search: e.target.value })}
+          className={inputClass}
+        />
+      </div>
 
-      <div className="grid grid-cols-2 gap-1.5">
+      <div className="grid grid-cols-2 gap-2">
         <select value={filters.source} onChange={(e) => set({ source: e.target.value })} className={inputClass}>
           <option value="all">All platforms</option>
           <option value="company_portal">FAANG / company</option>
@@ -114,9 +116,9 @@ export function JobFiltersBar({ filters, onChange, total, visible }: Props) {
         <button
           type="button"
           onClick={() => onChange({ ...DEFAULT_FILTERS })}
-          className="text-[10px] text-primary-500 hover:text-primary-400 inline-flex items-center gap-1"
+          className="text-[11px] font-semibold text-teal-700 hover:text-teal-900 inline-flex items-center gap-1 pt-1 transition-colors"
         >
-          <X size={12} /> Clear filters
+          <X size={12} /> Clear all filters ({activeCount})
         </button>
       )}
     </div>
