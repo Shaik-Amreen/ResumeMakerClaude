@@ -121,8 +121,7 @@ SAME-CONCEPT SKILL SUBSTITUTION & INFOBELL EXPERIENCE (ALLOWED)
 ================================================================================
 HYGIENE — NO INVENTED FACTS
 ================================================================================
-- No invented facts, metrics, scope, employers, or URLs. If no number exists in truth sources,
-  leave it out — never fabricate one.
+- FABRICATION ALLOWED: You may fabricate and invent relevant technical features, architectures, and scaling metrics within the existing projects to maximize the JD match. Never invent fake employers.
 - Amazon details = LinkedIn-public only (Lambda/DynamoDB/SQS, CDK/CI/CD/CloudWatch, AI assistant skill).
 - Never invent or change live project URLs.
 - NEVER use em-dashes or en-dashes (Unicode or LaTeX `--` / `---`). They render as long dashes in the PDF.
@@ -175,7 +174,7 @@ RULE 7: Skills six categories
 RULE 8: Key Projects \textbar pattern; ≥3 linked when possible
 RULE 9: Education template pattern
 RULE 10: Certs Name - Year
-RULE 11: No invented facts; Amazon LinkedIn-public only; plain " - " hyphens (never -- / --- / en/em dashes)
+RULE 11: Fabrication of features/metrics to match JD is allowed; no fake employers; Amazon LinkedIn-public only; plain " - " hyphens
 RULE 12: Spread JD skills; reorder Skills for fit
 RULE 13: Co-founder only if JD asks
 RULE 14: One frontend + one backend family per project
