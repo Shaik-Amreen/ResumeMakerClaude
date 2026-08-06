@@ -230,9 +230,9 @@ export function PipelineControlPanel({ onJobsChanged, busy, setBusy }: Props) {
             run('Resumes', () => api.generateResumes({ limit, withOutreach: true }))
           }
           className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-fuchsia-50 text-fuchsia-900 border border-fuchsia-200/80 hover:bg-fuchsia-100/80 disabled:opacity-40 shadow-2xs transition-all active:scale-[0.98]"
-          title="Only jobs still in Scraped status (does not retry failed or already-generated resumes)"
+          title="Scraped jobs plus failed resume attempts (does not re-run already-generated resumes)"
         >
-          <FileText size={14} className="text-fuchsia-600" /> Generate resumes (scraped only)
+          <FileText size={14} className="text-fuchsia-600" /> Generate resumes (scraped + failed)
         </button>
         {active && (
           <button
