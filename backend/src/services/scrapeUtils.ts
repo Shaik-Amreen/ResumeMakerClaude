@@ -12,6 +12,7 @@ import { resolvePostedAt } from '../utils/parsePostedDate';
 import { cleanJobDescriptionForResume } from './cleanJobDescription';
 import { isInvalidOrMissingJd } from './applyPageJdFetcher';
 import type { JobType } from '../models/Job';
+import { evaluateJobWithAI } from './aiJobFilter';
 
 export type ScrapeSource =
   | 'jobright'
@@ -76,6 +77,18 @@ export async function saveJobIfNew(payload: ScrapedJobPayload): Promise<string |
 
   if (!isEligibleJob('fulltime', title, jobDescription)) {
     return null;
+  }
+
+  // AI Semantic Filter Check
+  console.log(`  ↳ Evaluating semantics with AI...`);
+  const aiResult = await evaluateJobWithAI(title, company, jobDescription);
+  if (aiResult && !aiResult.eligible) {
+    console.log(`  ↳ Skipped by AI — ${aiResult.reason}`);
+    return null;
+  } else if (aiResult && aiResult.eligible) {
+    console.log(`  ↳ AI Approved — ${aiResult.reason}`);
+  } else {
+    console.log(`  ↳ AI Filter skipped/failed. Proceeding via regex approval.`);
   }
 
   const jobType: JobType = 'fulltime';
