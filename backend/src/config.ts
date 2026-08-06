@@ -65,26 +65,26 @@ export const config = {
   },
 
   /** Built-in resume agent — claude-code | openrouter (OmniRoute/cloud) | ollama */
-  resumeAgent: {
-    provider: (process.env.RESUME_PROVIDER || 'ollama') as 'claude-code' | 'openrouter' | 'ollama',
-    openRouter: {
-      apiKey: process.env.OPENROUTER_API_KEY || '',
-      baseUrl: process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
-      /** Free default — no OpenRouter credits required */
-      model: process.env.OPENROUTER_MODEL || 'google/gemma-4-31b-it:free',
-      siteUrl: process.env.OPENROUTER_SITE_URL || 'http://localhost:5173',
-      appName: process.env.OPENROUTER_APP_NAME || 'ResumeMaker Job Tracker',
-      maxTokens: Number(process.env.OPENROUTER_MAX_TOKENS) || 16384,
-      temperature: Number(process.env.OPENROUTER_TEMPERATURE) || 0.4,
-    },
-    claudeCode: {
-      /** Claude Code CLI binary (default: ~/.local/bin/claude) */
-      binary: process.env.CLAUDE_CODE_BINARY || '',
-      /** sonnet | opus | haiku or full model id */
-      model: process.env.CLAUDE_CODE_MODEL || 'sonnet',
-      timeoutMs: Number(process.env.CLAUDE_CODE_TIMEOUT_MS) || 900000,
-      maxTurns: Number(process.env.CLAUDE_CODE_MAX_TURNS) || 1,
-    },
+  get resumeAgent() {
+    dotenv.config();
+    return {
+      provider: (process.env.RESUME_PROVIDER || 'ollama') as 'claude-code' | 'openrouter' | 'ollama',
+      openRouter: {
+        apiKey: process.env.OPENROUTER_API_KEY || '',
+        baseUrl: process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
+        model: process.env.OPENROUTER_MODEL || 'google/gemma-4-31b-it:free',
+        siteUrl: process.env.OPENROUTER_SITE_URL || 'http://localhost:5173',
+        appName: process.env.OPENROUTER_APP_NAME || 'ResumeMaker Job Tracker',
+        maxTokens: Number(process.env.OPENROUTER_MAX_TOKENS) || 16384,
+        temperature: Number(process.env.OPENROUTER_TEMPERATURE) || 0.4,
+      },
+      claudeCode: {
+        binary: process.env.CLAUDE_CODE_BINARY || '',
+        model: process.env.CLAUDE_CODE_MODEL || 'sonnet',
+        timeoutMs: Number(process.env.CLAUDE_CODE_TIMEOUT_MS) || 900000,
+        maxTurns: Number(process.env.CLAUDE_CODE_MAX_TURNS) || 1,
+      },
+    };
   },
 
   linkedin: {
