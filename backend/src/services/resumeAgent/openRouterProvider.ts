@@ -11,6 +11,7 @@ export type { LlmMatchReport };
 export interface ResumeGenerationResult {
   latex: string;
   llmMatch?: LlmMatchReport;
+  usedProvider?: string;
 }
 
 interface OpenRouterChatResponse {
@@ -172,5 +173,8 @@ export async function generateResumeWithOpenRouter(
         ? ` · LLM match keyword ${parsed.llmMatch.keywordMatchScore}% / resume ${parsed.llmMatch.resumeMatchScore}%`
         : ' · (no MATCH_REPORT from model)')
   );
-  return parsed;
+  return {
+    ...parsed,
+    usedProvider: `${isOmniRoute() ? 'OmniRoute' : 'OpenRouter'} (${openRouter.model})`,
+  };
 }

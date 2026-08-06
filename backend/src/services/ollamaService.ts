@@ -76,7 +76,10 @@ export async function generateResumeWithOllamaApi(
     throw new Error('Ollama returned an empty response.');
   }
 
-  return parseModelResumeResponse(content);
+  return {
+    ...parseModelResumeResponse(content),
+    usedProvider: `Ollama (${config.ollama.model})`,
+  };
 }
 
 export async function generateResumeWithOllama(

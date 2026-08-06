@@ -183,7 +183,8 @@ export async function runResumePipeline(jobId: string) {
     await job.save();
 
     const generated = await generateResumeLatex(ctx);
-    console.log(`  ⏱️ [${elapsed(pipelineStart)}] LaTeX generation: ${elapsed(genStart)} (${generated.latex.length} chars)`);
+    const activeProvider = generated.usedProvider || agentLabel;
+    console.log(`  ⏱️ [${elapsed(pipelineStart)}] LaTeX generation: ${elapsed(genStart)} (${generated.latex.length} chars via ${activeProvider})`);
 
     let latex = applyJdHeaderTagline(enforceMasterRules(generated.latex), {
       title: ctx.title,
@@ -192,7 +193,7 @@ export async function runResumePipeline(jobId: string) {
     });
 
     job.resumePhase = 'compiling';
-    job.approvalNote = `[${elapsed(pipelineStart)}] Compiling LaTeX → PDF (1-page fit)…`;
+    job.approvalNote = `[${elapsed(pipelineStart)}] Generated via ${activeProvider} · Compiling LaTeX → PDF (1-page fit)…`;
     await job.save();
 
     const fitStart = Date.now();
@@ -213,14 +214,14 @@ export async function runResumePipeline(jobId: string) {
       job.resumePhase = 'failed';
       job.pendingAction = 'resume_review';
       job.errorMessage = `PDF is ${fitted.pageCount} page(s): must be exactly 1 after auto-repair.`;
-      job.approvalNote = `[${elapsed(pipelineStart)}] Resume is ${fitted.pageCount} page(s) after auto-repair. Trim content, then click Recompile PDF.`;
+      job.approvalNote = `[${elapsed(pipelineStart)}] Resume (${activeProvider}) is ${fitted.pageCount} page(s) after auto-repair. Trim content, then click Recompile PDF.`;
       await job.save();
       console.log(`  ⏱️ [${elapsed(pipelineStart)}] Pipeline total (page-count fail): ${elapsed(pipelineStart)}`);
       return;
     }
 
     job.resumePhase = 'checking_match';
-    job.approvalNote = `[${elapsed(pipelineStart)}] Calculating keyword match & resume score…`;
+    job.approvalNote = `[${elapsed(pipelineStart)}] Calculating match score for ${activeProvider}…`;
     await job.save();
 
     const regexMatch = scoreResumeAgainstJd(job.jobDescription, latex);
@@ -231,7 +232,7 @@ export async function runResumePipeline(jobId: string) {
     applyMatchFieldsToJob(job, match, { skillGaps, resumeMatchScore });
     job.latexResume = latex;
     job.pdfPath = fitted.pdfPath;
-    job.approvalNote = `Keyword match ${match.score}% · resume match ${resumeMatchScore}%${
+    job.approvalNote = `Tailored via ${activeProvider} · Keyword match ${match.score}% · resume match ${resumeMatchScore}%${
       match.missing.length ? ` · missing: ${match.missing.slice(0, 6).join(', ')}` : ''
     }`;
     await job.save();

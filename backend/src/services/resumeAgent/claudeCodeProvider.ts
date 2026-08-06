@@ -118,7 +118,10 @@ export async function generateResumeWithClaudeCode(
         ? ` · LLM match keyword ${parsed.llmMatch.keywordMatchScore}% / resume ${parsed.llmMatch.resumeMatchScore}%`
         : '')
   );
-  return parsed;
+  return {
+    ...parsed,
+    usedProvider: `Claude Code (${config.resumeAgent.claudeCode.model})`,
+  };
 }
 
 export async function reviseResumeWithClaudeCode(
