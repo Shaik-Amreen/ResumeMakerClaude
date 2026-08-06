@@ -26,15 +26,17 @@ Tech: React Native, React, Node.js, Tailwind CSS, PHP, WordPress, Elementor, AWS
 Full Stack Developer - Infobell IT Solutions Pvt Ltd - Bengaluru, India - Jul 2023 - Jan 2025
 • Led 4-member engineering team building NativeNest platform serving 30,000+ users.
 • Built GraphQL APIs and reduced checkout latency by 30%.
-• Developed Go (Golang) backend services for server management and real-time monitoring dashboard (WebSockets, REST).
 • Developed Origem storefront using Next.js, Tailwind and Redis.
 • Built MirrorMate Windows application using C# and Miracast.
 • Mentored interns and delivered six Agile releases.
 Tech: React, React Native, Next.js, Node.js, Go, GraphQL, Redis, MongoDB, Magento, AWS, C#
 
 Full Stack Developer Intern - Infobell IT Solutions Pvt Ltd - Bengaluru - Jan 2023 - Jun 2023
+• Led frontend and backend development of a real-time lab server utilization dashboard.
+• Developed Go (Golang) backend services and integrated WebSockets for live metrics and chat functionality.
+• Built reusable React and Material UI components, optimizing performance via lazy loading.
 • Built Angular dashboards and REST APIs; increased Jest test coverage to 80%; documented APIs with Swagger.
-Tech: Angular, Node.js, REST, Jest, Swagger
+Tech: Go, React, WebSockets, Material UI, Angular, Node.js, REST, Jest, Swagger
 
 Full Stack Developer (Contract & Intern) - Vasukam / Yes Real Technologies - Feb 2021 - Aug 2022
 • Earlier contract/intern roles (NOT listed on standard resume template - Redbee omitted; Amazon replaces that slot).

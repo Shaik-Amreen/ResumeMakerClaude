@@ -766,14 +766,14 @@ Desktop software, C#, networking, Windows APIs, real-time media, systems integra
 
 - **Organization:** Infobell IT Solutions
 - **Duration:** January 2023 to March 2023 [RV]
-- **Role:** Frontend Developer and Team Lead [RV]
-- **Product type:** Real-time server-management dashboard
+- **Role:** Full Stack Developer and Team Lead [RV]
+- **Product type:** Real-time lab server utilization dashboard
 - **Public URL:** Likely internal; UNKNOWN
 
 ### Technology
 
-- Go (Golang) — used for backend service tasks during Infobell trainee period
-- React
+- Go (Golang)
+- ReactJS
 - JavaScript
 - Bootstrap
 - Material UI
@@ -783,16 +783,16 @@ Desktop software, C#, networking, Windows APIs, real-time media, systems integra
 
 ### Responsibilities
 
-- Gathered requirements.
-- Built reusable frontend components.
-- Implemented live updates and live chat using socket connections.
-- Applied lazy loading, performance optimization, and maintainable React practices.
-- Coordinated progress with the project manager and team.
-- During the broader trainee role, developed Angular dashboards and REST APIs, raised Jest test coverage to 80%, and documented APIs with Swagger. The precise mapping of these trainee bullets to this project should be confirmed.
+- Gathered client requirements for tracking lab server utilization workflows.
+- Developed backend service in Go (Golang) to aggregate and serve live metrics.
+- Built reusable React components for the frontend interface.
+- Integrated WebSocket connections for live dashboard updates and live-chat functionality.
+- Applied lazy loading and frontend performance optimizations.
+- Coordinated sprint planning, daily stand-ups, and tracked API integrations in Jira.
 
 ### Resume angles
 
-React, real-time systems, dashboards, WebSockets, frontend architecture, testing, and API documentation.
+Go (Golang), React, full-stack, WebSockets, real-time dashboards, performance optimization, Agile delivery, team leadership.
 
 ---
 
