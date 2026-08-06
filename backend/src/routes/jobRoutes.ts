@@ -66,7 +66,7 @@ router.get('/task/status', (_req: Request, res: Response) => {
 
 router.post('/task/stop', (_req: Request, res: Response) => {
   forceStopCurrentTask();
-  res.json({ message: 'Stop requested — the task will halt safely after its current step.' });
+  res.json({ message: 'Stop requested: task will halt safely after its current step.' });
 });
 
 router.get('/', async (req: Request, res: Response) => {
@@ -101,7 +101,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 router.post('/delete-all', async (_req: Request, res: Response) => {
   try {
     if (isScrapeRunning() || isPipelineRunning()) {
-      return res.status(409).json({ message: 'Scrape or pipeline running — wait before deleting.' });
+      return res.status(409).json({ message: 'Scrape or pipeline running: wait before deleting.' });
     }
     const result = await deleteAllJobs();
     res.json({
@@ -202,7 +202,7 @@ router.post('/:id/rerun-claude', async (req: Request, res: Response) => {
     enqueueSingleClaude(job.id);
     res.json({
       message:
-        'Claude-only step queued — uses saved LaTeX or reads from open ChatGPT tab if needed.',
+        'Claude-only step queued: uses saved LaTeX or reads from open ChatGPT tab if needed.',
     });
   } catch (error) {
     res.status(500).json({ message: 'Error starting Claude rerun', error });
@@ -221,7 +221,7 @@ router.post('/generate-resumes', async (req: Request, res: Response) => {
 
     runResumesForScrapedJobs({ limit: limit || undefined, withOutreach }).catch(console.error);
     res.json({
-      message: `Resume generation started for up to ${count} scraped job(s) only — one by one (${resumeAgentLabel()}). Failed/partial resumes are not retried.`,
+      message: `Resume generation started for up to ${count} scraped job(s) only (one by one, ${resumeAgentLabel()}). Failed/partial resumes are not retried.`,
       count,
     });
   } catch (error) {
@@ -242,7 +242,7 @@ router.post('/scrape/jobright', async (req: Request, res: Response) => {
     const cap = parseScrapeCap(req.body);
     const jobType = 'fulltime' as const;
     runScrapeJobright(cap, jobType).catch(console.error);
-    res.json({ message: `Jobright scrape started — up to ${cap} new jobs. Karthik Chrome must stay open.` });
+    res.json({ message: `Jobright scrape started: up to ${cap} new jobs. Karthik Chrome must stay open.` });
   } catch (error) {
     res.status(500).json({ message: 'Error starting Jobright scrape', error });
   }
@@ -256,7 +256,7 @@ router.post('/scrape/linkedin', async (req: Request, res: Response) => {
     const cap = parseScrapeCap(req.body);
     const jobType = 'fulltime' as const;
     runScrapeLinkedIn(cap, jobType).catch(console.error);
-    res.json({ message: `LinkedIn scrape started — up to ${cap} new jobs (skips duplicates).` });
+    res.json({ message: `LinkedIn scrape started: up to ${cap} new jobs (skips duplicates).` });
   } catch (error) {
     res.status(500).json({ message: 'Error starting LinkedIn scrape', error });
   }
@@ -270,7 +270,7 @@ router.post('/scrape/indeed', async (req: Request, res: Response) => {
     const cap = parseScrapeCap(req.body);
     const jobType = 'fulltime' as const;
     runScrapeIndeed(cap, jobType).catch(console.error);
-    res.json({ message: `Indeed scrape started — up to ${cap} new full-time jobs.` });
+    res.json({ message: `Indeed scrape started: up to ${cap} new full-time jobs.` });
   } catch (error) {
     res.status(500).json({ message: 'Error starting Indeed scrape', error });
   }
@@ -285,7 +285,7 @@ router.post('/scrape/ats', async (req: Request, res: Response) => {
     const jobType = 'fulltime' as const;
     runScrapeAts(cap, jobType).catch(console.error);
     res.json({
-      message: `ATS board scrape started (Greenhouse + Lever, free public APIs) — up to ${cap} new full-time jobs.`,
+      message: `ATS board scrape started (Greenhouse + Lever, free public APIs): up to ${cap} new full-time jobs.`,
     });
   } catch (error) {
     res.status(500).json({ message: 'Error starting ATS scrape', error });
@@ -301,7 +301,7 @@ router.post('/scrape/faang-portals', async (req: Request, res: Response) => {
     const jobType = 'fulltime' as const;
     runScrapeFaangPortals(cap, jobType).catch(console.error);
     res.json({
-      message: `FAANG portal scrape started (Amazon/Microsoft/Meta/Apple/Google) — up to ${cap} new full-time jobs. Karthik Chrome must stay open.`,
+      message: `FAANG portal scrape started (Amazon/Microsoft/Meta/Apple/Google): up to ${cap} new full-time jobs. Karthik Chrome must stay open.`,
     });
   } catch (error) {
     res.status(500).json({ message: 'Error starting FAANG portal scrape', error });
@@ -317,7 +317,7 @@ router.post('/scrape/github-lists', async (req: Request, res: Response) => {
     const jobType = 'fulltime' as const;
     runScrapeGithubLists(cap, jobType).catch(console.error);
     res.json({
-      message: `GitHub + Simplify list scrape started (New-Grad-Positions + Top-New-Grad) — up to ${cap} new full-time jobs.`,
+      message: `GitHub + Simplify list scrape started (New-Grad-Positions + Top-New-Grad): up to ${cap} new full-time jobs.`,
     });
   } catch (error) {
     res.status(500).json({ message: 'Error starting GitHub list scrape', error });
@@ -332,7 +332,7 @@ router.post('/scrape/career-portals', async (req: Request, res: Response) => {
     const cap = parseScrapeCap(req.body);
     const jobType = 'fulltime' as const;
     runScrapeCareerPortals(cap, jobType).catch(console.error);
-    res.json({ message: `Google Jobs scrape started (US) — up to ${cap} new full-time jobs.` });
+    res.json({ message: `Google Jobs scrape started (US): up to ${cap} new full-time jobs.` });
   } catch (error) {
     res.status(500).json({ message: 'Error starting Google Jobs scrape', error });
   }
@@ -352,7 +352,7 @@ router.post('/prune-summer-2027', async (_req: Request, res: Response) => {
 router.post('/reset-all', async (_req: Request, res: Response) => {
   try {
     if (isScrapeRunning() || isPipelineRunning()) {
-      return res.status(409).json({ message: 'Another task is running — wait before resetting jobs.' });
+      return res.status(409).json({ message: 'Another task is running: wait before resetting jobs.' });
     }
     const count = await resetAllJobsToScraped();
     res.json({
@@ -392,25 +392,25 @@ router.patch('/:id/status', async (req: Request, res: Response) => {
     job.pendingAction = null;
     job.errorMessage = undefined;
     if (status === 'scraped') {
-      job.approvalNote = 'Scraped — generate resume manually, then upload PDF.';
+      job.approvalNote = 'Scraped: generate resume manually, then upload PDF.';
     } else if (status === 'resume_generated') {
-      job.approvalNote = 'Resume generated — upload your PDF when ready.';
+      job.approvalNote = 'Resume generated: upload your PDF when ready.';
     } else if (status === 'pdf_uploaded') {
-      job.approvalNote = 'PDF on file — apply on LinkedIn when ready.';
+      job.approvalNote = 'PDF on file: apply on LinkedIn when ready.';
     } else if (status === 'applied') {
       job.approvalNote = 'Marked as applied.';
     } else if (status === 'assessment') {
-      job.approvalNote = 'Assessment stage — complete the take-home / online test.';
+      job.approvalNote = 'Assessment stage: complete the take-home or online test.';
     } else if (status === 'interview') {
-      job.approvalNote = 'Interview stage — prep and track interview rounds.';
+      job.approvalNote = 'Interview stage: prep and track interview rounds.';
     } else if (status === 'confused_hold') {
-      job.approvalNote = 'Confused — Hold. Unclear fit / need to revisit later.';
+      job.approvalNote = 'Confused/Hold: unclear fit or need to revisit later.';
     } else if (status === 'invalid_job') {
-      job.approvalNote = 'Marked invalid — not a fit / closed / wrong posting.';
+      job.approvalNote = 'Marked invalid: not a fit or wrong posting.';
     } else if (status === 'accepted') {
-      job.approvalNote = 'Offer accepted — congratulations.';
+      job.approvalNote = 'Offer accepted: congratulations!';
     } else if (status === 'failed') {
-      job.approvalNote = 'Marked as failed / skipped.';
+      job.approvalNote = 'Marked as failed or skipped.';
     }
     await job.save();
     res.json(job);
@@ -446,17 +446,17 @@ router.patch('/:id/job-description', async (req: Request, res: Response) => {
       job.matchedKeywords = undefined;
       job.missingKeywords = undefined;
       job.skillGaps = undefined;
-      job.approvalNote = `JD saved — starting resume generation (${resumeAgentLabel()})…`;
+      job.approvalNote = `JD saved: starting resume generation (${resumeAgentLabel()})…`;
       await job.save();
       enqueueSingleOllamaResume(job.id);
       return res.json({
         job: normalizeJob(job.toObject() as unknown as Record<string, unknown>),
-        message: 'JD saved — resume regeneration started. Watch progress steps below.',
+        message: 'JD saved: resume regeneration started. Watch progress steps below.',
       });
     }
 
     job.resumePhase = 'idle';
-    job.approvalNote = 'JD updated — generate a resume when ready.';
+    job.approvalNote = 'JD updated: generate a resume when ready.';
     await job.save();
     res.json({
       job: normalizeJob(job.toObject() as unknown as Record<string, unknown>),
@@ -498,7 +498,7 @@ router.post('/:id/generate-resume', async (req: Request, res: Response) => {
 
     enqueueSingleResume(job.id);
     res.json({
-      message: `Resume agent queued (${resumeAgentLabel()}) — LaTeX in ~1–3 min.`,
+      message: `Resume agent queued (${resumeAgentLabel()}): LaTeX in ~1–3 min.`,
     });
   } catch (error) {
     res.status(500).json({ message: 'Error starting pipeline', error });
@@ -516,7 +516,7 @@ router.post('/:id/generate-resume-ollama', async (req: Request, res: Response) =
     await job.save();
     enqueueSingleOllamaResume(job.id);
     res.json({
-      message: `Resume agent started (${resumeAgentLabel()}) — watch progress steps on the job panel.`,
+      message: `Resume agent started (${resumeAgentLabel()}): watch progress steps on the job panel.`,
       job: normalizeJob(job.toObject() as unknown as Record<string, unknown>),
     });
   } catch (error) {
@@ -545,7 +545,7 @@ router.get('/:id/match-score', async (req: Request, res: Response) => {
       whyNot100:
         match.score >= 100 || match.missing.length === 0
           ? null
-          : `Keyword coverage is ${match.score}% — missing ${match.missing.length} of ${match.keywords.length} JD keywords: ${match.missing.slice(0, 12).join(', ')}.`,
+          : `Keyword coverage is ${match.score}%: missing ${match.missing.length} of ${match.keywords.length} JD keywords: ${match.missing.slice(0, 12).join(', ')}.`,
       job: normalizeJob(job.toObject() as unknown as Record<string, unknown>),
     });
   } catch (error) {
@@ -588,8 +588,8 @@ router.post('/:id/latex', async (req: Request, res: Response) => {
       if (pageCount !== 1) {
         job.status = 'resume_generated';
         job.pendingAction = 'resume_review';
-        job.errorMessage = `PDF is ${pageCount} page(s) — must be exactly 1. Edit LaTeX and Recompile again.`;
-        job.approvalNote = `Compiled to ${pageCount} page(s). Your edits are in the PDF — trim until exactly 1 page (template lock). Resume match ${job.matchScore ?? '—'}%.`;
+        job.errorMessage = `PDF is ${pageCount} page(s): must be exactly 1. Edit LaTeX and Recompile again.`;
+        job.approvalNote = `Compiled to ${pageCount} page(s). Your edits are in the PDF: trim until exactly 1 page (template lock). Resume match ${job.matchScore ?? 0}%.`;
         await job.save();
         return res.status(200).json({
           message: job.errorMessage,
@@ -604,8 +604,8 @@ router.post('/:id/latex', async (req: Request, res: Response) => {
       job.errorMessage = undefined;
       job.approvalNote =
         job.priority === 'faang'
-          ? `🚨 FAANG/MANGO — 1-page PDF ready (${job.matchScore ?? '—'}% JD match). Apply yourself on the company site (no auto-apply).`
-          : `LaTeX recompiled — PDF preview updated. Resume match ${job.matchScore ?? '—'}% · keyword match ${job.keywordMatchScore ?? '—'}%.`;
+          ? `🚨 FAANG/MANGO: 1-page PDF ready (${job.matchScore ?? 0}% JD match). Apply manually on company site.`
+          : `LaTeX recompiled: PDF preview updated. Resume match ${job.matchScore ?? 0}% · keyword match ${job.keywordMatchScore ?? 0}%.`;
       await job.save();
       return res.json({
         pageCount,
@@ -644,10 +644,10 @@ router.post('/:id/approve-resume', async (req: Request, res: Response) => {
     job.errorMessage = undefined;
     job.approvalNote =
       job.priority === 'faang'
-        ? '🚨 FAANG/MANGO — resume approved. Apply yourself on the company site (no auto-apply).'
+        ? '🚨 FAANG/MANGO: resume approved. Apply manually on company site.'
         : /linkedin\.com\/(jobs|job)/i.test(job.url)
-          ? 'Resume approved. Click Auto-Apply for LinkedIn Easy Apply — you must approve before final Submit.'
-          : 'Resume approved. Click Auto-Apply when ready (submit still requires your approval).';
+          ? 'Resume approved: click Auto-Apply for LinkedIn Easy Apply (approve before Submit).'
+          : 'Resume approved: click Auto-Apply when ready.';
     await job.save();
     res.json(normalizeJob(job.toObject() as unknown as Record<string, unknown>));
   } catch (error) {
@@ -675,7 +675,7 @@ router.post('/:id/approve-resume-and-apply', async (req: Request, res: Response)
     job.pendingAction = null;
     job.status = 'pdf_uploaded';
     job.errorMessage = undefined;
-    job.approvalNote = 'Resume approved — starting LinkedIn Easy Apply (you must approve before Submit)…';
+    job.approvalNote = 'Resume approved: starting LinkedIn Easy Apply (approve before Submit)…';
     await job.save();
 
     autoApplyToJob(job.id).catch(console.error);
@@ -705,7 +705,7 @@ router.post('/:id/upload-pdf', upload.single('resume'), async (req: Request, res
     job.status = 'pending_resume_approval';
     job.pendingAction = 'resume_review';
     job.errorMessage = undefined;
-    job.approvalNote = 'PDF uploaded — review preview, then approve to apply.';
+    job.approvalNote = 'PDF uploaded: review preview, then approve to apply.';
     await job.save();
     removeJobResumeFiles(job.id, previousPath, [writtenPath]);
     res.json(normalizeJob(job.toObject() as unknown as Record<string, unknown>));

@@ -123,7 +123,7 @@ export function LatexStudioPage() {
         'assistant',
         result.warning
           ? `Compiled (${result.pageCount} pages). ${result.warning}`
-          : `Compiled — ${result.pageCount}-page PDF preview updated.`
+          : `Compiled: ${result.pageCount}-page PDF preview updated.`
       );
     } catch (e) {
       push('system', e instanceof Error ? e.message : 'Compile failed');
@@ -137,7 +137,7 @@ export function LatexStudioPage() {
       await navigator.clipboard.writeText(latex);
       push('system', 'LaTeX copied to clipboard.');
     } catch {
-      push('system', 'Could not copy — select the LaTeX manually.');
+      push('system', 'Could not copy: select the LaTeX manually.');
     }
   };
 

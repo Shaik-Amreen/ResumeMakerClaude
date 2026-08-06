@@ -209,7 +209,7 @@ export async function runResumePipeline(jobId: string) {
       job.status = 'resume_generated';
       job.resumePhase = 'failed';
       job.pendingAction = 'resume_review';
-      job.errorMessage = `PDF is ${fitted.pageCount} page(s) — must be exactly 1 after auto-repair.`;
+      job.errorMessage = `PDF is ${fitted.pageCount} page(s): must be exactly 1 after auto-repair.`;
       job.approvalNote = `Resume is ${fitted.pageCount} page(s) after auto-repair. Trim content to match the 1-page template, then Build PDF.`;
       await job.save();
       console.log(`  ⏱️ Pipeline total (page-count fail): ${elapsed(pipelineStart)}`);
@@ -229,7 +229,7 @@ export async function runResumePipeline(jobId: string) {
     job.latexResume = latex;
     job.pdfPath = fitted.pdfPath;
     job.approvalNote = `Keyword match ${match.score}% · resume match ${resumeMatchScore}%${
-      match.missing.length ? ` — missing: ${match.missing.slice(0, 6).join(', ')}` : ''
+      match.missing.length ? ` · missing: ${match.missing.slice(0, 6).join(', ')}` : ''
     }`;
     await job.save();
 
@@ -237,7 +237,7 @@ export async function runResumePipeline(jobId: string) {
       job.status = 'resume_generated';
       job.resumePhase = 'failed';
       job.pendingAction = 'resume_review';
-      job.errorMessage = `PDF is ${fitted.pageCount} page(s) — must be exactly 1.`;
+      job.errorMessage = `PDF is ${fitted.pageCount} page(s): must be exactly 1.`;
       job.approvalNote = `Stopped with ${fitted.pageCount} page(s). No match-repair retries.`;
       await job.save();
       console.log(`  ⏱️ Pipeline total (page-count fail): ${elapsed(pipelineStart)}`);
@@ -258,19 +258,19 @@ export async function runResumePipeline(jobId: string) {
 
     if (!fullMatch || !linkedOk) {
       job.approvalNote = !fullMatch
-        ? `1-page PDF ready — JD match ${match.score}% (resume match ${resumeMatchScore}%). Missing: ${match.missing.slice(0, 6).join(', ') || '—'}. Review PDF in preview.`
-        : `1-page PDF ready — ${linked}/${MIN_LINKED_PROJECTS} linked featured projects. Review PDF in preview.`;
+        ? `1-page PDF ready • JD match ${match.score}% (resume match ${resumeMatchScore}%). Missing: ${match.missing.slice(0, 6).join(', ') || 'none'}. Review PDF in preview.`
+        : `1-page PDF ready • ${linked}/${MIN_LINKED_PROJECTS} linked featured projects. Review PDF in preview.`;
     } else {
       job.approvalNote =
         job.priority === 'faang'
-          ? `🚨 FAANG/MANGO — 1 page (template lock), 100% JD keywords · resume ${resumeMatchScore}%. Apply yourself (no auto-apply).`
-          : `1 page — 100% keyword match · resume ${resumeMatchScore}%. Review PDF, then Approve or Approve & Auto-Apply.`;
+          ? `🚨 FAANG/MANGO • 1 page (template lock), 100% JD keywords · resume ${resumeMatchScore}%. Apply manually on company site.`
+          : `1 page • 100% keyword match · resume ${resumeMatchScore}%. Review PDF, then Approve or Approve & Auto-Apply.`;
     }
     await job.save();
 
     await sendEmailNotification(
       `📄 Resume ready (1 page, ${match.score}% keywords / resume ${resumeMatchScore}%)\n${job.title} @ ${job.company}\n${
-        job.priority === 'faang' ? '🚨 FAANG/MANGO — apply yourself, no auto-apply.\n' : ''
+        job.priority === 'faang' ? '🚨 FAANG/MANGO • Apply manually, no auto-apply.\n' : ''
       }Review PDF in job tracker.`
     );
     console.log(

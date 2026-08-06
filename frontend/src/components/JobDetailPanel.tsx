@@ -189,7 +189,7 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
       await navigator.clipboard.writeText(editingJd ? jdDraft : current.jobDescription);
       setToast('Job description copied to clipboard');
     } catch {
-      setToast('Could not copy — select text manually');
+      reactToast.error('Could not copy: select text manually');
     }
   };
 
@@ -236,8 +236,8 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
       } else {
         setToast(
           pageCount
-            ? `Recompiled — PDF updated (${pageCount} page${pageCount === 1 ? '' : 's'})`
-            : 'Recompiled — PDF updated from your LaTeX'
+            ? `Recompiled: PDF updated (${pageCount} page${pageCount === 1 ? '' : 's'})`
+            : 'Recompiled: PDF updated from your LaTeX'
         );
       }
     } catch (e) {
@@ -313,14 +313,14 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
         setPdfNonce((n) => n + 1);
         onUpdated();
         setToast(
-          `Scores updated — resume ${updated.matchScore ?? '—'}% · keywords ${updated.keywordMatchScore ?? '—'}%`
+          `Scores updated: resume ${updated.matchScore ?? '—'}% · keywords ${updated.keywordMatchScore ?? '—'}%`
         );
       } else {
         const result = await api.refreshMatchScore(current._id);
         setCurrent(result.job);
         onUpdated();
         setToast(
-          `Scores updated — resume ${result.resumeMatchScore}% · keywords ${result.keywordMatchScore}%`
+          `Scores updated: resume ${result.resumeMatchScore}% · keywords ${result.keywordMatchScore}%`
         );
       }
     } catch (e) {
@@ -360,7 +360,7 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
           <span className="inline-flex items-center gap-1.5">
             <Globe size={15} className="text-sky-500" />
             <span className="text-ink">
-              <span className="text-ink-faint">Scraped date · </span>
+              <span className="text-ink-faint">Scraped date: </span>
               {scrapedLabel.replace(/^Scraped on\s+/i, '')}
             </span>
           </span>
@@ -418,7 +418,7 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
             onClick={() =>
               run(
                 () => api.generateResumeOllama(current._id),
-                `Resume generation started — check LaTeX/PDF in ~1–3 min`
+                `Resume generation started: check LaTeX/PDF in 1–3 minutes`
               )
             }
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-violet-50 border border-violet-200 hover:bg-violet-100 text-sm text-violet-800 disabled:opacity-40"
@@ -435,7 +435,7 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
               disabled={busy}
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) run(() => api.uploadPdf(current._id, file), 'PDF uploaded — review and approve');
+                if (file) run(() => api.uploadPdf(current._id, file), 'PDF uploaded: review and approve');
               }}
             />
           </label>
@@ -504,7 +504,7 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
                   onClick={() =>
                     run(
                       () => api.approveResumeAndApply(current._id).then((r) => r.message),
-                      'Approved — LinkedIn Easy Apply started (approve before Submit)'
+                      'Approved: LinkedIn Easy Apply started (please approve before Submit)'
                     )
                   }
                   className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-sm text-indigo-800"
@@ -553,7 +553,7 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
 
         {current.priority === 'faang' && (
           <p className="mt-3 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-            FAANG/MANGO — apply yourself on the company site. Auto-apply is disabled for these roles.
+            FAANG/MANGO: Apply manually on company site. Auto-apply is disabled for these roles.
           </p>
         )}
       </div>
@@ -681,7 +681,7 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
             </ul>
             {current.resumePhase === 'failed' && (
               <p className="mt-2 text-xs text-red-700 font-medium bg-red-50 p-2 rounded-xl border border-red-200/80">
-                Generation stopped — check the error note below and edit JD / regenerate.
+                Generation stopped: check error note below and edit JD / regenerate.
               </p>
             )}
           </section>
