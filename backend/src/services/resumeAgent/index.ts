@@ -37,12 +37,12 @@ function shouldFallbackToLocalOllama(err: unknown): boolean {
   );
 }
 
-function shouldFallbackFromClaudeCode(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : String(err);
-  return /401|Invalid API key|Failed to authenticate|Claude Code auth failed/i.test(msg);
+/** Helper to format error message string */
+function errMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
-/** Built-in resume agent — Claude Code, OmniRoute/OpenRouter, or local Ollama */
+/** Built-in resume agent — Claude Code, OmniRoute/OpenRouter, or local Ollama with resilient multi-tier fallback */
 export async function generateResumeLatex(ctx: ResumeJobContext): Promise<ResumeGenerationResult> {
   const provider = config.resumeAgent.provider;
 
@@ -50,19 +50,13 @@ export async function generateResumeLatex(ctx: ResumeJobContext): Promise<Resume
     try {
       return await generateResumeWithClaudeCode(ctx);
     } catch (err) {
-      if (shouldFallbackFromClaudeCode(err) && config.resumeAgent.openRouter.apiKey) {
-        console.warn('Claude Code auth failed — falling back to OmniRoute/OpenRouter…');
-        try {
-          return await generateResumeWithOpenRouter(ctx);
-        } catch (orErr) {
-          if (shouldFallbackToLocalOllama(orErr)) {
-            console.warn('OpenRouter/OmniRoute unavailable — falling back to free local Ollama…');
-            return generateResumeWithOllamaApi(ctx);
-          }
-          throw orErr;
-        }
+      console.warn(`⚠️ Claude Code generation failed (${errMessage(err).slice(0, 150)}) — falling back to OmniRoute/OpenRouter…`);
+      try {
+        return await generateResumeWithOpenRouter(ctx);
+      } catch (orErr) {
+        console.warn(`⚠️ OpenRouter/OmniRoute generation failed (${errMessage(orErr).slice(0, 150)}) — falling back to free local Ollama…`);
+        return await generateResumeWithOllamaApi(ctx);
       }
-      throw err;
     }
   }
 
@@ -70,16 +64,13 @@ export async function generateResumeLatex(ctx: ResumeJobContext): Promise<Resume
     try {
       return await generateResumeWithOpenRouter(ctx);
     } catch (err) {
-      if (shouldFallbackToLocalOllama(err)) {
-        console.warn('OpenRouter/OmniRoute unavailable — falling back to free local Ollama…');
-        return generateResumeWithOllamaApi(ctx);
-      }
-      throw err;
+      console.warn(`⚠️ OpenRouter/OmniRoute generation failed (${errMessage(err).slice(0, 150)}) — falling back to free local Ollama…`);
+      return await generateResumeWithOllamaApi(ctx);
     }
   }
 
   if (provider === 'ollama') {
-    return generateResumeWithOllamaApi(ctx);
+    return await generateResumeWithOllamaApi(ctx);
   }
 
   throw new Error(
@@ -180,18 +171,13 @@ export async function reviseResumeLatex(
     try {
       return await reviseResumeWithClaudeCode(ctx, latex, instruction);
     } catch (err) {
-      if (shouldFallbackFromClaudeCode(err) && config.resumeAgent.openRouter.apiKey) {
-        console.warn('Claude Code revise auth failed — falling back to OmniRoute/OpenRouter…');
-        try {
-          return await reviseWithOpenRouter(ctx, latex, instruction);
-        } catch (orErr) {
-          if (shouldFallbackToLocalOllama(orErr)) {
-            return reviseWithOllama(ctx, latex, instruction);
-          }
-          throw orErr;
-        }
+      console.warn(`⚠️ Claude Code revise failed (${errMessage(err).slice(0, 150)}) — falling back to OmniRoute/OpenRouter…`);
+      try {
+        return await reviseWithOpenRouter(ctx, latex, instruction);
+      } catch (orErr) {
+        console.warn(`⚠️ OpenRouter revise failed (${errMessage(orErr).slice(0, 150)}) — falling back to local Ollama…`);
+        return await reviseWithOllama(ctx, latex, instruction);
       }
-      throw err;
     }
   }
 
@@ -199,16 +185,13 @@ export async function reviseResumeLatex(
     try {
       return await reviseWithOpenRouter(ctx, latex, instruction);
     } catch (err) {
-      if (shouldFallbackToLocalOllama(err)) {
-        console.warn('OpenRouter revise unavailable — falling back to Ollama…');
-        return reviseWithOllama(ctx, latex, instruction);
-      }
-      throw err;
+      console.warn(`⚠️ OpenRouter revise failed (${errMessage(err).slice(0, 150)}) — falling back to local Ollama…`);
+      return await reviseWithOllama(ctx, latex, instruction);
     }
   }
 
   if (provider === 'ollama') {
-    return reviseWithOllama(ctx, latex, instruction);
+    return await reviseWithOllama(ctx, latex, instruction);
   }
 
   throw new Error(`Unknown RESUME_PROVIDER: ${provider}`);
@@ -217,14 +200,14 @@ export async function reviseResumeLatex(
 export function resumeAgentLabel(): string {
   const { provider, openRouter, claudeCode } = config.resumeAgent;
   if (provider === 'claude-code') {
-    return `Claude Code (${claudeCode.model})`;
+    return `Claude Code (${claudeCode.model}) → OpenRouter → Ollama`;
   }
   if (provider === 'openrouter') {
     const viaOmni = /20128|omniroute/i.test(openRouter.baseUrl);
     if (viaOmni) {
-      return `OmniRoute (${openRouter.model}) @ ${openRouter.baseUrl}`;
+      return `OmniRoute (${openRouter.model}) → Ollama`;
     }
-    return `OpenRouter (${openRouter.model}) → local Ollama fallback`;
+    return `OpenRouter (${openRouter.model}) → Ollama`;
   }
   return `Local Ollama (${config.ollama.model})`;
 }
