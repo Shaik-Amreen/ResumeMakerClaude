@@ -15,6 +15,7 @@ import { JobDetailPanel } from './components/JobDetailPanel';
 import { JobFiltersBar } from './components/JobFiltersBar';
 import { PipelineControlPanel } from './components/PipelineControlPanel';
 import { Background3D } from './components/Background3D';
+import { EmptyState } from './components/EmptyState';
 import { useConfirm } from './components/ConfirmProvider';
 import { api, type SchedulerStatus } from './api';
 import type { Job } from './types';
@@ -248,54 +249,57 @@ function App() {
         <PipelineControlPanel onJobsChanged={loadJobs} busy={controlsBusy} setBusy={setPanelBusy} />
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
-          <div className="glass-card py-3 px-4 border-l-4 border-l-sky-400">
+          <div className="glass rounded-2xl py-3.5 px-4 border-l-4 border-l-sky-500 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
             <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-sky-100 p-2">
-                <Briefcase size={18} className="text-sky-600" />
+              <div className="rounded-xl bg-sky-50 p-2 text-sky-600 border border-sky-100 shadow-2xs">
+                <Briefcase size={20} />
               </div>
               <div>
-                <p className="text-ink-faint text-xs">Jobs</p>
-                <p className="text-lg font-bold text-ink">{totalJobs}</p>
+                <p className="text-slate-500 text-xs font-medium">Total Jobs</p>
+                <p className="text-xl font-bold text-slate-900 tracking-tight">{totalJobs}</p>
               </div>
             </div>
           </div>
-          <div className="glass-card py-3 px-4 border-l-4 border-l-violet-400">
+
+          <div className="glass rounded-2xl py-3.5 px-4 border-l-4 border-l-teal-500 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
             <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-violet-100 p-2">
-                <FileText size={18} className="text-violet-600" />
+              <div className="rounded-xl bg-teal-50 p-2 text-teal-600 border border-teal-100 shadow-2xs">
+                <FileText size={20} />
               </div>
               <div>
-                <p className="text-ink-faint text-xs">Resumes ready</p>
-                <p className="text-lg font-bold text-ink">{resumesReady}</p>
+                <p className="text-slate-500 text-xs font-medium">Resumes Ready</p>
+                <p className="text-xl font-bold text-slate-900 tracking-tight">{resumesReady}</p>
               </div>
             </div>
           </div>
-          <div className="glass-card py-3 px-4 border-l-4 border-l-emerald-400">
+
+          <div className="glass rounded-2xl py-3.5 px-4 border-l-4 border-l-emerald-500 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
             <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-emerald-100 p-2">
-                <CheckCircle size={18} className="text-emerald-600" />
+              <div className="rounded-xl bg-emerald-50 p-2 text-emerald-600 border border-emerald-100 shadow-2xs">
+                <CheckCircle size={20} />
               </div>
               <div>
-                <p className="text-ink-faint text-xs">Applied</p>
-                <p className="text-lg font-bold text-ink">{applied}</p>
+                <p className="text-slate-500 text-xs font-medium">Applied</p>
+                <p className="text-xl font-bold text-slate-900 tracking-tight">{applied}</p>
               </div>
             </div>
           </div>
-          <div className="glass-card py-3 px-4 border-l-4 border-l-amber-400">
+
+          <div className="glass rounded-2xl py-3.5 px-4 border-l-4 border-l-amber-500 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
             <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-amber-100 p-2">
-                <Bell size={18} className="text-amber-600" />
+              <div className="rounded-xl bg-amber-50 p-2 text-amber-600 border border-amber-100 shadow-2xs">
+                <Bell size={20} />
               </div>
               <div>
-                <p className="text-ink-faint text-xs">Pending</p>
-                <p className="text-lg font-bold text-ink">{pendingCount}</p>
+                <p className="text-slate-500 text-xs font-medium">Pending Review</p>
+                <p className="text-xl font-bold text-slate-900 tracking-tight">{pendingCount}</p>
               </div>
             </div>
           </div>
         </div>
 
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-4 min-h-0 items-start">
-          <aside className="lg:col-span-1 glass rounded-2xl flex flex-col overflow-hidden min-h-[50vh] lg:sticky lg:top-[1.5vh] lg:h-[97vh] lg:max-h-[97vh] lg:self-start">
+          <aside className="lg:col-span-1 glass rounded-2xl flex flex-col overflow-hidden min-h-[50vh] lg:sticky lg:top-[1.5vh] lg:h-[97vh] lg:max-h-[97vh] lg:self-start border border-slate-200/80 shadow-xs">
             <JobFiltersBar
               filters={filters}
               onChange={setFilters}
@@ -304,14 +308,16 @@ function App() {
             />
             <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-white/60">
               {loading ? (
-                <p className="p-6 text-center text-ink-muted text-sm">
-                  <Loader2 className="inline animate-spin mr-2" size={16} />
-                  Loading...
-                </p>
+                <div className="p-8 text-center text-slate-500 text-sm space-y-2">
+                  <Loader2 className="inline animate-spin text-teal-600" size={24} />
+                  <p className="font-medium">Loading jobs database…</p>
+                </div>
               ) : visibleJobs.length === 0 ? (
-                <p className="p-6 text-center text-ink-faint text-sm">
-                  {jobs.length === 0 ? 'No jobs yet. Run scraper.' : 'No jobs match your filters.'}
-                </p>
+                <EmptyState
+                  hasTotalJobs={jobs.length > 0}
+                  onClearFilters={() => setFilters(DEFAULT_FILTERS)}
+                  onRunPipeline={runFullPipeline}
+                />
               ) : (
                 <ul className="divide-y divide-slate-100">
                   {visibleJobs.map((job) => {
@@ -324,42 +330,46 @@ function App() {
                         <button
                           type="button"
                           onClick={() => setSelectedId(job._id)}
-                          className={`w-full text-left p-3 transition-colors hover:bg-teal-50/70 ${
-                            active ? 'bg-primary-100/70 border-l-2 border-primary-500' : ''
+                          className={`w-full text-left p-3.5 transition-all duration-150 relative ${
+                            active
+                              ? 'bg-gradient-to-r from-teal-50/90 to-sky-50/60 border-l-4 border-l-teal-600 shadow-2xs font-semibold'
+                              : 'hover:bg-slate-50/80 border-l-4 border-l-transparent'
                           }`}
                         >
-                          <p className="font-medium text-sm text-ink line-clamp-2 leading-snug">{job.title}</p>
-                          <p className="text-xs text-ink-muted mt-0.5 truncate">{job.company}</p>
+                          <p className="font-semibold text-xs text-slate-900 line-clamp-2 leading-snug">{job.title}</p>
+                          <p className="text-[11px] text-slate-500 font-medium mt-0.5 truncate">{job.company}</p>
+
                           <div className="flex flex-wrap items-center gap-1.5 mt-2">
                             {job.priority === 'faang' && (
-                              <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                              <span className="inline-flex px-2 py-0.5 rounded-md text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-300/70 shadow-2xs">
                                 FAANG/MANGO
                               </span>
                             )}
                             <span
-                              className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium capitalize ${
+                              className={`inline-flex px-2 py-0.5 rounded-md text-[9px] font-semibold capitalize ${
                                 STATUS_STYLES[job.status] || 'bg-slate-100 text-slate-600 border border-slate-200'
                               }`}
                             >
                               {statusLabel(job.status)}
                             </span>
                             {(job.matchScore != null || job.keywordMatchScore != null) && (
-                              <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-100 text-violet-800 border border-violet-200">
+                              <span className="inline-flex px-2 py-0.5 rounded-md text-[9px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-2xs">
                                 {job.matchScore ?? job.keywordMatchScore}% match
                               </span>
                             )}
                           </div>
-                          <div className="mt-1.5 space-y-0.5 text-[10px] text-ink-faint">
+
+                          <div className="mt-2 space-y-0.5 text-[10px] text-slate-400 font-medium">
                             {postedLabel && (
-                              <p className="flex items-center gap-1 truncate">
-                                <Clock size={10} /> {postedLabel}
+                              <p className="flex items-center gap-1 truncate text-slate-500">
+                                <Clock size={10} className="text-teal-600" /> {postedLabel}
                               </p>
                             )}
                             <p className="flex items-center gap-1 truncate">
-                              <Globe size={10} /> {scrapedLabel}
+                              <Globe size={10} className="text-sky-600" /> {scrapedLabel}
                             </p>
                             {applicants && (
-                              <p className="flex items-center gap-1 truncate">
+                              <p className="flex items-center gap-1 truncate text-amber-700">
                                 <Users size={10} /> {applicants}
                               </p>
                             )}
@@ -373,7 +383,7 @@ function App() {
             </div>
           </aside>
 
-          <main className="lg:col-span-3 glass rounded-2xl overflow-hidden min-h-[50vh] lg:sticky lg:top-[1.5vh] lg:h-[97vh] lg:max-h-[97vh] lg:self-start bg-white/95">
+          <main className="lg:col-span-3 glass rounded-2xl overflow-hidden min-h-[50vh] lg:sticky lg:top-[1.5vh] lg:h-[97vh] lg:max-h-[97vh] lg:self-start bg-white/95 border border-slate-200/80 shadow-xs">
             {selected ? (
               <JobDetailPanel
                 job={selected}
@@ -381,8 +391,16 @@ function App() {
                 onDeleted={() => setSelectedId(null)}
               />
             ) : (
-              <div className="h-full flex items-center justify-center text-ink-faint p-8 text-center">
-                <p>Select a job from the list to view details, copy JD, and upload your resume.</p>
+              <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8 text-center space-y-3">
+                <div className="h-16 w-16 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400">
+                  <Briefcase size={32} />
+                </div>
+                <div className="max-w-sm space-y-1">
+                  <h3 className="text-sm font-bold text-slate-700">Select a Job Listing</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Click any job from the left sidebar to view match score breakdowns, edit job descriptions, and generate or recompile tailored LaTeX resumes.
+                  </p>
+                </div>
               </div>
             )}
           </main>
