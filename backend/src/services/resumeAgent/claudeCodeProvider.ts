@@ -31,7 +31,7 @@ function findClaudeBinary(): string {
   return 'claude';
 }
 
-import { spawn } from 'child_process';
+import { exec } from 'child_process';
 
 export async function runClaudePrint(systemPrompt: string, userPrompt: string): Promise<string> {
   const { model, timeoutMs } = config.resumeAgent.claudeCode;
@@ -45,81 +45,41 @@ export async function runClaudePrint(systemPrompt: string, userPrompt: string): 
     userPrompt,
   ].join('\n');
 
-  const args = [
-    '-p',
-    '-',
-    '--bare',
-    '--output-format',
-    'text',
-    '--permission-mode',
-    'dontAsk',
-    '--model',
-    model,
-    '--no-session-persistence',
-  ];
+  const tmpFile = path.join(os.tmpdir(), `claude_prompt_${Date.now()}_${Math.random().toString(36).slice(2)}.txt`);
+  fs.writeFileSync(tmpFile, combinedUser, 'utf8');
+
+  const cmd = `"${bin}" -p "$(cat "${tmpFile}")" --bare --output-format text --permission-mode dontAsk --model ${model} --no-session-persistence < /dev/null`;
 
   const callStart = Date.now();
   console.log(
-    `\n🟣 Resume agent (Claude Code stdin) — model ${model} — ${bin} -p - (${userPrompt.length} char task, ${systemPrompt.length} char system)`
+    `\n🟣 Resume agent (Claude Code) — model ${model} — (${userPrompt.length} char task, ${systemPrompt.length} char system)`
   );
 
   return new Promise<string>((resolve, reject) => {
-    const child = spawn(bin, args, {
-      stdio: ['pipe', 'pipe', 'pipe'],
+    exec(cmd, {
+      timeout: timeoutMs,
+      maxBuffer: 20 * 1024 * 1024,
       env: {
         ...process.env,
         CLAUDE_CODE_SIMPLE: '1',
       },
-    });
-
-    let stdout = '';
-    let stderr = '';
-
-    const timer = setTimeout(() => {
-      child.kill();
-      reject(new Error(`Claude Code CLI timed out after ${timeoutMs / 1000}s`));
-    }, timeoutMs);
-
-    child.stdout.on('data', (chunk) => {
-      stdout += chunk.toString();
-    });
-
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk.toString();
-    });
-
-    child.on('error', (err) => {
-      clearTimeout(timer);
-      reject(err);
-    });
-
-    child.on('close', (code) => {
-      clearTimeout(timer);
+    }, (err, stdout, stderr) => {
+      try { fs.unlinkSync(tmpFile); } catch {}
       const elapsedSec = ((Date.now() - callStart) / 1000).toFixed(1);
       const content = String(stdout || '').trim();
-      console.log(`  ⏱️ Claude Code CLI returned code ${code} in ${elapsedSec}s (${content.length} chars output)`);
+      console.log(`  ⏱️ Claude Code CLI returned in ${elapsedSec}s (${content.length} chars output)`);
 
+      if (err) {
+        return reject(new Error(`Claude Code CLI error: ${err.message}${stderr ? ` | ${stderr.slice(0, 300)}` : ''}`));
+      }
       if (/401|Invalid API key|Failed to authenticate/i.test(content)) {
-        return reject(
-          new Error(
-            `Claude Code auth failed (401 Invalid API key). ` +
-              `Run \`claude login\` or clear the bad ANTHROPIC_API_KEY, or set RESUME_PROVIDER=openrouter for OmniRoute.`
-          )
-        );
+        return reject(new Error(`Claude Code auth failed (401 Invalid API key).`));
       }
       if (!content) {
-        return reject(
-          new Error(
-            `Claude Code returned empty output.${stderr ? ` stderr: ${stderr.slice(0, 400)}` : ''}`
-          )
-        );
+        return reject(new Error(`Claude Code returned empty output.${stderr ? ` stderr: ${stderr.slice(0, 400)}` : ''}`));
       }
       resolve(content);
     });
-
-    // Write prompt via stdin and close stdin stream
-    child.stdin.write(combinedUser);
-    child.stdin.end();
   });
 }
 
