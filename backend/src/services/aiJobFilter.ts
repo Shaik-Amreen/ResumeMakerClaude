@@ -26,7 +26,7 @@ export async function evaluateJobWithAI(
   company: string,
   description: string
 ): Promise<AiJobFilterResult | null> {
-  const userMessage = \`TITLE: \${title}\\nCOMPANY: \${company}\\n\\nDESCRIPTION:\\n\${description.slice(0, 10000)}\`;
+  const userMessage = `TITLE: ${title}\nCOMPANY: ${company}\n\nDESCRIPTION:\n${description.slice(0, 10000)}`;
 
   try {
     const responseText = await openRouterChatCompletion(
@@ -39,10 +39,10 @@ export async function evaluateJobWithAI(
 
     // Clean up potential markdown blocks if the LLM ignores instructions
     let cleanText = responseText.trim();
-    if (cleanText.startsWith('\`\`\`json')) {
-      cleanText = cleanText.replace(/^\`\`\`json/, '').replace(/\`\`\`$/, '').trim();
-    } else if (cleanText.startsWith('\`\`\`')) {
-      cleanText = cleanText.replace(/^\`\`\`/, '').replace(/\`\`\`$/, '').trim();
+    if (cleanText.startsWith('```json')) {
+      cleanText = cleanText.replace(/^```json/, '').replace(/```$/, '').trim();
+    } else if (cleanText.startsWith('```')) {
+      cleanText = cleanText.replace(/^```/, '').replace(/```$/, '').trim();
     }
 
     const parsed = JSON.parse(cleanText) as AiJobFilterResult;
