@@ -176,11 +176,14 @@ export async function runResumePipeline(jobId: string) {
     await job.save();
 
     const pipelineStart = Date.now();
-    console.log(`\n📄 Resume agent: ${job.title} @ ${job.company}`);
+    console.log(`\n📄 Resume agent started: ${job.title} @ ${job.company} (Provider: ${agentLabel})`);
 
     const genStart = Date.now();
+    job.approvalNote = `[0s] Tailoring resume with ${agentLabel}…`;
+    await job.save();
+
     const generated = await generateResumeLatex(ctx);
-    console.log(`  ⏱️ LaTeX generation: ${elapsed(genStart)} (${generated.latex.length} chars)`);
+    console.log(`  ⏱️ [${elapsed(pipelineStart)}] LaTeX generation: ${elapsed(genStart)} (${generated.latex.length} chars)`);
 
     let latex = applyJdHeaderTagline(enforceMasterRules(generated.latex), {
       title: ctx.title,
@@ -189,16 +192,16 @@ export async function runResumePipeline(jobId: string) {
     });
 
     job.resumePhase = 'compiling';
-    job.approvalNote = 'Compiling LaTeX → PDF and fitting to exactly 1 page…';
+    job.approvalNote = `[${elapsed(pipelineStart)}] Compiling LaTeX → PDF (1-page fit)…`;
     await job.save();
 
     const fitStart = Date.now();
     let fitted = await compileAndFitOnePage(ctx, latex, job.id, async (note) => {
       job.resumePhase = 'compiling';
-      job.approvalNote = note;
+      job.approvalNote = `[${elapsed(pipelineStart)}] ${note}`;
       await job.save();
     });
-    console.log(`  ⏱️ Compile+fit total: ${elapsed(fitStart)}`);
+    console.log(`  ⏱️ [${elapsed(pipelineStart)}] Compile+fit total: ${elapsed(fitStart)}`);
 
     latex = fitted.latex;
     job.latexResume = latex;
@@ -210,14 +213,14 @@ export async function runResumePipeline(jobId: string) {
       job.resumePhase = 'failed';
       job.pendingAction = 'resume_review';
       job.errorMessage = `PDF is ${fitted.pageCount} page(s): must be exactly 1 after auto-repair.`;
-      job.approvalNote = `Resume is ${fitted.pageCount} page(s) after auto-repair. Trim content to match the 1-page template, then Build PDF.`;
+      job.approvalNote = `[${elapsed(pipelineStart)}] Resume is ${fitted.pageCount} page(s) after auto-repair. Trim content, then click Recompile PDF.`;
       await job.save();
-      console.log(`  ⏱️ Pipeline total (page-count fail): ${elapsed(pipelineStart)}`);
+      console.log(`  ⏱️ [${elapsed(pipelineStart)}] Pipeline total (page-count fail): ${elapsed(pipelineStart)}`);
       return;
     }
 
     job.resumePhase = 'checking_match';
-    job.approvalNote = 'Checking keyword match & resume match against the JD…';
+    job.approvalNote = `[${elapsed(pipelineStart)}] Calculating keyword match & resume score…`;
     await job.save();
 
     const regexMatch = scoreResumeAgainstJd(job.jobDescription, latex);
