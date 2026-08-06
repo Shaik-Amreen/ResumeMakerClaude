@@ -31,11 +31,12 @@ function findClaudeBinary(): string {
   return 'claude';
 }
 
+import { spawn } from 'child_process';
+
 export async function runClaudePrint(systemPrompt: string, userPrompt: string): Promise<string> {
   const { model, timeoutMs } = config.resumeAgent.claudeCode;
   const bin = findClaudeBinary();
 
-  // Prefer --system-prompt; fall back to a single user message if argv would be huge.
   const combinedUser = [
     '=== SYSTEM RULES (obey fully) ===',
     systemPrompt,
@@ -44,86 +45,82 @@ export async function runClaudePrint(systemPrompt: string, userPrompt: string): 
     userPrompt,
   ].join('\n');
 
-  const useInlineSystem = systemPrompt.length < 100_000;
-  const args = useInlineSystem
-    ? [
-        '-p',
-        userPrompt,
-        '--system-prompt',
-        systemPrompt,
-        '--bare',
-        '--output-format',
-        'text',
-        '--tools',
-        '',
-        '--permission-mode',
-        'dontAsk',
-        '--model',
-        model,
-        '--no-session-persistence',
-      ]
-    : [
-        '-p',
-        combinedUser,
-        '--bare',
-        '--output-format',
-        'text',
-        '--tools',
-        '',
-        '--permission-mode',
-        'dontAsk',
-        '--model',
-        model,
-        '--no-session-persistence',
-      ];
+  const args = [
+    '-p',
+    '-',
+    '--bare',
+    '--output-format',
+    'text',
+    '--permission-mode',
+    'dontAsk',
+    '--model',
+    model,
+    '--no-session-persistence',
+  ];
 
   const callStart = Date.now();
   console.log(
-    `\n🟣 Resume agent (Claude Code) — model ${model} — ${bin} -p (${userPrompt.length} char task, ${systemPrompt.length} char system)`
+    `\n🟣 Resume agent (Claude Code stdin) — model ${model} — ${bin} -p - (${userPrompt.length} char task, ${systemPrompt.length} char system)`
   );
 
-  try {
-    const { stdout, stderr } = await execFileAsync(bin, args, {
-      timeout: timeoutMs,
-      maxBuffer: 20 * 1024 * 1024,
+  return new Promise<string>((resolve, reject) => {
+    const child = spawn(bin, args, {
+      stdio: ['pipe', 'pipe', 'pipe'],
       env: {
         ...process.env,
         CLAUDE_CODE_SIMPLE: '1',
       },
     });
 
-    const elapsedSec = ((Date.now() - callStart) / 1000).toFixed(1);
-    const content = (stdout || '').trim();
-    console.log(`  ⏱️ Claude Code CLI returned in ${elapsedSec}s (${content.length} chars output)`);
+    let stdout = '';
+    let stderr = '';
 
-    if (/401|Invalid API key|Failed to authenticate/i.test(content)) {
-      throw new Error(
-        `Claude Code auth failed (401 Invalid API key). ` +
-          `Run \`claude login\` or clear the bad ANTHROPIC_API_KEY, or set RESUME_PROVIDER=openrouter for OmniRoute.`
-      );
-    }
-    if (!content) {
-      throw new Error(
-        `Claude Code returned empty output.${stderr ? ` stderr: ${stderr.slice(0, 400)}` : ''}`
-      );
-    }
-    return content;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (/ENOENT|not found/i.test(msg)) {
-      throw new Error(
-        'Claude Code CLI not found. Install Claude Code, or set CLAUDE_CODE_BINARY in backend/.env'
-      );
-    }
-    // execFile often embeds stdout in the message — lift the auth hint up.
-    if (/401|Invalid API key|Failed to authenticate/i.test(msg)) {
-      throw new Error(
-        `Claude Code auth failed (401 Invalid API key). ` +
-          `Run \`claude login\` or clear the bad ANTHROPIC_API_KEY, or set RESUME_PROVIDER=openrouter for OmniRoute.`
-      );
-    }
-    throw err;
-  }
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(new Error(`Claude Code CLI timed out after ${timeoutMs / 1000}s`));
+    }, timeoutMs);
+
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk.toString();
+    });
+
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk.toString();
+    });
+
+    child.on('error', (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      const elapsedSec = ((Date.now() - callStart) / 1000).toFixed(1);
+      const content = String(stdout || '').trim();
+      console.log(`  ⏱️ Claude Code CLI returned code ${code} in ${elapsedSec}s (${content.length} chars output)`);
+
+      if (/401|Invalid API key|Failed to authenticate/i.test(content)) {
+        return reject(
+          new Error(
+            `Claude Code auth failed (401 Invalid API key). ` +
+              `Run \`claude login\` or clear the bad ANTHROPIC_API_KEY, or set RESUME_PROVIDER=openrouter for OmniRoute.`
+          )
+        );
+      }
+      if (!content) {
+        return reject(
+          new Error(
+            `Claude Code returned empty output.${stderr ? ` stderr: ${stderr.slice(0, 400)}` : ''}`
+          )
+        );
+      }
+      resolve(content);
+    });
+
+    // Write prompt via stdin and close stdin stream
+    child.stdin.write(combinedUser);
+    child.stdin.end();
+  });
 }
 
 /** Generate tailored resume LaTeX via local Claude Code CLI (subscription). */
