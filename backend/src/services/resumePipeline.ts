@@ -248,43 +248,33 @@ export async function runResumePipeline(jobId: string) {
 
     const fullMatch = isFullJdMatch(match);
     const linkedOk = hasEnoughLinkedProjects(latex, MIN_LINKED_PROJECTS);
-    if (!fullMatch || !linkedOk) {
-      const linked = countLinkedFeaturedProjects(latex);
-      job.status = 'resume_generated';
-      job.resumePhase = 'failed';
-      job.pendingAction = 'resume_review';
-      job.errorMessage = !fullMatch
-        ? `JD match ${match.score}% (missing: ${match.missing.slice(0, 12).join(', ')}). Not 100% — no auto-retry.`
-        : `Only ${linked} linked Featured Project(s) — need ≥${MIN_LINKED_PROJECTS} with live URLs. No auto-retry.`;
-      job.approvalNote = !fullMatch
-        ? `Stopped at ${match.score}% (need 100%). Missing: ${match.missing.slice(0, 8).join(', ') || '—'}. See skill gaps — regenerate manually if you want another attempt.`
-        : `Stopped — only ${linked}/${MIN_LINKED_PROJECTS} linked projects. No auto-retry.`;
-      await job.save();
-      console.warn(
-        `⚠️ ${job.title}: stopping without retry — ${!fullMatch ? `JD match ${match.score}%` : `linked projects ${linked}`}`
-      );
-      console.log(`  ⏱️ Pipeline total (match fail): ${elapsed(pipelineStart)}`);
-      return;
-    }
+    const linked = countLinkedFeaturedProjects(latex);
 
     job.status = 'pending_resume_approval';
     job.resumePhase = 'done';
     job.pendingAction = 'resume_review';
     job.errorMessage = undefined;
     applyMatchFieldsToJob(job, match, { skillGaps, resumeMatchScore });
-    job.approvalNote =
-      job.priority === 'faang'
-        ? `🚨 FAANG/MANGO — 1 page (template lock), 100% JD keywords · resume ${resumeMatchScore}%. Apply yourself (no auto-apply).`
-        : `1 page — 100% keyword match · resume ${resumeMatchScore}%. Review PDF, then Approve or Approve & Auto-Apply.`;
+
+    if (!fullMatch || !linkedOk) {
+      job.approvalNote = !fullMatch
+        ? `1-page PDF ready — JD match ${match.score}% (resume match ${resumeMatchScore}%). Missing: ${match.missing.slice(0, 6).join(', ') || '—'}. Review PDF in preview.`
+        : `1-page PDF ready — ${linked}/${MIN_LINKED_PROJECTS} linked featured projects. Review PDF in preview.`;
+    } else {
+      job.approvalNote =
+        job.priority === 'faang'
+          ? `🚨 FAANG/MANGO — 1 page (template lock), 100% JD keywords · resume ${resumeMatchScore}%. Apply yourself (no auto-apply).`
+          : `1 page — 100% keyword match · resume ${resumeMatchScore}%. Review PDF, then Approve or Approve & Auto-Apply.`;
+    }
     await job.save();
 
     await sendEmailNotification(
-      `📄 Resume ready (1 page, 100% keywords / resume ${resumeMatchScore}%)\n${job.title} @ ${job.company}\n${
+      `📄 Resume ready (1 page, ${match.score}% keywords / resume ${resumeMatchScore}%)\n${job.title} @ ${job.company}\n${
         job.priority === 'faang' ? '🚨 FAANG/MANGO — apply yourself, no auto-apply.\n' : ''
       }Review PDF in job tracker.`
     );
     console.log(
-      `✅ Resume pipeline complete: ${job.title} (1 page, 100% keywords, resume ${resumeMatchScore}%) — total ${elapsed(pipelineStart)}`
+      `✅ Resume pipeline complete: ${job.title} (1 page, ${match.score}% keywords, resume ${resumeMatchScore}%) — total ${elapsed(pipelineStart)}`
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Resume generation failed';

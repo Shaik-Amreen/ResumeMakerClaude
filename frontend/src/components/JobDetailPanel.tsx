@@ -4,6 +4,8 @@ import {
   ExternalLink,
   Upload,
   CheckCircle2,
+  AlertCircle,
+  Loader2,
   MessageSquare,
   Send,
   AlertTriangle,
@@ -564,65 +566,122 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
         )}
 
         {(isGenerating || current.resumePhase === 'done' || current.resumePhase === 'failed') && (
-          <section className="border border-violet-200 rounded-xl bg-violet-50/60 px-3 py-3">
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <h3 className="text-sm font-semibold text-violet-900">
-                {isGenerating ? 'Resume progress' : 'Last generation'}
+          <section className="border border-slate-200/80 rounded-2xl bg-slate-50/70 p-3.5 shadow-2xs">
+            <div className="flex items-center justify-between gap-2 mb-2.5 pb-2 border-b border-slate-200/60">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                {isGenerating ? 'Resume Generation Progress' : 'Generation Steps'}
               </h3>
               {isGenerating && (
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-violet-700">
-                  <span className="inline-block h-3 w-3 border-2 border-violet-300 border-t-violet-700 rounded-full animate-spin" />
-                  Live
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-100 text-violet-800 border border-violet-200">
+                  <Loader2 size={11} className="animate-spin text-violet-600" />
+                  Live Step
                 </span>
               )}
             </div>
-            <ol className="space-y-2">
+            <ul className="space-y-1">
               {RESUME_STEPS.map((step, i) => {
-                const failed = current.resumePhase === 'failed';
-                const done = current.resumePhase === 'done' || (activeStep >= 0 && i < activeStep);
-                const active = !failed && activeStep === i;
+                const isFailedPhase = current.resumePhase === 'failed';
+                const isDonePhase = current.resumePhase === 'done';
+
+                let status: 'completed' | 'active' | 'failed' | 'pending' = 'pending';
+                if (isDonePhase) {
+                  status = 'completed';
+                } else if (isFailedPhase) {
+                  const failedIdx = activeStep >= 0 ? activeStep : current.pdfUrl ? 5 : 2;
+                  if (i < failedIdx) status = 'completed';
+                  else if (i === failedIdx) status = 'failed';
+                  else status = 'pending';
+                } else if (activeStep >= 0) {
+                  if (i < activeStep) status = 'completed';
+                  else if (i === activeStep) status = 'active';
+                  else status = 'pending';
+                }
+
                 return (
-                  <li key={step.id} className="flex items-start gap-2 text-sm">
-                    <span
-                      className={`mt-0.5 h-5 w-5 shrink-0 rounded-full border flex items-center justify-center text-[10px] font-bold ${
-                        failed && activeStep === -2 && i === RESUME_STEPS.length - 1
-                          ? 'bg-red-100 border-red-300 text-red-700'
-                          : done
-                            ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
-                            : active
-                              ? 'bg-violet-200 border-violet-400 text-violet-900'
-                              : 'bg-white border-slate-200 text-slate-400'
-                      }`}
-                    >
-                      {done ? '✓' : active ? '…' : i + 1}
-                    </span>
-                    <div className="min-w-0">
-                      <p
-                        className={`font-medium ${
-                          active ? 'text-violet-900' : done ? 'text-emerald-900' : 'text-ink-muted'
-                        }`}
-                      >
-                        {step.label}
-                        {active && step.id === 'checking_match' && keywordMatch != null
-                          ? ` (${keywordMatch}%)`
-                          : ''}
-                        {active && step.id === 'checking_match' && resumeMatch != null
-                          ? ` · resume ${resumeMatch}%`
-                          : ''}
-                      </p>
-                      {active && current.approvalNote && (
-                        <p className="text-[11px] text-violet-800/80 mt-0.5 leading-snug">
-                          {current.approvalNote}
+                  <li
+                    key={step.id}
+                    className={`flex items-center justify-between gap-3 py-1.5 px-2.5 rounded-xl transition-all ${
+                      status === 'active'
+                        ? 'bg-violet-100/70 border border-violet-200/80'
+                        : status === 'completed'
+                          ? 'hover:bg-emerald-50/50'
+                          : status === 'failed'
+                            ? 'bg-red-50/80 border border-red-200/80'
+                            : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {status === 'completed' && (
+                        <CheckCircle2 size={17} className="text-emerald-600 shrink-0 fill-emerald-100" />
+                      )}
+                      {status === 'active' && (
+                        <Loader2 size={17} className="text-violet-600 animate-spin shrink-0" />
+                      )}
+                      {status === 'failed' && (
+                        <AlertCircle size={17} className="text-red-600 shrink-0 fill-red-100" />
+                      )}
+                      {status === 'pending' && (
+                        <span className="h-4.5 w-4.5 rounded-full bg-white border border-slate-300 text-slate-400 text-[10px] font-bold flex items-center justify-center shrink-0 shadow-2xs">
+                          {i + 1}
+                        </span>
+                      )}
+
+                      <div className="min-w-0">
+                        <p
+                          className={`text-xs ${
+                            status === 'completed'
+                              ? 'text-emerald-950 font-semibold'
+                              : status === 'active'
+                                ? 'text-violet-950 font-bold'
+                                : status === 'failed'
+                                  ? 'text-red-950 font-semibold'
+                                  : 'text-slate-500 font-medium'
+                          }`}
+                        >
+                          {step.label}
+                          {status === 'completed' && step.id === 'checking_match' && keywordMatch != null && (
+                            <span className="ml-1.5 text-[11px] font-medium text-emerald-700">
+                              ({keywordMatch}% match)
+                            </span>
+                          )}
+                          {status === 'active' && step.id === 'checking_match' && keywordMatch != null && (
+                            <span className="ml-1.5 text-[11px] font-medium text-violet-700">
+                              ({keywordMatch}%)
+                            </span>
+                          )}
                         </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      {status === 'completed' && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100/90 text-emerald-800 border border-emerald-200/80">
+                          Done
+                        </span>
+                      )}
+                      {status === 'active' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-200/80 text-violet-900 border border-violet-300/80">
+                          In Progress
+                        </span>
+                      )}
+                      {status === 'failed' && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-800 border border-red-200">
+                          Failed
+                        </span>
+                      )}
+                      {status === 'pending' && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-400">
+                          Pending
+                        </span>
                       )}
                     </div>
                   </li>
                 );
               })}
-            </ol>
+            </ul>
             {current.resumePhase === 'failed' && (
-              <p className="mt-2 text-xs text-red-700">
-                Generation stopped — check the error note and edit JD / regenerate.
+              <p className="mt-2 text-xs text-red-700 font-medium bg-red-50 p-2 rounded-xl border border-red-200/80">
+                Generation stopped — check the error note below and edit JD / regenerate.
               </p>
             )}
           </section>
