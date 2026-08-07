@@ -15,6 +15,7 @@ RULES FOR INELIGIBILITY (If ANY of these are true, eligible must be false):
 3. WRONG LEVEL: It is strictly for Undergraduate/Bachelors only, or PhD only. (The candidate has a Master's degree).
 4. LOCATION: The role is located entirely outside of the United States.
 5. NON-TECHNICAL: It is not a Software Engineering, Data, or IT role (e.g. it is sales, HR, or manual labor).
+6. TIMING MISMATCH: The candidate graduates in December 2026 and starts full-time work in January 2027. Reject jobs that strictly require starting full-time BEFORE January 2027 (e.g., "Summer 2026 start"). If it says "2027 New Grad" or does not specify a strict start date, it is eligible.
 
 Output ONLY valid JSON matching this schema, with NO markdown formatting, NO code blocks, and NO extra text:
 {

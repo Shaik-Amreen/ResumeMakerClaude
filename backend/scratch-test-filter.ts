@@ -28,6 +28,14 @@ async function testFilter() {
     'Looking for a staff level engineer with 7+ years of experience.'
   );
   console.log(res3);
+
+  console.log('\\nTesting ineligible job (Timing Mismatch)...');
+  const res4 = await evaluateJobWithAI(
+    'New Grad Software Engineer (2026)',
+    'FastTech',
+    'We are hiring 2026 new grads! You must be able to start full-time in our office by June 15, 2026.'
+  );
+  console.log(res4);
   
   process.exit(0);
 }
