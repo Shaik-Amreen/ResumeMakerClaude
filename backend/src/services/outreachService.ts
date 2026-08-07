@@ -49,12 +49,25 @@ function fallbackContacts(company: string, title: string): ContactSuggestion[] {
   ];
 }
 
+import { openRouterChatCompletion } from './resumeAgent/openRouterProvider';
+
 async function callOllamaForText(system: string, user: string): Promise<string> {
-  const waitMs = Math.min(config.ollama.responseWaitMs, 180_000);
+  if (config.resumeAgent.provider === 'openrouter') {
+    try {
+      return await openRouterChatCompletion([
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ]);
+    } catch {
+      /* fallback to local Ollama if OpenRouter fails */
+    }
+  }
+
+  const waitMs = 15_000; // 15-second timeout max for outreach artifacts
   const agent = new Agent({
     headersTimeout: waitMs,
     bodyTimeout: waitMs,
-    connectTimeout: 60_000,
+    connectTimeout: 5_000,
   });
 
   const res = (await undiciFetch(`${config.ollama.apiUrl}/api/chat`, {
