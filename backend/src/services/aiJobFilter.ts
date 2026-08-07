@@ -1,4 +1,4 @@
-import { openRouterChatCompletion } from './resumeAgent/openRouterProvider';
+import { config } from '../config';
 
 export interface AiJobFilterResult {
   eligible: boolean;
@@ -28,14 +28,41 @@ export async function evaluateJobWithAI(
 ): Promise<AiJobFilterResult | null> {
   const userMessage = `TITLE: ${title}\nCOMPANY: ${company}\n\nDESCRIPTION:\n${description.slice(0, 10000)}`;
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3500);
+
   try {
-    const responseText = await openRouterChatCompletion(
-      [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: userMessage },
-      ],
-      { maxTokens: 150, temperature: 0.1 }
-    );
+    const ollamaUrl = config.ollama?.apiUrl || 'http://127.0.0.1:11434';
+    const ollamaModel = config.ollama?.model || 'qwen3.5:latest';
+
+    const res = await fetch(`${ollamaUrl}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: ollamaModel,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: userMessage }
+        ],
+        stream: false,
+        options: {
+          temperature: 0.1
+        }
+      })
+    });
+
+    if (!res.ok) {
+      throw new Error(`Ollama returned ${res.status}`);
+    }
+
+    clearTimeout(timeoutId);
+
+    const data = await res.json() as { message?: { content?: string } };
+    let responseText = data.message?.content || '';
+
+    // Strip out <think>...</think> if the model embeds it in the response
+    responseText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '');
 
     // Clean up potential markdown blocks if the LLM ignores instructions
     let cleanText = responseText.trim();
@@ -45,6 +72,7 @@ export async function evaluateJobWithAI(
       cleanText = cleanText.replace(/^```/, '').replace(/```$/, '').trim();
     }
 
+    console.log('Ollama Response Text:', responseText);
     const parsed = JSON.parse(cleanText) as AiJobFilterResult;
     
     if (typeof parsed.eligible === 'boolean' && typeof parsed.reason === 'string') {
@@ -53,8 +81,13 @@ export async function evaluateJobWithAI(
     
     console.warn('AI Filter returned malformed JSON shape:', parsed);
     return null;
-  } catch (error) {
-    console.error('AI Job Filter failed:', error instanceof Error ? error.message : error);
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      console.log('  ↳ AI Filter timed out (local LLM too slow).');
+    } else {
+      console.error('AI Job Filter failed:', error.message || error);
+    }
     return null;
   }
 }

@@ -76,7 +76,7 @@ async function readSseChatContent(res: Response): Promise<string> {
  */
 export async function openRouterChatCompletion(
   messages: ChatMessage[],
-  opts?: { maxTokens?: number; temperature?: number }
+  opts?: { maxTokens?: number; temperature?: number; model?: string }
 ): Promise<string> {
   const { openRouter } = config.resumeAgent;
   if (!openRouter.apiKey) {
@@ -95,7 +95,7 @@ export async function openRouterChatCompletion(
       'X-Title': openRouter.appName,
     },
     body: JSON.stringify({
-      model: openRouter.model,
+      model: opts?.model ?? openRouter.model,
       messages,
       max_tokens: opts?.maxTokens ?? openRouter.maxTokens,
       temperature: opts?.temperature ?? openRouter.temperature,
