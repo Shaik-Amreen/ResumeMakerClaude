@@ -1,4 +1,4 @@
-import { config } from '../config';
+import { openRouterChatCompletion } from './resumeAgent/openRouterProvider';
 
 export interface AiJobFilterResult {
   eligible: boolean;
@@ -29,37 +29,26 @@ export async function evaluateJobWithAI(
   const userMessage = `TITLE: ${title}\nCOMPANY: ${company}\n\nDESCRIPTION:\n${description.slice(0, 10000)}`;
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 3500);
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
 
   try {
-    const ollamaUrl = config.ollama?.apiUrl || 'http://127.0.0.1:11434';
-    const ollamaModel = config.ollama?.model || 'qwen3.5:latest';
+    // We race the chat completion against the abort controller since openRouterChatCompletion 
+    // doesn't natively support passing a signal right now.
+    const responsePromise = openRouterChatCompletion(
+      [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userMessage },
+      ],
+      { maxTokens: 150, temperature: 0.1, model: 'google/gemini-1.5-flash' }
+    );
 
-    const res = await fetch(`${ollamaUrl}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
-      body: JSON.stringify({
-        model: ollamaModel,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: userMessage }
-        ],
-        stream: false,
-        options: {
-          temperature: 0.1
-        }
-      })
+    const abortPromise = new Promise<never>((_, reject) => {
+      controller.signal.addEventListener('abort', () => reject(new Error('AbortError')));
     });
 
-    if (!res.ok) {
-      throw new Error(`Ollama returned ${res.status}`);
-    }
+    const responseText = await Promise.race([responsePromise, abortPromise]);
 
     clearTimeout(timeoutId);
-
-    const data = await res.json() as { message?: { content?: string } };
-    let responseText = data.message?.content || '';
 
     // Strip out <think>...</think> if the model embeds it in the response
     responseText = responseText.replace(/<think>[\s\S]*?<\/think>/g, '');
@@ -72,7 +61,7 @@ export async function evaluateJobWithAI(
       cleanText = cleanText.replace(/^```/, '').replace(/```$/, '').trim();
     }
 
-    console.log('Ollama Response Text:', responseText);
+    // console.log('AI Filter Raw Output:', responseText);
     const parsed = JSON.parse(cleanText) as AiJobFilterResult;
     
     if (typeof parsed.eligible === 'boolean' && typeof parsed.reason === 'string') {
@@ -83,8 +72,8 @@ export async function evaluateJobWithAI(
     return null;
   } catch (error: any) {
     clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
-      console.log('  ↳ AI Filter timed out (local LLM too slow).');
+    if (error.message === 'AbortError' || error.name === 'AbortError') {
+      console.log('  ↳ AI Filter timed out (OpenRouter took > 10s).');
     } else {
       console.error('AI Job Filter failed:', error.message || error);
     }
