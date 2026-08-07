@@ -2,7 +2,7 @@ import type { Job, JobStatus, JobType } from './types';
 
 export type { JobType };
 
-const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5001/api';
+const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5002/api';
 export const UPLOADS_BASE = API.replace(/\/api\/?$/, '');
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {

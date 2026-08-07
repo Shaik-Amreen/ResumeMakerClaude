@@ -19,6 +19,7 @@ import {
 } from './claudeCodeProvider';
 import { extractLatexFromModelResponse } from './extractLatex';
 import { Agent, fetch as undiciFetch } from 'undici';
+import { makeTraceId, traceError, traceLog } from '../debugTrace';
 
 export type { ResumeJobContext, PasteResumeContext, ResumeGenerationResult };
 
@@ -45,16 +46,23 @@ function errMessage(err: unknown): string {
 /** Built-in resume agent — Claude Code, OmniRoute/OpenRouter, or local Ollama with resilient multi-tier fallback */
 export async function generateResumeLatex(ctx: ResumeJobContext): Promise<ResumeGenerationResult> {
   const provider = config.resumeAgent.provider;
+  const traceId = ctx.traceId || makeTraceId('resume-agent');
+  traceLog(traceId, 'agent.generate.dispatch', { provider });
 
   if (provider === 'claude-code') {
     try {
+      traceLog(traceId, 'agent.claude-code.start');
       return await generateResumeWithClaudeCode(ctx);
     } catch (err) {
       console.warn(`⚠️ Claude Code generation failed (${errMessage(err).slice(0, 150)}) — falling back to OmniRoute/OpenRouter…`);
+      traceError(traceId, 'agent.claude-code.failed', err);
       try {
+        traceLog(traceId, 'agent.openrouter.fallback.start');
         return await generateResumeWithOpenRouter(ctx);
       } catch (orErr) {
         console.warn(`⚠️ OpenRouter/OmniRoute generation failed (${errMessage(orErr).slice(0, 150)}) — falling back to free local Ollama…`);
+        traceError(traceId, 'agent.openrouter.fallback.failed', orErr);
+        traceLog(traceId, 'agent.ollama.fallback.start');
         return await generateResumeWithOllamaApi(ctx);
       }
     }
@@ -62,14 +70,18 @@ export async function generateResumeLatex(ctx: ResumeJobContext): Promise<Resume
 
   if (provider === 'openrouter') {
     try {
+      traceLog(traceId, 'agent.openrouter.start');
       return await generateResumeWithOpenRouter(ctx);
     } catch (err) {
       console.warn(`⚠️ OpenRouter/OmniRoute generation failed (${errMessage(err).slice(0, 150)}) — falling back to free local Ollama…`);
+      traceError(traceId, 'agent.openrouter.failed', err);
+      traceLog(traceId, 'agent.ollama.fallback.start');
       return await generateResumeWithOllamaApi(ctx);
     }
   }
 
   if (provider === 'ollama') {
+    traceLog(traceId, 'agent.ollama.start');
     return await generateResumeWithOllamaApi(ctx);
   }
 
@@ -79,6 +91,8 @@ export async function generateResumeLatex(ctx: ResumeJobContext): Promise<Resume
 }
 
 async function reviseWithOllama(ctx: ResumeJobContext, latex: string, instruction: string): Promise<string> {
+  const traceId = ctx.traceId || makeTraceId('ollama-revise');
+  traceLog(traceId, 'ollama.revise.start', { latexChars: latex.length, instructionChars: instruction.length });
   const systemPrompt = buildResumeSystemPrompt(ctx);
   const messages = [
     { role: 'system', content: systemPrompt },
@@ -123,7 +137,9 @@ async function reviseWithOllama(ctx: ResumeJobContext, latex: string, instructio
   const data = (await res.json()) as { message?: { content?: string } };
   const content = data.message?.content || '';
   if (!content.trim()) throw new Error('Ollama revise returned empty response.');
-  return extractLatexFromModelResponse(content);
+  const revised = extractLatexFromModelResponse(content);
+  traceLog(traceId, 'ollama.revise.done', { latexChars: revised.length });
+  return revised;
 }
 
 async function reviseWithOpenRouter(
@@ -132,8 +148,10 @@ async function reviseWithOpenRouter(
   instruction: string
 ): Promise<string> {
   const { openRouter } = config.resumeAgent;
+  const traceId = ctx.traceId || makeTraceId('openrouter-revise');
   if (!openRouter.apiKey) throw new Error('OPENROUTER_API_KEY is not set');
 
+  traceLog(traceId, 'openrouter.revise.start', { latexChars: latex.length, instructionChars: instruction.length });
   const systemPrompt = buildResumeSystemPrompt(ctx);
   const content = await openRouterChatCompletion(
     [
@@ -153,9 +171,11 @@ async function reviseWithOpenRouter(
         ].join('\n'),
       },
     ],
-    { temperature: Math.min(0.35, openRouter.temperature) }
+    { temperature: Math.min(0.35, openRouter.temperature), traceId }
   );
-  return extractLatexFromModelResponse(content);
+  const revised = extractLatexFromModelResponse(content);
+  traceLog(traceId, 'openrouter.revise.done', { latexChars: revised.length });
+  return revised;
 }
 
 /** Ask the active resume agent to revise LaTeX for page-count or JD-match fixes. */
@@ -165,17 +185,28 @@ export async function reviseResumeLatex(
   instruction: string
 ): Promise<string> {
   const provider = config.resumeAgent.provider;
+  const traceId = ctx.traceId || makeTraceId('resume-revise');
   console.log(`\n🔧 Resume revise (${provider}): ${instruction.slice(0, 120)}…`);
+  traceLog(traceId, 'agent.revise.dispatch', {
+    provider,
+    latexChars: latex.length,
+    instruction: instruction.slice(0, 180),
+  });
 
   if (provider === 'claude-code') {
     try {
+      traceLog(traceId, 'agent.revise.claude-code.start');
       return await reviseResumeWithClaudeCode(ctx, latex, instruction);
     } catch (err) {
       console.warn(`⚠️ Claude Code revise failed (${errMessage(err).slice(0, 150)}) — falling back to OmniRoute/OpenRouter…`);
+      traceError(traceId, 'agent.revise.claude-code.failed', err);
       try {
+        traceLog(traceId, 'agent.revise.openrouter.fallback.start');
         return await reviseWithOpenRouter(ctx, latex, instruction);
       } catch (orErr) {
         console.warn(`⚠️ OpenRouter revise failed (${errMessage(orErr).slice(0, 150)}) — falling back to local Ollama…`);
+        traceError(traceId, 'agent.revise.openrouter.fallback.failed', orErr);
+        traceLog(traceId, 'agent.revise.ollama.fallback.start');
         return await reviseWithOllama(ctx, latex, instruction);
       }
     }
@@ -183,14 +214,18 @@ export async function reviseResumeLatex(
 
   if (provider === 'openrouter') {
     try {
+      traceLog(traceId, 'agent.revise.openrouter.start');
       return await reviseWithOpenRouter(ctx, latex, instruction);
     } catch (err) {
       console.warn(`⚠️ OpenRouter revise failed (${errMessage(err).slice(0, 150)}) — falling back to local Ollama…`);
+      traceError(traceId, 'agent.revise.openrouter.failed', err);
+      traceLog(traceId, 'agent.revise.ollama.fallback.start');
       return await reviseWithOllama(ctx, latex, instruction);
     }
   }
 
   if (provider === 'ollama') {
+    traceLog(traceId, 'agent.revise.ollama.start');
     return await reviseWithOllama(ctx, latex, instruction);
   }
 

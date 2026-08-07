@@ -28,12 +28,13 @@ export async function sendEmailNotification(message: string): Promise<boolean> {
   }
 
   try {
-    const response = await emailjs.send(
-      emailCfg.serviceId,
-      emailCfg.templateId,
-      templateParams,
-      options
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Email alert timed out (10s)')), 10000)
     );
+    const response = await Promise.race([
+      emailjs.send(emailCfg.serviceId, emailCfg.templateId, templateParams, options),
+      timeoutPromise,
+    ]);
     console.log(`Email alert sent to ${emailCfg.toEmail}: ${response.status} ${response.text}`);
     return response.status === 200;
   } catch (err) {

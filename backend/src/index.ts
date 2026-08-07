@@ -18,7 +18,7 @@ const HOST = config.host;
 
 app.use(
   cors({
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5001', 'http://127.0.0.1:5001'],
+    origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5002', 'http://127.0.0.1:5002'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
@@ -84,7 +84,7 @@ async function startServer() {
       console.log(`Uploads: ${path.resolve(config.uploadsDir)}`);
     });
 
-    // Also accept IPv6 loopback so http://localhost:5001 works when clients prefer ::1.
+    // Also accept IPv6 loopback so localhost works when clients prefer ::1.
     if (HOST === '127.0.0.1') {
       http
         .createServer(app)

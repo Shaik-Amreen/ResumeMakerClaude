@@ -21,6 +21,7 @@ import { getAmazonTemplateLatex, applyJdHeaderTagline } from './resumeAgent/amaz
 import { isInternshipTitle } from './eligibility';
 import { sendEmailNotification } from './notifier';
 import type { JobType } from '../models/Job';
+import { makeTraceId, traceError, traceLog } from './debugTrace';
 
 const MAX_PAGE_REPAIRS = 2;
 const MIN_LINKED_PROJECTS = 3;
@@ -37,6 +38,7 @@ type ResumeCtx = {
   title?: string;
   company?: string;
   jobType?: JobType;
+  traceId?: string;
 };
 
 function compileWithJdHeader(latex: string, jobId: string, ctx: ResumeCtx) {
@@ -140,12 +142,20 @@ async function compileAndFitOnePage(
   return { latex, pdfPath, pageCount };
 }
 
-export async function runResumePipeline(jobId: string) {
+export async function runResumePipeline(jobId: string, traceId = makeTraceId('resume')) {
   const job = await Job.findById(jobId);
   if (!job) throw new Error('Job not found');
+  traceLog(traceId, 'pipeline.loaded', {
+    jobId,
+    title: job.title,
+    company: job.company,
+    status: job.status,
+    resumePhase: job.resumePhase,
+  });
 
   const agentLabel = resumeAgentLabel();
   if (String(job.jobType) === 'internship' || isInternshipTitle(job.title)) {
+    traceLog(traceId, 'pipeline.skip-internship', { title: job.title, jobType: job.jobType });
     job.status = 'invalid_job';
     job.resumePhase = 'failed';
     job.pendingAction = null;
@@ -160,9 +170,11 @@ export async function runResumePipeline(jobId: string) {
     title: job.title,
     company: job.company,
     jobType: 'fulltime',
+    traceId,
   };
 
   try {
+    traceLog(traceId, 'pipeline.start', { provider: agentLabel });
     job.status = 'resume_generating';
     job.resumePhase = 'generating';
     job.pendingAction = null;
@@ -179,8 +191,15 @@ export async function runResumePipeline(jobId: string) {
 
     console.log(`\n📄 Resume agent started: ${job.title} @ ${job.company} (Provider: ${agentLabel})`);
 
+    traceLog(traceId, 'pipeline.generate.start');
     const generated = await generateResumeLatex(ctx);
     const activeProvider = generated.usedProvider || agentLabel;
+    traceLog(traceId, 'pipeline.generate.done', {
+      provider: activeProvider,
+      latexChars: generated.latex.length,
+      elapsed: elapsed(genStart),
+      hasLlmMatch: Boolean(generated.llmMatch),
+    });
     console.log(`  ⏱️ [${elapsed(pipelineStart)}] LaTeX generation: ${elapsed(genStart)} (${generated.latex.length} chars via ${activeProvider})`);
 
     let latex = applyJdHeaderTagline(enforceMasterRules(generated.latex), {
@@ -192,12 +211,19 @@ export async function runResumePipeline(jobId: string) {
     job.resumePhase = 'compiling';
     job.approvalNote = `[${elapsed(pipelineStart)}] Generated via ${activeProvider} · Compiling LaTeX → PDF (1-page fit)…`;
     await job.save();
+    traceLog(traceId, 'pipeline.compile.start');
 
     const fitStart = Date.now();
     let fitted = await compileAndFitOnePage(ctx, latex, job.id, async (note) => {
       job.resumePhase = 'compiling';
       job.approvalNote = `[${elapsed(pipelineStart)}] ${note}`;
       await job.save();
+      traceLog(traceId, 'pipeline.compile.note', { note });
+    });
+    traceLog(traceId, 'pipeline.compile.done', {
+      elapsed: elapsed(fitStart),
+      pageCount: fitted.pageCount,
+      pdfPath: fitted.pdfPath,
     });
     console.log(`  ⏱️ [${elapsed(pipelineStart)}] Compile+fit total: ${elapsed(fitStart)}`);
 
@@ -213,6 +239,7 @@ export async function runResumePipeline(jobId: string) {
       job.errorMessage = `PDF is ${fitted.pageCount} page(s): must be exactly 1 after auto-repair.`;
       job.approvalNote = `[${elapsed(pipelineStart)}] Resume (${activeProvider}) is ${fitted.pageCount} page(s) after auto-repair. Trim content, then click Recompile PDF.`;
       await job.save();
+      traceLog(traceId, 'pipeline.page-count-failed', { pageCount: fitted.pageCount });
       console.log(`  ⏱️ [${elapsed(pipelineStart)}] Pipeline total (page-count fail): ${elapsed(pipelineStart)}`);
       return;
     }
@@ -220,6 +247,7 @@ export async function runResumePipeline(jobId: string) {
     job.resumePhase = 'checking_match';
     job.approvalNote = `[${elapsed(pipelineStart)}] Calculating match score for ${activeProvider}…`;
     await job.save();
+    traceLog(traceId, 'pipeline.match.start');
 
     const regexMatch = scoreResumeAgainstJd(job.jobDescription, latex);
     const { match, skillGaps, resumeMatchScore } = mergeLlmAndRegexMatch(
@@ -233,6 +261,11 @@ export async function runResumePipeline(jobId: string) {
       match.missing.length ? ` · missing: ${match.missing.slice(0, 6).join(', ')}` : ''
     }`;
     await job.save();
+    traceLog(traceId, 'pipeline.match.done', {
+      keywordMatchScore: match.score,
+      resumeMatchScore,
+      missingCount: match.missing.length,
+    });
 
     if (fitted.pageCount !== 1) {
       job.status = 'resume_generated';
@@ -241,11 +274,13 @@ export async function runResumePipeline(jobId: string) {
       job.errorMessage = `PDF is ${fitted.pageCount} page(s): must be exactly 1.`;
       job.approvalNote = `Stopped with ${fitted.pageCount} page(s). No match-repair retries.`;
       await job.save();
+      traceLog(traceId, 'pipeline.page-count-failed-post-match', { pageCount: fitted.pageCount });
       console.log(`  ⏱️ Pipeline total (page-count fail): ${elapsed(pipelineStart)}`);
       return;
     }
 
     assertExactlyOnePage(fitted.pdfPath);
+    traceLog(traceId, 'pipeline.assert-one-page.done');
 
     const fullMatch = isFullJdMatch(match);
     const linkedOk = hasEnoughLinkedProjects(latex, MIN_LINKED_PROJECTS);
@@ -268,15 +303,23 @@ export async function runResumePipeline(jobId: string) {
           : `1 page • 100% keyword match · resume ${resumeMatchScore}%. Review PDF, then Approve or Approve & Auto-Apply.`;
     }
     await job.save();
+    traceLog(traceId, 'pipeline.save.done', {
+      status: job.status,
+      resumePhase: job.resumePhase,
+      totalElapsed: elapsed(pipelineStart),
+    });
 
+    traceLog(traceId, 'pipeline.email.start');
     await sendEmailNotification(
       `📄 Resume ready (1 page, ${match.score}% keywords / resume ${resumeMatchScore}%)\n${job.title} @ ${job.company}\n${
         job.priority === 'faang' ? '🚨 FAANG/MANGO • Apply manually, no auto-apply.\n' : ''
       }Review PDF in job tracker.`
-    );
+    ).catch(() => undefined); // don't let email failure block the pipeline
+    traceLog(traceId, 'pipeline.email.done');
     console.log(
       `✅ Resume pipeline complete: ${job.title} (1 page, ${match.score}% keywords, resume ${resumeMatchScore}%) — total ${elapsed(pipelineStart)}`
     );
+    traceLog(traceId, 'pipeline.complete', { totalElapsed: elapsed(pipelineStart) });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Resume generation failed';
     job.status = 'failed';
@@ -286,6 +329,7 @@ export async function runResumePipeline(jobId: string) {
     job.approvalNote = undefined;
     await job.save();
     console.error('Resume pipeline error:', err);
+    traceError(traceId, 'pipeline.failed', err);
     throw err;
   }
 }

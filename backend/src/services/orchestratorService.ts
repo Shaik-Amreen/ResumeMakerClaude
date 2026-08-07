@@ -1,5 +1,6 @@
 import { config } from '../config';
 import { enqueueResume, isResumeQueueIdle } from './resumeQueue';
+import { runResumePipeline } from './resumePipeline';
 import { scrapePriorityCareerPortals } from './careerPortalScraper';
 import { scrapeJobrightJobs } from './jobrightScraper';
 import { scrapeLinkedInJobs } from './linkedinScraper';
@@ -29,9 +30,13 @@ import {
 } from './taskStatusService';
 import Job from '../models/Job';
 import { noteManualActivity } from './schedulerService';
+import { makeTraceId, traceError, traceLog } from './debugTrace';
 
 /** Serial queue lives in resumeQueue.ts */
 let resumeChain: Promise<void> = Promise.resolve();
+
+/** Resume generations this old are usually from a crashed/abandoned process. */
+const STALE_RESUME_GENERATING_MS = 5 * 60 * 1000;
 let scrapeRunning = false;
 let pipelineRunning = false;
 let resumeBatchRunning = false;
@@ -69,30 +74,61 @@ export async function runResumePipelineQueue(
   let failed = 0;
   const total = jobIds.length;
   const startBatch = Date.now();
+  const batchTraceId = makeTraceId('batch');
+  traceLog(batchTraceId, 'batch.start', { total, startIndex, withOutreach });
 
   for (let i = startIndex; i < total; i++) {
     if (shouldAbortScrape()) {
       appendTaskLog(`Resume queue stopped at ${i}/${total}`);
+      traceLog(batchTraceId, 'batch.stop-requested', { index: i, total });
       break;
     }
     setResumeProgress(i + 1, total);
     const job = await Job.findById(jobIds[i]);
     const jobTitle = job ? `${job.title} @ ${job.company}` : `Job ${i + 1}`;
+    const traceId = `${batchTraceId}-job-${i + 1}`;
     appendTaskLog(`📄 Resume ${i + 1}/${total}: ${jobTitle}…`);
+    traceLog(traceId, 'batch.job.start', {
+      batchTraceId,
+      index: i + 1,
+      total,
+      jobId: jobIds[i],
+      title: job?.title,
+      company: job?.company,
+      previousStatus: job?.status,
+      previousResumePhase: job?.resumePhase,
+    });
     try {
-      await enqueueResume(jobIds[i]);
+      const JOB_TIMEOUT_MS = 5 * 60 * 1000;
+      let jobTimer: NodeJS.Timeout | undefined;
+      const jobTimeoutPromise = new Promise<never>((_, reject) => {
+        jobTimer = setTimeout(
+          () => reject(new Error(`Job resume generation timed out after ${JOB_TIMEOUT_MS / 60000}m`)),
+          JOB_TIMEOUT_MS
+        );
+      });
+      try {
+        await Promise.race([runResumePipeline(jobIds[i]), jobTimeoutPromise]);
+      } finally {
+        if (jobTimer) clearTimeout(jobTimer);
+      }
+      traceLog(traceId, 'batch.job.done', { index: i + 1, total });
     } catch (err) {
       failed += 1;
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`Resume ${i + 1}/${total} failed:`, err);
       appendTaskLog(`❌ Resume ${i + 1}/${total} failed: ${msg.slice(0, 180)}`);
+      traceError(traceId, 'batch.job.failed', err, { index: i + 1, total });
       continue;
     }
     if (withOutreach) {
       try {
+        traceLog(traceId, 'batch.outreach.start');
         await generateOutreachArtifacts(jobIds[i]);
+        traceLog(traceId, 'batch.outreach.done');
       } catch (err) {
         console.error(`Outreach failed for ${jobIds[i]}:`, err);
+        traceError(traceId, 'batch.outreach.failed', err);
       }
     }
   }
@@ -103,14 +139,15 @@ export async function runResumePipelineQueue(
   } else {
     appendTaskLog(`Batch complete: ${total} resume(s) generated in ${totalTimeStr}.`);
   }
+  traceLog(batchTraceId, 'batch.finish', { total, failed, totalTime: totalTimeStr });
 }
 
 /**
  * Jobs eligible for the "Generate resumes" batch:
  * - scraped (never attempted)
  * - failed with resumePhase failed (prior generation failed — retry)
- * - stuck resume_generating (crashed mid-run)
- * Does not retry apply failures or manually skipped jobs that already have a done resume.
+ * Does not pick active resume_generating jobs, apply failures, or manually
+ * skipped jobs that already have a done resume.
  */
 export function resumeQueueJobFilter(): Record<string, unknown> {
   return {
@@ -118,9 +155,34 @@ export function resumeQueueJobFilter(): Record<string, unknown> {
     $or: [
       { status: 'scraped' },
       { status: 'failed', resumePhase: 'failed' },
-      { status: 'resume_generating' },
     ],
   };
+}
+
+async function recoverStaleResumeGeneratingJobs(): Promise<number> {
+  const staleCutoff = new Date(Date.now() - STALE_RESUME_GENERATING_MS);
+  const result = await Job.updateMany(
+    {
+      jobType: 'fulltime',
+      status: 'resume_generating',
+      updatedAt: { $lt: staleCutoff },
+    },
+    {
+      $set: {
+        status: 'failed',
+        resumePhase: 'failed',
+        pendingAction: null,
+        errorMessage: 'Resume generation was abandoned or server restarted before completion.',
+        approvalNote: 'Stale resume generation reset. It will be retried by batch generation.',
+      },
+    }
+  );
+  const modified = result.modifiedCount || 0;
+  if (modified > 0) {
+    appendTaskLog(`Reset ${modified} stale resume generation(s) for retry.`);
+    traceLog('resume-recovery', 'stale-reset', { modified });
+  }
+  return modified;
 }
 
 /** Generate resumes one-by-one for scraped jobs and failed resume retries. */
@@ -134,15 +196,23 @@ export async function runResumesForScrapedJobs(options?: {
   resumeBatchRunning = true;
   clearStopRequest();
   startTask('generating_resumes', 'Preparing the sequential resume queue…');
+  const traceId = makeTraceId('batch-start');
+  traceLog(traceId, 'runResumesForScrapedJobs.start', {
+    limit: options?.limit,
+    withOutreach: options?.withOutreach,
+  });
 
   const limit = options?.limit && options.limit > 0 ? options.limit : 0;
   try {
+    await recoverStaleResumeGeneratingJobs();
     const query = Job.find(resumeQueueJobFilter()).sort({ createdAt: 1 });
     const jobs = limit ? await query.limit(limit) : await query;
     const jobIds = jobs.map((j) => j.id);
+    traceLog(traceId, 'runResumesForScrapedJobs.selected', { count: jobIds.length });
 
     if (!jobIds.length) {
       finishTask('No scraped or failed jobs waiting for resume generation.');
+      traceLog(traceId, 'runResumesForScrapedJobs.none');
       return { count: 0 };
     }
 
@@ -153,17 +223,21 @@ export async function runResumesForScrapedJobs(options?: {
     await runResumePipelineQueue(jobIds, options?.withOutreach ?? false);
     if (shouldAbortScrape()) {
       abortTask(`Stopped — processed ${jobIds.length} resume slot(s) before stop.`);
+      traceLog(traceId, 'runResumesForScrapedJobs.aborted');
     } else {
       finishTask(`Resume queue complete — ${jobIds.length} job(s) processed.`);
+      traceLog(traceId, 'runResumesForScrapedJobs.finished', { count: jobIds.length });
     }
     return { count: jobIds.length };
   } catch (err) {
     setTaskError(err);
     abortTask('Resume generation failed.');
+    traceError(traceId, 'runResumesForScrapedJobs.failed', err);
     throw err;
   } finally {
     resumeBatchRunning = false;
     clearStopRequest();
+    traceLog(traceId, 'runResumesForScrapedJobs.finally');
   }
 }
 

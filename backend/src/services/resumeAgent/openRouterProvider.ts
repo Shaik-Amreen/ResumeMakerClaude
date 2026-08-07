@@ -5,6 +5,7 @@ import {
   type ResumeJobContext,
 } from '../resumeTailoringPrompt';
 import { parseModelResumeResponse, type LlmMatchReport } from './extractLatex';
+import { makeTraceId, traceError, traceLog } from '../debugTrace';
 
 export type { LlmMatchReport };
 
@@ -28,18 +29,42 @@ function isOmniRoute(): boolean {
   return /20128|omniroute/i.test(config.resumeAgent.openRouter.baseUrl);
 }
 
+/** Time (ms) to wait for the next SSE chunk before declaring the stream hung. */
+const SSE_READ_TIMEOUT_MS = 60_000;
+
 /** Parse OpenAI-compatible SSE (`data: {...}`) into assistant text. */
-async function readSseChatContent(res: Response): Promise<string> {
+async function readSseChatContent(res: Response, traceId: string): Promise<string> {
   if (!res.body) throw new Error('OpenRouter/OmniRoute stream had no body');
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
   let content = '';
+  let chunkCount = 0;
+  let lastLogAt = Date.now();
+  traceLog(traceId, 'openrouter.sse.start');
 
   while (true) {
-    const { done, value } = await reader.read();
+    // Race each read against a per-chunk timeout so a stalled stream cannot
+    // hang the pipeline indefinitely (the outer AbortController only covers
+    // the fetch itself, not individual reader.read() calls on some runtimes).
+    const readPromise = reader.read();
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      const id = setTimeout(
+        () => reject(new Error(`SSE stream stalled — no data for ${SSE_READ_TIMEOUT_MS / 1000}s`)),
+        SSE_READ_TIMEOUT_MS
+      );
+      // Let the timer be GC'd if the read finishes first.
+      readPromise.then(() => clearTimeout(id), () => clearTimeout(id));
+    });
+
+    const { done, value } = await Promise.race([readPromise, timeoutPromise]);
     if (done) break;
+    chunkCount += 1;
+    if (Date.now() - lastLogAt > 10_000) {
+      traceLog(traceId, 'openrouter.sse.progress', { chunkCount, contentChars: content.length });
+      lastLogAt = Date.now();
+    }
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split(/\r?\n/);
     buffer = lines.pop() ?? '';
@@ -67,6 +92,7 @@ async function readSseChatContent(res: Response): Promise<string> {
     }
   }
 
+  traceLog(traceId, 'openrouter.sse.done', { chunkCount, contentChars: content.length });
   return content;
 }
 
@@ -76,11 +102,12 @@ async function readSseChatContent(res: Response): Promise<string> {
  */
 export async function openRouterChatCompletion(
   messages: ChatMessage[],
-  opts?: { maxTokens?: number; temperature?: number; model?: string; apiKey?: string; baseUrl?: string; }
+  opts?: { maxTokens?: number; temperature?: number; model?: string; apiKey?: string; baseUrl?: string; traceId?: string; }
 ): Promise<string> {
   const { openRouter } = config.resumeAgent;
   const apiKey = opts?.apiKey || openRouter.apiKey;
   const baseUrl = opts?.baseUrl || openRouter.baseUrl;
+  const traceId = opts?.traceId || makeTraceId('openrouter');
 
   if (!apiKey) {
     throw new Error('OPENROUTER_API_KEY (or opts.apiKey) is not set');
@@ -91,26 +118,50 @@ export async function openRouterChatCompletion(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
 
-  let res = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      Accept: useStream ? 'text/event-stream' : 'application/json',
-      'HTTP-Referer': openRouter.siteUrl,
-      'X-Title': openRouter.appName,
-    },
-    body: JSON.stringify({
-      model: opts?.model ?? openRouter.model,
-      messages,
-      max_tokens: opts?.maxTokens ?? openRouter.maxTokens,
-      temperature: opts?.temperature ?? openRouter.temperature,
-      stream: useStream,
-    }),
-    signal: controller.signal,
+  const requestStart = Date.now();
+  const url = `${baseUrl}/chat/completions`;
+  traceLog(traceId, 'openrouter.fetch.start', {
+    url,
+    model: opts?.model ?? openRouter.model,
+    maxTokens: opts?.maxTokens ?? openRouter.maxTokens,
+    temperature: opts?.temperature ?? openRouter.temperature,
+    stream: useStream,
+    messageCount: messages.length,
   });
 
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        Accept: useStream ? 'text/event-stream' : 'application/json',
+        'HTTP-Referer': openRouter.siteUrl,
+        'X-Title': openRouter.appName,
+      },
+      body: JSON.stringify({
+        model: opts?.model ?? openRouter.model,
+        messages,
+        max_tokens: opts?.maxTokens ?? openRouter.maxTokens,
+        temperature: opts?.temperature ?? openRouter.temperature,
+        stream: useStream,
+      }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    clearTimeout(timeoutId);
+    traceError(traceId, 'openrouter.fetch.failed-before-response', err);
+    throw err;
+  }
+
   const contentType = res.headers.get('content-type') || '';
+  traceLog(traceId, 'openrouter.fetch.response', {
+    status: res.status,
+    ok: res.ok,
+    contentType,
+    elapsedMs: Date.now() - requestStart,
+  });
 
   if (!res.ok) {
     const text = await res.text();
@@ -130,29 +181,42 @@ export async function openRouterChatCompletion(
       /* keep raw */
     }
     const hint = recovery ? ` — ${recovery}` : '';
-    throw new Error(`OpenRouter error (${res.status}): ${msg}${hint}`);
+    const err = new Error(`OpenRouter error (${res.status}): ${msg}${hint}`);
+    traceError(traceId, 'openrouter.fetch.error-response', err, { status: res.status });
+    throw err;
   }
 
-  let content = '';
-  if (useStream || contentType.includes('text/event-stream')) {
-    content = await readSseChatContent(res);
-  } else {
-    const data = (await res.json()) as OpenRouterChatResponse;
-    if (data.error?.message) {
-      throw new Error(`OpenRouter error: ${data.error.message}`);
+  try {
+    let content = '';
+    if (useStream || contentType.includes('text/event-stream')) {
+      content = await readSseChatContent(res, traceId);
+    } else {
+      traceLog(traceId, 'openrouter.json.start');
+      const data = (await res.json()) as OpenRouterChatResponse;
+      if (data.error?.message) {
+        throw new Error(`OpenRouter error: ${data.error.message}`);
+      }
+      content = data.choices?.[0]?.message?.content || '';
+      traceLog(traceId, 'openrouter.json.done', { contentChars: content.length });
     }
-    content = data.choices?.[0]?.message?.content || '';
-  }
 
-  if (!content.trim()) {
+    if (!content.trim()) {
+      throw new Error(
+        `${isOmniRoute() ? 'OmniRoute' : 'OpenRouter'} returned an empty response.`
+      );
+    }
+
+    traceLog(traceId, 'openrouter.complete', {
+      contentChars: content.length,
+      elapsedMs: Date.now() - requestStart,
+    });
+    return content;
+  } catch (err) {
+    traceError(traceId, 'openrouter.read.failed', err, { elapsedMs: Date.now() - requestStart });
+    throw err;
+  } finally {
     clearTimeout(timeoutId);
-    throw new Error(
-      `${isOmniRoute() ? 'OmniRoute' : 'OpenRouter'} returned an empty response.`
-    );
   }
-  
-  clearTimeout(timeoutId);
-  return content;
 }
 
 /** In-app resume agent — MiniMax / OmniRoute / OpenRouter. Returns LaTeX + LLM match report. */
@@ -160,6 +224,7 @@ export async function generateResumeWithOpenRouter(
   ctx: ResumeJobContext
 ): Promise<ResumeGenerationResult> {
   const { openRouter } = config.resumeAgent;
+  const traceId = ctx.traceId || makeTraceId('resume-openrouter');
   if (!openRouter.apiKey) {
     throw new Error('OPENROUTER_API_KEY is not set — add it to backend/.env');
   }
@@ -170,13 +235,23 @@ export async function generateResumeWithOpenRouter(
   console.log(
     `\n🤖 Resume agent (${isOmniRoute() ? 'OmniRoute' : 'OpenRouter'}) — ${openRouter.model} — embedded rules + JD (${userPrompt.length} chars)`
   );
+  traceLog(traceId, 'openrouter.generate.start', {
+    provider: isOmniRoute() ? 'OmniRoute' : 'OpenRouter',
+    model: openRouter.model,
+    userPromptChars: userPrompt.length,
+    systemPromptChars: systemPrompt.length,
+  });
 
   const content = await openRouterChatCompletion([
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userPrompt },
-  ]);
+  ], { traceId });
 
   const parsed = parseModelResumeResponse(content);
+  traceLog(traceId, 'openrouter.generate.parsed', {
+    latexChars: parsed.latex.length,
+    hasLlmMatch: Boolean(parsed.llmMatch),
+  });
   console.log(
     `Resume agent LaTeX ready (${parsed.latex.length} chars)` +
       (parsed.llmMatch

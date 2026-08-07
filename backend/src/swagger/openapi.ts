@@ -18,7 +18,7 @@ export const openApiSpec = {
       'Generation can take 1–5 minutes depending on the model.',
     ].join('\n'),
   },
-  servers: [{ url: 'http://localhost:5001', description: 'Local backend' }],
+  servers: [{ url: 'http://localhost:5002', description: 'Local backend' }],
   tags: [
     { name: 'Resume', description: 'JD → LaTeX (stateless test endpoint)' },
     { name: 'Jobs', description: 'Job tracker CRUD & resume pipeline' },

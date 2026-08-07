@@ -11,6 +11,7 @@ import {
 } from '../resumeTailoringPrompt';
 import { extractLatexFromModelResponse, parseModelResumeResponse } from './extractLatex';
 import type { ResumeGenerationResult } from './openRouterProvider';
+import { makeTraceId, traceError, traceLog } from '../debugTrace';
 
 const execFileAsync = promisify(execFile);
 
@@ -33,7 +34,7 @@ function findClaudeBinary(): string {
 
 import { exec } from 'child_process';
 
-export async function runClaudePrint(systemPrompt: string, userPrompt: string): Promise<string> {
+export async function runClaudePrint(systemPrompt: string, userPrompt: string, traceId = makeTraceId('claude')): Promise<string> {
   const { model, timeoutMs } = config.resumeAgent.claudeCode;
   const bin = findClaudeBinary();
 
@@ -54,6 +55,13 @@ export async function runClaudePrint(systemPrompt: string, userPrompt: string): 
   console.log(
     `\n🟣 Resume agent (Claude Code) — model ${model} — (${userPrompt.length} char task, ${systemPrompt.length} char system)`
   );
+  traceLog(traceId, 'claude.exec.start', {
+    model,
+    bin,
+    userPromptChars: userPrompt.length,
+    systemPromptChars: systemPrompt.length,
+    timeoutMs,
+  });
 
   return new Promise<string>((resolve, reject) => {
     exec(cmd, {
@@ -68,8 +76,15 @@ export async function runClaudePrint(systemPrompt: string, userPrompt: string): 
       const elapsedSec = ((Date.now() - callStart) / 1000).toFixed(1);
       const content = String(stdout || '').trim();
       console.log(`  ⏱️ Claude Code CLI returned in ${elapsedSec}s (${content.length} chars output)`);
+      traceLog(traceId, 'claude.exec.returned', {
+        elapsedSec,
+        outputChars: content.length,
+        stderrChars: String(stderr || '').length,
+        hadError: Boolean(err),
+      });
 
       if (err) {
+        traceError(traceId, 'claude.exec.error', err, { stderr: String(stderr || '').slice(0, 300) });
         return reject(new Error(`Claude Code CLI error: ${err.message}${stderr ? ` | ${stderr.slice(0, 300)}` : ''}`));
       }
       if (/401|Invalid API key|Failed to authenticate/i.test(content)) {
@@ -87,11 +102,12 @@ export async function runClaudePrint(systemPrompt: string, userPrompt: string): 
 export async function generateResumeWithClaudeCode(
   ctx: ResumeJobContext
 ): Promise<ResumeGenerationResult> {
+  const traceId = ctx.traceId || makeTraceId('claude-generate');
   const systemPrompt = buildResumeSystemPrompt(ctx);
   const userPrompt = buildResumeUserPrompt(ctx.jobDescription);
 
   const attempt = async (prompt: string) => {
-    const content = await runClaudePrint(systemPrompt, prompt);
+    const content = await runClaudePrint(systemPrompt, prompt, traceId);
     return parseModelResumeResponse(content);
   };
 
@@ -129,6 +145,7 @@ export async function reviseResumeWithClaudeCode(
   latex: string,
   instruction: string
 ): Promise<string> {
+  const traceId = ctx.traceId || makeTraceId('claude-revise');
   const systemPrompt = buildResumeSystemPrompt(ctx);
   const userPrompt = [
     'Revise this amazon.pdf-style resume.',
@@ -142,6 +159,12 @@ export async function reviseResumeWithClaudeCode(
     latex,
   ].join('\n');
 
-  const content = await runClaudePrint(systemPrompt, userPrompt);
-  return extractLatexFromModelResponse(content);
+  traceLog(traceId, 'claude.revise.start', {
+    latexChars: latex.length,
+    instructionChars: instruction.length,
+  });
+  const content = await runClaudePrint(systemPrompt, userPrompt, traceId);
+  const revised = extractLatexFromModelResponse(content);
+  traceLog(traceId, 'claude.revise.done', { latexChars: revised.length });
+  return revised;
 }

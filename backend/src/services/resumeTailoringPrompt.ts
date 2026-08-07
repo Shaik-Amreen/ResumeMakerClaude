@@ -23,6 +23,7 @@ export interface ResumeJobContext {
   title?: string;
   company?: string;
   jobType?: JobType;
+  traceId?: string;
 }
 
 export function buildResumeSystemPrompt(ctx: ResumeJobContext): string {
