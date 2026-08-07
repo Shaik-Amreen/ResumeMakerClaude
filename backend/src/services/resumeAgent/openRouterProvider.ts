@@ -76,19 +76,22 @@ async function readSseChatContent(res: Response): Promise<string> {
  */
 export async function openRouterChatCompletion(
   messages: ChatMessage[],
-  opts?: { maxTokens?: number; temperature?: number; model?: string }
+  opts?: { maxTokens?: number; temperature?: number; model?: string; apiKey?: string; baseUrl?: string; }
 ): Promise<string> {
   const { openRouter } = config.resumeAgent;
-  if (!openRouter.apiKey) {
-    throw new Error('OPENROUTER_API_KEY is not set — add it to backend/.env');
+  const apiKey = opts?.apiKey || openRouter.apiKey;
+  const baseUrl = opts?.baseUrl || openRouter.baseUrl;
+
+  if (!apiKey) {
+    throw new Error('OPENROUTER_API_KEY (or opts.apiKey) is not set');
   }
 
   const useStream = true;
 
-  const res = await fetch(`${openRouter.baseUrl}/chat/completions`, {
+  const res = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${openRouter.apiKey}`,
+      Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
       Accept: useStream ? 'text/event-stream' : 'application/json',
       'HTTP-Referer': openRouter.siteUrl,

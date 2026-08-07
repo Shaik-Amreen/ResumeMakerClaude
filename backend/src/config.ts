@@ -87,6 +87,15 @@ export const config = {
     };
   },
 
+  get scraperAi() {
+    dotenv.config();
+    return {
+      apiKey: process.env.SCRAPER_OPENROUTER_API_KEY || '',
+      baseUrl: process.env.SCRAPER_OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
+      model: process.env.SCRAPER_OPENROUTER_MODEL || 'google/gemini-1.5-flash',
+    };
+  },
+
   linkedin: {
     /** Daily Chrome profile used for LinkedIn/Jobright/Indeed/FAANG scrape + Easy Apply. */
     profileDirectory: process.env.ORANGE_PROFILE_DIR || 'Default',

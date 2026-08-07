@@ -39,7 +39,13 @@ export async function evaluateJobWithAI(
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: userMessage },
       ],
-      { maxTokens: 150, temperature: 0.1, model: 'google/gemini-1.5-flash' }
+      { 
+        maxTokens: 150, 
+        temperature: 0.1, 
+        model: config.scraperAi.model,
+        apiKey: config.scraperAi.apiKey,
+        baseUrl: config.scraperAi.baseUrl
+      }
     );
 
     const abortPromise = new Promise<never>((_, reject) => {
