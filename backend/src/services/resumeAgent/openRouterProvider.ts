@@ -88,7 +88,10 @@ export async function openRouterChatCompletion(
 
   const useStream = true;
 
-  const res = await fetch(`${baseUrl}/chat/completions`, {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
+
+  let res = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -104,6 +107,7 @@ export async function openRouterChatCompletion(
       temperature: opts?.temperature ?? openRouter.temperature,
       stream: useStream,
     }),
+    signal: controller.signal,
   });
 
   const contentType = res.headers.get('content-type') || '';
@@ -141,10 +145,13 @@ export async function openRouterChatCompletion(
   }
 
   if (!content.trim()) {
+    clearTimeout(timeoutId);
     throw new Error(
       `${isOmniRoute() ? 'OmniRoute' : 'OpenRouter'} returned an empty response.`
     );
   }
+  
+  clearTimeout(timeoutId);
   return content;
 }
 
