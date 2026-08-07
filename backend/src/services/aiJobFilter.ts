@@ -1,4 +1,5 @@
 import { openRouterChatCompletion } from './resumeAgent/openRouterProvider';
+import { config } from '../config';
 
 export interface AiJobFilterResult {
   eligible: boolean;
@@ -52,7 +53,7 @@ export async function evaluateJobWithAI(
       controller.signal.addEventListener('abort', () => reject(new Error('AbortError')));
     });
 
-    const responseText = await Promise.race([responsePromise, abortPromise]);
+    let responseText = await Promise.race([responsePromise, abortPromise]);
 
     clearTimeout(timeoutId);
 
