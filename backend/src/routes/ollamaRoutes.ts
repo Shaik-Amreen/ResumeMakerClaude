@@ -18,6 +18,7 @@ router.post('/chat', async (req: Request, res: Response) => {
         model,
         messages,
         stream: stream !== false,
+        keep_alive: config.ollama.keepAlive,
       }),
     });
 

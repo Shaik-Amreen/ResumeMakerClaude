@@ -1,13 +1,16 @@
-import { WebDriver } from 'selenium-webdriver';
+import { By, until, WebDriver, WebElement } from 'selenium-webdriver';
 import { config } from '../config';
-import { schedulerPortalTarget } from '../utils/scrapeLimits';
-import {
-  CompanyTarget,
-  EXTENDED_CAREER_COMPANIES,
-  FAANG_MANGO_COMPANIES,
-} from '../data/priorityCompanies';
+import { resolvePortalTarget } from '../utils/scrapeLimits';
+import { isFaangMangoCompany } from '../data/priorityCompanies';
 import { attachDriver, releaseDriver } from './chromeProfile';
 import { saveJobIfNew, type ScrapeSource } from './scrapeUtils';
+import { isDuplicateJob } from './jobDedup';
+import { shouldAbortScrape, scrapeSleep } from './scrapeContext';
+import { appendTaskLog, incrementScraped, logScrapingUrl, setTaskProgress } from './taskStatusService';
+
+/**
+ * "Career portals" in the pipeline = Google Jobs search (US), not company career sites.
+ */
 
 function orangeProfile() {
   const { linkedin } = config;
@@ -17,170 +20,331 @@ function orangeProfile() {
     profileDirectory: linkedin.profileDirectory,
     debugPort: linkedin.debugPort,
     headless: linkedin.headless,
-    startUrl: 'https://www.linkedin.com/jobs/',
+    startUrl: 'https://www.google.com/',
   };
 }
 
-async function extractJobLinks(driver: WebDriver, baseHost: string): Promise<{ title: string; href: string }[]> {
-  const links = await driver.executeScript(`
-    const host = arguments[0].toLowerCase();
-    const out = [];
-    const seen = new Set();
-    for (const a of document.querySelectorAll('a[href]')) {
-      const href = a.href || '';
-      const text = (a.textContent || '').trim();
-      if (!href || !text || text.length < 8 || text.length > 120) continue;
-      if (!/intern|internship|co-?op|university|early\\s+career/i.test(text)) continue;
-      if (!/software|developer|engineer|swe|full[\\s-]?stack|web|frontend|backend|computer\\s+science/i.test(text)) continue;
-      try {
-        const u = new URL(href);
-        if (!u.hostname.toLowerCase().includes(host) && !href.includes('myworkdayjobs') && !href.includes('lever.co') && !href.includes('greenhouse')) continue;
-      } catch { continue; }
-      const key = href.split('?')[0];
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push({ title: text, href: key });
-      if (out.length >= 12) break;
+async function dismissGoogleNoise(driver: WebDriver) {
+  const selectors = [
+    'button#L2AGLb',
+    'button[aria-label="Accept all"]',
+    'button[aria-label="Reject all"]',
+    'form[action*="consent"] button',
+  ];
+  for (const sel of selectors) {
+    try {
+      const btns = await driver.findElements(By.css(sel));
+      if (btns[0]) {
+        await btns[0].click();
+        await scrapeSleep(800);
+        break;
+      }
+    } catch {
+      // ignore
     }
-    return out;
-  `, baseHost);
-
-  return Array.isArray(links) ? (links as { title: string; href: string }[]) : [];
+  }
 }
 
-async function readPageMeta(driver: WebDriver): Promise<{ posted?: string; applicants?: string }> {
-  const meta = await driver.executeScript(`
-    const text = document.body.innerText || '';
+async function getGoogleJobCards(driver: WebDriver): Promise<WebElement[]> {
+  const selectors = [
+    'li.iFjolb',
+    'div.PwjeAc',
+    'li[data-ved] div.gws-plugins-horizon-jobs__li-ed',
+    'div[jscontroller][data-ved] .BjJfJf',
+    'div.gws-plugins-horizon-jobs__li-ed',
+    'ul.nJlQNc > li',
+    'div[role="list"] > div[role="listitem"]',
+    'div.g a[data-ved]',
+  ];
+  for (const selector of selectors) {
+    try {
+      const cards = await driver.findElements(By.css(selector));
+      if (cards.length >= 3) return cards;
+      if (cards.length) return cards;
+    } catch {
+      // try next
+    }
+  }
+  return [];
+}
+
+async function readDetailFromPage(driver: WebDriver): Promise<{
+  title: string;
+  company: string;
+  location: string;
+  description: string;
+  applyUrl: string;
+  posted: string;
+}> {
+  const data = await driver.executeScript(`
+    const text = (document.body && document.body.innerText) || '';
+    const pick = (sels) => {
+      for (const s of sels) {
+        const el = document.querySelector(s);
+        const t = (el && (el.innerText || el.textContent) || '').trim();
+        if (t) return t;
+      }
+      return '';
+    };
+
+    let title = pick([
+      'h2.KLsYx', 'h1.KLsYx', 'h2[itemprop="title"]', 'h1',
+      '.jobtitle', '[data-attrid="title"] h2', '.pMhGee h2'
+    ]);
+    let company = pick([
+      '.nJlQNc .vNEEBe', '.vNEEBe', '[class*="company"]',
+      'a[data-attrid="company"]', '.WaH2Fe'
+    ]);
+    let location = pick([
+      '.nJlQNc .Qk80Jf', '.Qk80Jf', '[class*="location"]',
+      'span[data-attrid="location"]'
+    ]);
+
+    // Fallback: parse first lines of the jobs panel
+    if (!title || !company) {
+      const lines = text.split('\\n').map(l => l.trim()).filter(Boolean);
+      if (!title && lines[0] && lines[0].length < 120) title = lines[0];
+      if (!company && lines[1] && lines[1].length < 80) company = lines[1];
+    }
+
+    let description = '';
+    const descEl = document.querySelector(
+      '.YgLbBe, .HBgzvc, [class*="description"], [itemprop="description"], .job-description'
+    );
+    if (descEl) description = (descEl.innerText || '').trim();
+    if (description.length < 120) {
+      const m = text.match(/(?:Full job description|About the job|Job description)\\n([\\s\\S]{120,8000})/i);
+      if (m) description = m[1].trim();
+    }
+    if (description.length < 80) description = text.slice(0, 6000);
+
     let posted = '';
-    const postedM = text.match(/(?:Posted|Reposted)\\s+[^\\n·]{3,50}|\\d+\\s+(minute|hour|day|week|month)s?\\s+ago/i);
+    const postedM = text.match(/(?:Posted|Reposted)?\\s*(\\d+\\s+(?:minute|hour|day|week|month)s?\\s+ago|Just posted)/i);
     if (postedM) posted = postedM[0].trim();
-    let applicants = '';
-    const appM = text.match(/(?:Over\\s+)?(?:Less than\\s+)?[\\d,]+\\+?\\s+applicants?/i);
-    if (appM) applicants = appM[0];
-    return { posted, applicants };
-  `);
-  return (meta as { posted?: string; applicants?: string }) || {};
-}
 
-async function readJobDescription(driver: WebDriver): Promise<string> {
-  const text = await driver.executeScript(`
-    const selectors = [
-      '[class*="description"]', '[class*="job-description"]', '[data-automation-id="jobPostingDescription"]',
-      'article', 'main', '.content'
-    ];
-    for (const sel of selectors) {
-      const el = document.querySelector(sel);
-      const t = (el?.innerText || '').trim();
-      if (t.length > 200) return t.slice(0, 12000);
+    // Prefer real apply / company links over Google
+    let applyUrl = '';
+    const anchors = Array.from(document.querySelectorAll('a[href]'));
+    for (const a of anchors) {
+      const href = a.href || '';
+      const label = ((a.innerText || a.getAttribute('aria-label') || '') + '').toLowerCase();
+      if (!href || href.startsWith('javascript:')) continue;
+      if (/google\\.(com|co)|gstatic|accounts\\.google|support\\.google/.test(href)) continue;
+      if (/apply|company site|official site|learn more|view job/i.test(label) ||
+          /greenhouse|lever\\.co|myworkdayjobs|ashbyhq|jobvite|icims|taleo|boards\\.|careers\\.|jobs\\./i.test(href)) {
+        applyUrl = href;
+        break;
+      }
     }
-    return (document.body.innerText || '').slice(0, 12000);
+    if (!applyUrl) {
+      for (const a of anchors) {
+        const href = a.href || '';
+        if (/^https?:/i.test(href) && !/google\\.(com|co)|gstatic/.test(href)) {
+          applyUrl = href;
+          break;
+        }
+      }
+    }
+
+    return { title, company, location, description: description.slice(0, 12000), applyUrl, posted };
   `);
-  return typeof text === 'string' ? text.trim() : '';
+
+  return (
+    (data as {
+      title: string;
+      company: string;
+      location: string;
+      description: string;
+      applyUrl: string;
+      posted: string;
+    }) || {
+      title: '',
+      company: '',
+      location: '',
+      description: '',
+      applyUrl: '',
+      posted: '',
+    }
+  );
 }
 
-async function scrapeCompanyPortal(
+/** Unwrap Google redirect URLs when possible. */
+function normalizeApplyUrl(raw: string, fallbackGoogleUrl: string): string {
+  if (!raw) return fallbackGoogleUrl;
+  try {
+    const u = new URL(raw);
+    if (u.hostname.includes('google.') && u.searchParams.get('q')) {
+      const q = u.searchParams.get('q') || '';
+      if (/^https?:/i.test(q)) return q.split('&')[0];
+    }
+    if (u.hostname.includes('google.') && u.pathname.includes('/url')) {
+      const dest = u.searchParams.get('q') || u.searchParams.get('url');
+      if (dest && /^https?:/i.test(dest)) return dest;
+    }
+    return raw.split('&')[0];
+  } catch {
+    return raw || fallbackGoogleUrl;
+  }
+}
+
+async function scrapeGoogleSearch(
   driver: WebDriver,
-  company: CompanyTarget,
+  searchUrl: string,
   savedIds: string[],
   target: number
-): Promise<string[]> {
-  console.log(`\n🏢 ${company.name} (${company.tier}) — ${company.searchUrl}`);
+): Promise<void> {
+  console.log(`\n=== Google Jobs search (US) ===`);
+  console.log(searchUrl);
+  logScrapingUrl(searchUrl, 'Google Jobs search');
 
-  try {
-    await driver.get(company.searchUrl);
-    await driver.sleep(4000);
-  } catch (err) {
-    console.error(`  ↳ Could not load ${company.name}:`, err);
-    return savedIds;
+  await driver.get(searchUrl);
+  await scrapeSleep(3500);
+  await dismissGoogleNoise(driver);
+  await scrapeSleep(1500);
+
+  if (shouldAbortScrape()) {
+    appendTaskLog('Google Jobs scrape stopped by user.');
+    return;
   }
 
-  let host = '';
   try {
-    host = new URL(company.searchUrl).hostname.replace(/^www\./, '');
+    await driver.wait(
+      until.elementLocated(
+        By.css('li.iFjolb, div.PwjeAc, div.gws-plugins-horizon-jobs__li-ed, div.g, [role="listitem"]')
+      ),
+      20000
+    );
   } catch {
-    host = company.name.toLowerCase();
+    console.log('No Google Jobs results for this query.');
+    return;
   }
 
-  const links = await extractJobLinks(driver, host);
-  console.log(`  Found ${links.length} intern posting link(s)`);
+  // Scroll the jobs list a bit to load more cards
+  try {
+    await driver.executeScript(`
+      const list = document.querySelector('div[role="list"], ul.nJlQNc, div.gws-plugins-horizon-jobs__tl-lvc') || document.body;
+      for (let i = 0; i < 6; i++) {
+        list.scrollTop = list.scrollHeight;
+      }
+    `);
+    await scrapeSleep(1200);
+  } catch {
+    // ignore
+  }
 
-  for (const link of links) {
-    if (savedIds.length >= target) break;
+  const cards = await getGoogleJobCards(driver);
+  const perSearch = config.careerPortal.maxJobsPerSearch;
+  const limit = Math.min(cards.length, perSearch, Math.max(0, target - savedIds.length));
+  console.log(`Google: ${cards.length} cards — processing up to ${limit}`);
+  appendTaskLog(`Google Jobs: ${cards.length} cards — processing up to ${limit}`);
+
+  for (let i = 0; i < limit; i++) {
+    if (shouldAbortScrape()) {
+      appendTaskLog('Google Jobs scrape stopped by user.');
+      return;
+    }
+    if (savedIds.length >= target) return;
 
     try {
-      await driver.get(link.href);
-      await driver.sleep(2500);
+      const fresh = await getGoogleJobCards(driver);
+      if (i >= fresh.length) break;
+      const card = fresh[i];
 
-      const description = await readJobDescription(driver);
-      const meta = await readPageMeta(driver);
-      const pageTitle = await driver.getTitle();
-      const title = link.title || pageTitle.split('|')[0].trim() || 'Software Engineering Intern';
+      try {
+        await driver.executeScript('arguments[0].scrollIntoView({block:"center"});', card);
+        await scrapeSleep(300);
+        await card.click();
+      } catch {
+        try {
+          await driver.executeScript('arguments[0].click();', card);
+        } catch {
+          console.log(`  ↳ Could not open Google card ${i + 1}`);
+          appendTaskLog(`  ↳ Could not open Google card ${i + 1}`);
+          continue;
+        }
+      }
 
-      const priority = company.tier === 'faang' || company.tier === 'mango' ? 'faang' : 'standard';
+      await scrapeSleep(1800);
+      setTaskProgress(savedIds.length + 1, target, `Google Jobs ${i + 1}/${limit}`);
+
+      const details = await readDetailFromPage(driver);
+      const title = details.title?.trim();
+      const company = details.company?.trim();
+      const location = details.location?.trim() || 'United States';
+      const description = details.description?.trim();
+      const pageUrl = await driver.getCurrentUrl();
+      const url = normalizeApplyUrl(details.applyUrl, pageUrl);
+
+      console.log(`[Google ${i + 1}/${limit}] ${title || '?'} @ ${company || '?'}`);
+      appendTaskLog(
+        `🔗 Google ${i + 1}/${limit}: ${title || '?'} @ ${company || '?'} — ${(url || pageUrl).slice(0, 100)}`
+      );
+
+      if (!title || !company || !description) {
+        console.log('  ↳ Skipped — missing title/company/description');
+        continue;
+      }
+
+      if (await isDuplicateJob(url, title, company)) {
+        console.log('  ↳ Duplicate — skip');
+        continue;
+      }
 
       const id = await saveJobIfNew({
         title,
-        company: company.name,
-        url: (await driver.getCurrentUrl()).split('?')[0],
-        jobDescription: description || `${title} at ${company.name}. Open career portal for full JD.`,
-        posted: meta.posted,
-        applicants: meta.applicants,
+        company,
+        url,
+        jobDescription: description,
+        location,
+        posted: details.posted || undefined,
         source: 'career_portal' as ScrapeSource,
         forcedType: 'internship',
-        priority,
+        priority: isFaangMangoCompany(company) ? 'faang' : 'standard',
+        pipelinePhase: 'career_portal',
       });
 
       if (!id) {
-        console.log(`  ↳ Skip: ${title}`);
+        console.log('  ↳ Filtered — skip');
         continue;
       }
 
       savedIds.push(id);
-      console.log(`  ↳ Saved [${savedIds.length}]: ${title}`);
+      incrementScraped();
+      console.log(`  ↳ Saved [${savedIds.length}/${target}]`);
     } catch (err) {
-      console.error(`  ↳ Error on ${link.href}:`, err);
+      console.error(`  ↳ Error on Google card ${i + 1}:`, err);
     }
+  }
+}
+
+async function scrapeGoogleJobsSearches(): Promise<string[]> {
+  const savedIds: string[] = [];
+  const target = resolvePortalTarget('priority');
+  let driver: WebDriver | null = null;
+
+  try {
+    driver = await attachDriver(orangeProfile());
+    console.log(`\n🔎 Google Jobs (United States) — stop at ${target} new jobs`);
+
+    const searches = config.careerPortal.searches;
+    for (let q = 0; q < searches.length; q++) {
+      if (shouldAbortScrape() || savedIds.length >= target) break;
+      console.log(`\n--- Google query ${q + 1}/${searches.length} (${savedIds.length}/${target} saved) ---`);
+      await scrapeGoogleSearch(driver, searches[q], savedIds, target);
+    }
+  } finally {
+    await releaseDriver(driver);
   }
 
   return savedIds;
 }
 
-export async function scrapePriorityCareerPortals(): Promise<number> {
-  const savedIds: string[] = [];
-  const target = schedulerPortalTarget('priority');
-  let driver: WebDriver | null = null;
-
-  try {
-    driver = await attachDriver(orangeProfile());
-    console.log('\n⭐ FAANG + MANGOES career portal scan');
-
-    for (const company of FAANG_MANGO_COMPANIES) {
-      if (savedIds.length >= target) break;
-      await scrapeCompanyPortal(driver, company, savedIds, target);
-    }
-  } finally {
-    await releaseDriver(driver);
-  }
-
-  return savedIds.length;
+/** Pipeline “career portals” phase — Google Jobs search (US). */
+export async function scrapePriorityCareerPortals(): Promise<string[]> {
+  return scrapeGoogleJobsSearches();
 }
 
-export async function scrapeAllCareerPortals(): Promise<number> {
-  const savedIds: string[] = [];
-  const target = schedulerPortalTarget('night');
-  let driver: WebDriver | null = null;
-
-  try {
-    driver = await attachDriver(orangeProfile());
-    console.log('\n🌙 All career portal scan (11 PM – 8 AM window)');
-
-    for (const company of EXTENDED_CAREER_COMPANIES) {
-      if (savedIds.length >= target) break;
-      await scrapeCompanyPortal(driver, company, savedIds, target);
-    }
-  } finally {
-    await releaseDriver(driver);
-  }
-
-  return savedIds.length;
+/** Same Google Jobs path (kept for scheduler / API compatibility). */
+export async function scrapeAllCareerPortals(): Promise<string[]> {
+  return scrapeGoogleJobsSearches();
 }

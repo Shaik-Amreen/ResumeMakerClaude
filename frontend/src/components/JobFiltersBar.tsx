@@ -10,7 +10,7 @@ interface Props {
 }
 
 const inputClass =
-  'w-full rounded-lg bg-black/40 border border-white/10 px-2.5 py-1.5 text-xs focus:outline-none focus:border-primary-500/50';
+  'w-full rounded-lg bg-white border border-slate-200 px-2.5 py-1.5 text-xs text-ink shadow-sm focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-100';
 
 export function JobFiltersBar({ filters, onChange, total, visible }: Props) {
   const set = (patch: Partial<JobFilters>) => onChange({ ...filters, ...patch });
@@ -27,13 +27,13 @@ export function JobFiltersBar({ filters, onChange, total, visible }: Props) {
   ].filter(Boolean).length;
 
   return (
-    <div className="p-3 border-b border-white/10 bg-white/5 shrink-0 space-y-2">
+    <div className="p-3 border-b border-slate-200 bg-gradient-to-r from-teal-50/80 to-sky-50/60 shrink-0 space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 text-sm font-semibold">
-          <Filter size={14} className="text-primary-400" />
+        <div className="flex items-center gap-1.5 text-sm font-semibold text-ink">
+          <Filter size={14} className="text-primary-500" />
           Jobs
         </div>
-        <span className="text-[10px] text-gray-500">
+        <span className="text-[10px] text-ink-faint">
           {visible}/{total}
           {activeCount > 0 ? ` · ${activeCount} filter(s)` : ''}
         </span>
@@ -50,10 +50,14 @@ export function JobFiltersBar({ filters, onChange, total, visible }: Props) {
       <div className="grid grid-cols-2 gap-1.5">
         <select value={filters.source} onChange={(e) => set({ source: e.target.value })} className={inputClass}>
           <option value="all">All platforms</option>
+          <option value="company_portal">FAANG / company</option>
+          <option value="github">GitHub list</option>
           <option value="jobright">Jobright</option>
           <option value="linkedin">LinkedIn</option>
           <option value="indeed">Indeed</option>
-          <option value="career_portal">Career portal</option>
+          <option value="career_portal">Google</option>
+          <option value="greenhouse">Greenhouse</option>
+          <option value="lever">Lever</option>
           <option value="other">Other</option>
         </select>
 
@@ -110,7 +114,7 @@ export function JobFiltersBar({ filters, onChange, total, visible }: Props) {
         <button
           type="button"
           onClick={() => onChange({ ...DEFAULT_FILTERS })}
-          className="text-[10px] text-primary-400 hover:text-primary-300 inline-flex items-center gap-1"
+          className="text-[10px] text-primary-500 hover:text-primary-400 inline-flex items-center gap-1"
         >
           <X size={12} /> Clear filters
         </button>

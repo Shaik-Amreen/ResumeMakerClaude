@@ -1,0 +1,377 @@
+--- Page 1 ---
+AMREENKOUSAR
+Ex - Senior Software Engineer|AmreenKousar.Shaik01@student.csulb.edu|+1 562-269-6008|Long Beach, California
+linkedin.com/in/shaikamreenkousar|shaik-amreen-kousar.onrender.com
+WORKEXPERIENCE
+Senior Software Engineer AMD – Infobell IT Solutions Pvt LtdBangalore, India03/2024 – 12/2025
+• Engineered scalable full-stack applications, serving100K+enterprise users.
+• Built multiple responsive web interfaces withReact.js, and Nodemanaging complex state across multiple components
+efficiently.
+• Automated CI/CD pipelines withGitLabandA WS, reducing deployment time by40%and ensuring zero-downtime
+releases.
+• IntegratedCloudflare CDN and caching strategiesto optimize content delivery, reduce latency, and enhance security
+through DNS management and SSL configuration.
+• Optimized REST APIs and database queries, improving application response time by35%through efficient data handling.
+• Collaborated in Agile sprints usingJira, delivering features adhering to strict timelines and client requirements.
+• Implemented reusable UI components and backend integrations ensuring maintainability and code quality.
+Full Web and Mobile Developer Infobell IT Solutions Pvt LtdBangalore, India01/2023 – 03/2024
+• Developed cross-platform mobile applications usingReact Native, deployed toApp Store and Play Storewith99.5%
+uptime.
+• Built responsive web interfaces withReact.js and Redux, managing complex state across multiple components efficiently.
+• IntegratedFirebasefor real-time notifications, deep linking, and authentication, enhancing user engagement by30%.
+• Designed database architectures inMongoDB, optimizing data retrieval and storage for scalability.
+• Mentored junior developers on React best practices, code reviews, and version control workflows.
+MEAN Stack Developer Intern Redbee 365 Studio Pvt LtdChennai, India (Remote)09/2022 – 12/2022
+• Built warehouse management web application usingAngular, Node.js, Express, MongoDBwith optimized UI/UX from
+Figma designs.
+• Improved API response time by25%through efficient database indexing and query optimization.
+• Developed reusable Angular components ensuring consistency across application modules.
+React Native Developer Intern EartheticBangalore, India (Remote)07/2022 – 10/2022
+• Developed cross-platform mobile applications usingReact Native CLIfor iOS and Android platforms.
+• Implemented dynamic UI components and e-commerce functionalities with seamless user experience.
+• Collaborated with design team to translate Figma designs into responsive mobile interfaces.
+MERN Stack Developer Intern Yes Real Technologies Pvt LtdBangalore, India (Remote)01/2022 – 06/2022
+• Developed full-stack web applications usingMongoDB, Express.js, React.js, Node.jsstack.
+• Built college ERP system with features for digitizing manual processes and improving operational efficiency.
+• Implemented user authentication, data management, and API integration for frontend-backend communication.
+Backend Developer Intern HirecraftBangalore, India (Remote)07/2020 – 08/2020
+• Developed backend functionalities usingNode.js and MongoDBfor project tracking web application.
+• Implemented multi-language support (50+ languages) and graphical reporting features.
+• Designed and optimized database schemas for efficient data storage and retrieval.
+SKILLS
+Languages:JavaScript, TypeScript, ES6, Python, SQL, HTML5, CSS3
+Frontend Engineering:React.js, Next.js, Angular, Vue.js, React Native, Redux, Web Accessibility (WCAG), Performance
+Optimization, Caching Strategies, Lazy Loading, Code Splitting, SEO Optimization, Core Web Vitals, WordPress (Elemen-
+tor Plugin Development), Bootstrap, Material-UI, Tailwind CSS
+Backend:Node.js, Express.js, Nest.js, Flask, REST APIs, GraphQL, Apollo GraphQL, Microservices
+Databases:MongoDB, PostgreSQL (psql)
+Mobile Development:React Native CLI, Android Studio, Xcode, iOS/Android Deployment, Firebase
+Cloud & DevOps:AWS (EC2, S3), Cloudflare (CDN, Edge Caching, DNS, SSL), CI/CD Pipelines, GitOps, Docker
+API Tools:Swagger UI, Postman, GraphQL Playground
+
+--- Page 2 ---
+Testing:JMeter, Manual Testing, Performance Testing, Load Testing
+Version Control:GitHub, GitLab
+Project Management:Jira, Notion, Zoho Sheet, Slack
+AI & Machine Learning:AI Integration, Machine Learning Implementation
+Practices:Agile/SCRUM, SDLC, STLC, OOP, Code Reviews, Performance Optimization, SEO
+PUBLICATIONS
+Accurate Fake News Detection in Text-Based Content Using K-Nearest Neighbor, LSTM, MLP and CNN Models
+2025 International Conference on Computing Technologies & Data Communication (ICCTDC)July 2025
+Authors: B Sreelatha, Rajesh Kumar A, Shaik Amreen Kousar, Nanthini L, Sweta Priya, A Jaya Lakshmi
+DOI: IEEE Xplore
+Published research on hybrid deep learning model (CNLSMLKN) achieving 98% accuracy in fake news detection
+CERTIFICATIONS
+Frontend Developer – React (HackerRank) — Link Jan 2025
+JavaScript Basic (HackerRank) Link Dec 2021
+JavaScript Intermediate (HackerRank) — Link Jul 2022
+Python (HackerRank) — Link Dec 2021
+Problem Solving (HackerRank) — Link Dec 2021
+SQL Basic (HackerRank) — Link May 2021
+SQL Intermediate (HackerRank) — Link Feb 2022
+Coding Ninjas Programming (Code Kaze) — Link Apr 2022
+EDUCATION
+Masters in Computer science California State UniversityLongBeach, California01/2026 – 12/2028
+B.Tech in Computer Science (3.69/4) JNTU Anantapur – MITSAndhra Pradesh, India08/2019 – 05/2023
+PROJECTS
+B4IGO – Digital Legacy & Asset Management Platform — Link Jan ’25 – Dec ’25
+Technologies:React JS, React Native CLI (Android — iOS), Node JS, MongoDB, Blockchain, Figma, AWS, Android Stu-
+dio, XCode, GitHub, Visual Studio
+Role:Full Stack Developer
+Links: Android App — iOS App
+B4IGO is a comprehensive digital platform designed to help users organize and manage their digital footprint, personal
+information, and end-of-life preferences. The platform combines blockchain technology with an easy-to-use interface to
+ensure digital assets are safe, secure, and accessible when needed. It features multiple secure vaults including Personal In-
+formation, Healthcare, Digital Accounts, Key Master & Directives, Advisory & Legal Services, Financial, Communication,
+and Memorial vaults.
+Contributions:
+• Developed responsive web application using React.js with intuitive UI/UX for managing digital legacy and secure vault
+systems.
+• Built cross-platform mobile application using React Native for iOS and Android, enabling users to access and manage
+their digital assets on-the-go.
+• Implemented blockchain integration and smart contract functionality for secure data storage and transparent asset man-
+agement.
+• Designed and developed multiple vault modules (Personal Information, Healthcare, Financial, Digital Accounts, Legal
+Services, Communication, and Memorial) with advanced encryption and security protocols.
+• Integrated advanced cryptographic technology to ensure privacy and security of sensitive user data and digital assets.
+• Developed secure authentication and authorization systems with multi-factor authentication for enhanced security.
+• Collaborated with backend team to design RESTful APIs for efficient data exchange between mobile, web, and blockchain
+infrastructure.
+
+--- Page 3 ---
+• Implemented features for personalized messaging, end-of-life preferences, and digital footprint management.
+• Optimized application performance and ensured scalability for handling sensitive personal and financial information.
+NativeNest – Cross-Platform Commerce Platform — Link June’25 – Oct’25
+Technologies:React JS, React Native CLI, Node.js, Express.js, GraphQL, Apollo GraphQL, Redis, PostgreSQL, AWS EC2,
+S3, Docker, CI/CD, Android Studio, XCode, GitHub, Postman, JMeter, Visual Studio
+Role:Full Stack Developer
+Links: Android App — iOS App
+NativeNest is a production-scale e-commerce platform serving 30K+ users with comprehensive shopping features including
+product catalog, cart management, order processing, and payment integration. The platform achieves 99.9% uptime through
+advanced caching strategies and automated deployment pipelines.
+Contributions:
+• Developed responsive web application usingReact.jsand cross-platform mobile apps usingReact Native CLIwith native
+optimizations for iOS and Android.
+• Architected backend microservices usingNode JS and Express JSwithGraphQL and Apollo GraphQLfor efficient
+data fetching and real-time features.
+• IntegratedRediscaching layer and optimizedPostgreSQLdatabase queries, reducing load by 60% and achieving sub-
+100ms response times.
+• Deployed onA WS EC2with auto-scaling, load balancers, andDockercontainers, implementing robustCI/CD pipelines
+achieving 99.9% uptime.
+• Conducted extensive testing usingPostmanandJMeterfor load testing, supporting 30K+ concurrent users with payment
+gateway integration.
+Origem India – Lab Grown Diamond Jewellery E-Commerce — Link Feb ’25 – May ’25
+Technologies:Next.js, Tailwind CSS, Node JS, Express JS, MongoDB, REST APIs, AWS EC2, S3, Stripe, Razorpay,
+GitHub, Postman, SEO, Visual Studio
+Role:Full Stack Developer
+Origem India is an elegant e-commerce platform specializing in lab-created diamond jewellery including rings, earrings,
+and pendants. The platform emphasizes ethical diamonds designed for elegance and everyday wear, offering a premium
+shopping experience with detailed product visualizations and secure payment processing.
+Contributions:
+• Developed high-performance web application usingNext.jsfor server-side rendering and styled elegant UI usingTailwind
+CSSwith custom design system.
+• Built dynamic product catalog with advanced filtering, interactive 360-degree product views, shopping cart, and wishlist
+features with real-time inventory.
+• Developed backend services usingNode.js and Express.jswithMongoDBdatabase schemas for product management,
+inventory tracking, and order processing.
+• Integrated multiple payment gateways (Stripe and Razorpay) with secure JWT authentication and deployed onA WS
+EC2 and S3with SSL certificates.
+• Implemented comprehensiveSEO strategiesincluding meta tags, structured data, and Core Web Vitals optimization for
+improved search engine rankings.
+Benchmark Automation - AMD May ’24 – Dec ’24
+Technologies:React JS, Node JS, GitLab, JIRA, Visual Studio
+Role:Full Stack Developer
+Benchmark Automation delivers innovative automation solutions that streamline business processes and improve efficiency.
+By leveraging web applications, APIs, and cloud technologies, the company helps clients optimize workflows across various
+industries.
+
+--- Page 4 ---
+GSI Sales and Advisory - AMD Mar ’24 – May ’24
+Technologies:React JS, Python, GitLab, JIRA, Visual Studio
+Role:Full Stack Developer
+GSI Sales and Advisory provides strategic sales consulting and advisory services to businesses, helping them optimize
+their sales processes and drive growth. The company offers tailored solutions, leveraging market insights and data-driven
+strategies to enhance sales performance and customer acquisition.
+Upturn - US — Web Link App Link Oct ’23 – Feb ’24
+Technologies:Angular, React-Native CLI (Android — IOS), Android Studio, XCode, GitHub, Visual Studio
+Role:React Native Developer - Lead
+Upturn is a AI based stock advisor app utilizing adaptive AI for personalized Buy and Sell recommendations. Users access
+advisories for individual stocks, discover top picks, and create custom Robo-Portfolios. With Upturn, receive tailored fi-
+nancial guidance based on AI technologies like Machine Learning and Quantitative Analysis. It helps users make informed
+trading decisions by suggesting optimal investment and selling times.
+Contributions:
+• Developed the responsive mobile interface for Upturn, ensuring seamless integration with backend systems, including
+Firebase for notifications and deep linking.
+• Implemented features allowing users to access personalized Buy and Sell recommendations for individual stocks, with
+notifications for timely updates.
+• Contributed to the creation of custom Robo-Portfolios, enabling users to build diversified investment portfolios, with deep
+linking for easy portfolio access.
+• Utilized React Native to optimize performance and ensure compatibility across different devices, including handling
+changes to the splash screen and app icon dynamically.
+AI-Assisted Technology Review Workflow - AWS AI Summer Camp, Cal Poly (Sponsored by AWS) — Jul 2026
+Technologies: Amazon Bedrock, LangGraph, AWS Lambda, API Gateway, DynamoDB, S3, CloudFront, Cognito, React, TypeScript, Python
+Role: Builder / Prototyper (one-week AWS-sponsored program)
+Designed and prototyped an AI-assisted technology review workflow for a real-world CSU Bakersfield challenge, using Amazon Bedrock and LangGraph to analyze security, privacy, licensing, and policy documents and retrieve evidence from structured and unstructured sources. Built an end-to-end AWS-first serverless architecture (Lambda, API Gateway, DynamoDB, S3, CloudFront, Cognito) behind a React/TypeScript frontend with deterministic policy/risk rules and human-in-the-loop final approval.
+ARIKYA - Digital Transformation of Training and Placements —Link Nov ’22 – Present
+Technologies:Angular, React Native, Bootstrap, Node Js, Express, Swagger, MongoDB, AWS, Gitops, CICD Pipeline, AI,
+Search Engine Optimization, Github
+Role:Full Stack Developer
+Arikya is an AI-powered platform which discovers the path to Skill Enhancement, Automated Recruitment and Remarkable
+achievement.
+Contributions:
+• Led a team through responsive web and mobile application development, overseeing the entire lifecycle and developing
+both frontend and backend.
+• Engineered complex functionalities, including AI-powered compiler designing for coding practice, secure database de-
+signing, and intelligent coding assessment features.
+• Implemented standardized setups, focusing on security, performance optimization, lazy loading, and user-friendly UI
+development for a high-performance application.
+• Successfully deployed applications on AWS EC2 Instances with a robust CICD pipeline and executed SEO strategies.
+• Leveraged Zoho Sheet, Jira for structured development progress tracking.
+NextZen ERP HRMS July ’23 – Sep ’23
+Technologies:React-Native CLI (Android — IOS), Android Studio, XCode, GitHub, Visual Studio
+Role:React Native Developer
+NextZen ERP HRMS project is a unified solution integrating HRMS, Accounting, and Warehouse Management functionali-
+ties.
+Contributions:
+• Developed and implemented the responsive mobile interface for the NextZen ERP HRMS project using React Native,
+ensuring seamless integration with existing backend systems.
+• Utilized advanced React Native techniques to optimize performance, including lazy loading, code splitting, and asyn-
+chronous data fetching.
+
+--- Page 5 ---
+• Designed and built the HRMS module, streamlining payroll, attendance, and performance tracking.
+• Contributed to architecture and development of Accounting module, enabling comprehensive financial management.
+• Collaborated with backend developers to establish secure RESTful APIs for data integrity.
+Nova Physician Wellness Center Mar ’23 – Jun ’23
+Technologies:React-Native CLI, Figma, Android Studio, XCode, GitHub, Visual Studio
+Role:Database Architect, UI / UX Designer, React Native Developer - Lead
+The NPWC app enables users to monitor diet plans and exercise routines, offering expert advice from dieticians and fostering
+connections with fitness enthusiasts for a balanced lifestyle.
+Contributions:
+• Designed and implemented the user interface using Figma, ensuring a visually appealing and intuitive user experience for
+the NPWC app.
+• Developed the database architecture to efficiently store and manage user data, diet plans, exercise routines, and expert
+advice, optimizing performance and scalability.
+• Implemented features allowing users to receive expert advice from dieticians through real-time messaging, leveraging
+technologies like Firebase for instant communication.
+• Integrated features allowing users to track diet plans and exercise routines, receive expert advice from dieticians, and
+connect with fitness enthusiasts, enhancing the app’s usability and value.
+Buzz Staff Women Jan ’23 – Mar ’23
+Technologies:React Js, Redux, Bootstrap, GitHub, Jira, Visual Studio
+Role:React Developer
+Buzz Staff Women is a Women Empowerment NGO fostering community and growth among women, extending its reach to
+rural areas for training sessions. It emphasizes cultivating inner strength (’Self-Shakti’) and its practical application in daily
+life. By establishing local Beehives and women’s groups, it institutes a sustainable learning ecosystem in each village.
+Contributions:
+• Developed the user interface for the Buzz Staff Women app using React, efficiently managing state with Redux for cen-
+tralized data handling and seamless updates across components.
+• Implemented interactive features such as form validation and user authentication using React Hooks and Redux actions,
+ensuring robust functionality and user security.
+• Integrated React Router and Redux for seamless navigation and state management, providing users with a smooth and
+intuitive browsing experience.
+• Collaborated with the team to optimize performance using React’s virtual DOM and Redux’s efficient state management,
+delivering a fast and responsive app experience.
+• Contributed to the development of reusable UI components and Redux reducers, promoting code reusability and maintain-
+ability throughout the project.
+BookingBee — Link Sep ’22 – Dec ’22
+Technologies:Angular, Bootstrap, Material-UI, AI,Slack, GitHub, Visual Studio
+Role:Frontend Developer
+BookingBee is an AI-powered appointment scheduling platform for beauty and wellness businesses.
+Contributions:
+• Developed UI with Figma-provided UI/UX designs and advanced code optimization techniques, ensuring a seamless and
+visually appealing responsive user experience.
+• Designed reusable components to maintain consistency and streamline development across the application.
+• Effectively reported work progress, particularly focused on API integration, through Jira, showcasing a systematic ap-
+proach.
+
+--- Page 6 ---
+Dynamic Ecommerce App Jul ’22 – Oct ’22
+Technologies:React-Native CLI, Figma, Android Studio, XCode, GitHub, Visual Studio
+Role:React Native Developer - Lead
+It is an cross platform app designed with dynamic UI for Ecommerce.
+Contributions:
+• Developed and optimized the user interface for the ecommerce app using React Native, ensuring a seamless and engaging
+shopping experience across iOS and Android platforms.
+• Implemented essential features such as product listing, cart management, and checkout functionalities, adhering to design
+specifications and user experience guidelines.
+• Integrated third-party APIs for payment gateways and shipping services, enabling secure transactions and efficient order
+fulfillment within the ecommerce app.
+ERP Jan ’22 – Jun ’22
+Technologies:React JS, React Hooks, Bootstrap, Redux, NodeJS, MongoDB, GitHub, Visual Studio
+Role:Full Stack Developer - Lead
+Product to digitalize all the manual process of all the activities in college.
+Contributions:
+• Designed and developed the front-end interface of the ERP project for the college using React, ensuring user-friendly
+interactions for administrators, faculty, and students.
+• Implemented back-end functionalities using Node.js, including user authentication, data management, and API integration.
+• Collaborated with the team to design and implement features and overall functionality required for college for efficiency
+of the ERP system.
+College Feedback and Task Management System Nov ’21 – Dec ’21
+Technologies:Angular, Bootstrap, Node Js, Express, Swagger, MongoDB, AWS, Gitops, Github
+Role:Full Stack Developer
+The College Feedback and Task Management System enables faculty and students to exchange feedback seamlessly. Admins
+can view and download feedback reports, while faculty can upload tasks for student completion. Students can submit tasks
+and receive ratings from faculty within the system.
+Contributions:
+• Developed frontend interfaces for feedback submission and task management using modern web technologies.
+• Implemented backend functionalities for data storage and retrieval, ensuring efficient communication between frontend
+and backend components.
+• Conducted thorough testing to ensure system reliability and performance across different scenarios.
+• Collaborated with team members to design and refine system features, ensuring alignment with project goals.
+• Contributed to the overall architecture and design decisions to create a robust and user-friendly system.
+AI based Slum Control — Smart India Hackathon Sep ’21 – Oct ’21
+Technologies:Angular, Bootstrap, NodeJS, ExpressJS, Swagger, MongoDB, GitHub
+Role:Full Stack Developer
+AI based Slum Control is a web app with advanced AI for slum identification via image segmentation, coupled with auto-
+mated employment solutions. Created a job platform tailored for slum dwellers, enhancing opportunities and empowerment.
+Integrated Twilio for automated messaging, streamlining communication for increased accessibility. Proficiently utilized the
+MEAN stack, collaborating with a dedicated team for seamless deployment on Heroku.
+Online Exam Fee Payment Jul ’21 – Aug ’21
+Technologies:Angular, Bootstrap, NodeJS, ExpressJS, Swagger, MongoDB, GitHub
+Role:Full Stack Developer - Lead
+Led the development of a web app for online exam fee payment with separate logins for Students and Admin. Integrated
+a payment gateway for convenient transactions and ensured secure API authentication. Implemented efficient initial page
+
+--- Page 7 ---
+loading and comprehensive database schema design. Utilized agile practices for efficient project delivery and collaborated
+closely in bug-fixing.
+Digital Library May ’21 – Jun ’21
+Technologies:Angular, Bootstrap, NodeJS, ExpressJS, Swagger, MongoDB, GitHub
+Role:Full Stack Developer - Lead
+It is a web application offering students technical and verbal skill enhancement through quizzes, study materials, and course
+rankings. Conducted in-depth analysis of user requirements for the library system. Developed a user-friendly UI and inte-
+grated APIs with JWT token-based security. Managed file systems efficiently using Node.js for data storage and retrieval.
+Maintained the codebase on GitHub, ensuring version control and streamlined development workflow.
+Digital Admission Process Mar ’21 – Apr ’21
+Technologies:Angular, Bootstrap, NodeJS, ExpressJS, Swagger, MongoDB, GitHub
+Role:Full Stack Developer
+A web application facilitating the admissions process for the institute, enabling students to apply and admission teams to
+manage applications efficiently. Integrated APIs to enhance system functionality and implemented virtual server hosting for
+optimal performance. Deployed a holistic solution streamlining the college admission process through automation, benefiting
+both administrators and users.
+Recruitment Process for Internships or any events Jan ’21 – Feb ’21
+Technologies:React JS, React Hooks, Bootstrap, Redux, NodeJS, MongoDB, GitHub
+Role:Full Stack Developer
+A web app where candidates submit applications for internships or events, including resumes, which are reviewed by re-
+cruiters. Interviews are conducted, and feedback is provided by interviewers to evaluate candidates. Recruiters then select or
+reject candidates based on feedback. Upon selection, candidates receive a group link to join discussions related to the event
+or internship.
+Agri-Farm — Smart India Hackathon Dec ’20 – Jan ’21
+Technologies:React Native Expo, Bootstrap, NodeJS, ExpressJS, Swagger, MongoDB, GitHub
+Role:Full Stack Developer - Lead
+A React Native mobile application for Agriculture Food processing, providing farmers with crop cultivation updates, market
+prices, and customer interaction. Integrated APIs and third-party services to enhance functionality. Prepared APK files for
+Android and utilized TestFlight for iOS for comprehensive testing.
+Event Accounting Management Nov ’20 – Dec ’20
+Technologies:Angular, Bootstrap, NodeJS, ExpressJS, Swagger, MongoDB, GitHub
+Role:Full Stack Developer - Lead
+The system centralizes fund management for events, tracking all transactions and their event-specific histories. Developed
+backend functionalities to track transactions and event-specific histories, ensuring seamless data management. Additionally,
+designed and implemented the user interface, enabling transaction printing and facilitating transparent financial management.
+Automation of Exam Hall and Seating Arrangement Oct ’20 – Nov ’20
+Technologies:React JS, React Hooks, Bootstrap, Redux, NodeJS, MongoDB, GitHub, Visual Studio
+Role:Full Stack Developer - Lead
+An online process-based web application simplifying seat allocation during examinations for colleges and students. Designed
+with distinct logins for admin and students, facilitating tasks like hall number management and exam timetable uploads.
+Automated seating arrangements and distributed hall numbers and seating via email, while enabling admin to print seating
+arrangements. As a full stack developer, contributed to the application’s design, implementation, and functionality across
+both frontend and backend components.
+
+--- Page 8 ---
+Automation plugin of Attendance Marking in MS Teams Aug ’20 – Sep ’20
+Technologies:React JS, React Hooks, Bootstrap, NodeJS, MongoDB, GitHub
+Role:Full Stack Developer - Lead
+An Automation Plugin for attendance marking in MS Teams, streamlining virtual online classes processes. Integrated seam-
+lessly with MS Teams, automating attendance tracking and enhancing convenience. Designed and developed UI, backend,
+and API integration for real-time data synchronization.
+Task Forz Jul ’20 – Aug ’20
+Technologies:NodeJS, MongoDB, GitHub, Visual Studio
+Role:Backend developer
+A responsive web app enhances project tracking for individual tenants with graphical reports for Talent Micro Private Limited
+in Bangalore. Available in fifty languages, including Arabic, it allows tenants to add projects and teams while tracking their
+status and documentation. Providing comprehensive project management records.
+Employee Leave and Salary Management System May ’20 – Jun ’20
+Technologies:React JS, React Hooks, Bootstrap, Redux, NodeJS, MongoDB, GitHub, Visual Studio
+Role:Full Stack Developer - Lead
+This system manages employee leave requests and automates salary generation. Employees apply for leave, which is ap-
+proved by their respective heads before processing. Salary and pay bills are generated based on approved leave types, with
+email notifications sent to all employees upon salary crediting.
+Automated Time Table Generation Mar ’20 – Apr ’20
+Technologies:React JS, React Hooks, Bootstrap, NodeJS, ExpressJS, MongoDB, GitHub
+Role:Full Stack Developer - Lead
+The Automatic Timetable Generation system, simplifying schedule creation for educational institutions. Contributed by de-
+signing algorithms and interfaces, integrating data sources, and conducting rigorous testing to ensure reliability and accuracy.
+The system automates timetable creation, considering resource availability, faculty preferences, and class timings, resulting
+in optimal scheduling for students and faculty while minimizing conflicts.
+Examination Report Generation Feb ’20 – Mar ’20
+Technologies:React JS, React Hooks, Bootstrap, NodeJS, ExpressJS, MongoDB, GitHub
+Role:Full Stack Developer
+A comprehensive web application for generating semester examination reports in universities, featuring distinct logins for
+admins, students, and faculty. Admins upload subject information, while faculty input student marks, assessments, and
+syllabus details, including CO’s and PO’s, via Excel. Students provide feedback used for internal evaluation in report
+generation.
+BGMI Tournaments Jan ’20 – Feb ’20
+Technologies:React JS, React Hooks, Bootstrap, NodeJS, ExpressJS, MongoDB, GitHub
+Role:Full Stack Developer
+A webpage to conduct online tournaments for any kind of events or occasions. I chose BGMI as reference and designed an
+responsive webpage to get registrations for the tournament.

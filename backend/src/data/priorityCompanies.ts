@@ -13,22 +13,23 @@ export const FAANG_MANGO_COMPANIES: CompanyTarget[] = [
     name: 'Google',
     tier: 'faang',
     searchUrl:
-      'https://www.google.com/about/careers/applications/jobs/results?q=software%20engineering%20intern%202027&location=United%20States',
+      'https://www.google.com/about/careers/applications/jobs/results/?q=software%20engineering%20intern%202027&location=United%20States',
   },
   {
     name: 'Meta',
     tier: 'faang',
-    searchUrl: 'https://www.metacareers.com/jobs?q=software%20engineering%20intern%20summer%202027',
+    searchUrl: 'https://www.metacareers.com/jobs?q=software%20engineer%20intern%20summer%202027',
   },
   {
     name: 'Amazon',
     tier: 'faang',
-    searchUrl: 'https://www.amazon.jobs/en/search?base_query=software%20engineering%20intern%202027',
+    searchUrl:
+      'https://www.amazon.jobs/en/search?base_query=software%20development%20engineer%20intern%202027&loc_query=United%20States',
   },
   {
     name: 'Apple',
     tier: 'faang',
-    searchUrl: 'https://jobs.apple.com/en-us/search?search=software%20engineering%20intern%20summer%202027',
+    searchUrl: 'https://jobs.apple.com/en-us/search?team=internships-STDNT-INTRN',
   },
   {
     name: 'Netflix',
@@ -39,7 +40,7 @@ export const FAANG_MANGO_COMPANIES: CompanyTarget[] = [
     name: 'Microsoft',
     tier: 'mango',
     searchUrl:
-      'https://apply.careers.microsoft.com/careers?query=software%20engineering%20intern%20summer%202027&start=0&location=United%20States',
+      'https://apply.careers.microsoft.com/careers?query=intern&start=0&location=United+States',
   },
   {
     name: 'Nvidia',
@@ -104,7 +105,8 @@ export const EXTENDED_CAREER_COMPANIES: CompanyTarget[] = [
   {
     name: 'Databricks',
     tier: 'standard',
-    searchUrl: 'https://www.databricks.com/company/careers/open-positions?department=University&location=all',
+    searchUrl:
+      'https://www.databricks.com/company/careers/open-positions?department=University&location=United%20States',
   },
   {
     name: 'Snowflake',

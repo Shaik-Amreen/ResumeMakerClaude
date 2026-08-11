@@ -1,0 +1,30 @@
+import mongoose from 'mongoose';
+import { config } from './src/config';
+import { scrapeAtsBoards } from './src/services/atsScraper';
+import Job from './src/models/Job';
+
+async function main() {
+  await mongoose.connect(config.mongoUri);
+  console.log('Connected to', config.mongoUri);
+
+  // Temporarily shrink to 1 board each for a fast smoke test
+  config.ats.greenhouseBoards = [{ slug: 'stripe', company: 'Stripe' }];
+  config.ats.leverBoards = [{ slug: 'palantir', company: 'Palantir' }];
+  (config.pipeline as unknown as { perSourceCap: number }).perSourceCap = 5;
+
+  const ids = await scrapeAtsBoards('fulltime');
+  console.log(`\nSaved ${ids.length} job(s):`, ids);
+
+  const jobs = await Job.find({ _id: { $in: ids } }).lean();
+  for (const j of jobs) {
+    console.log(`- [${j.source}] ${j.title} @ ${j.company} (${j.jobType}, ${j.location}) -> ${j.url}`);
+    console.log(`  JD length: ${j.jobDescription.length}, has tags: ${/<[a-z]/i.test(j.jobDescription)}`);
+  }
+
+  await mongoose.disconnect();
+}
+
+main().catch((err) => {
+  console.error('FAILED:', err);
+  process.exit(1);
+});

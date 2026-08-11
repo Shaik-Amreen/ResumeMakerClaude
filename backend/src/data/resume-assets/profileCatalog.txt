@@ -1,0 +1,62 @@
+DETAILED CAREER CATALOG (truth source for deeper bullets / older roles / projects).
+Use ONLY for factual background when tailoring. Visual design MUST still match amazonResumeTemplate.tex / amazon.pdf.
+Do NOT invent beyond this catalog + amazon template. Prefer amazon.pdf section structure for output.
+
+CONTACT:
+- Name: Amreen Kousar
+- Email: AmreenKousar.Shaik01@student.csulb.edu
+- Phone: +1 562-269-6008
+- Location: Long Beach, California (Open to Relocate)
+- LinkedIn: https://www.linkedin.com/in/amreen-kousar
+
+WORK EXPERIENCE (verified):
+1. Senior Software Engineer — AMD -- Infobell IT Solutions Pvt Ltd — Bangalore, India — 03/2024 -- 12/2025
+   - Vue.js, React.js, Node.js; 10K+ enterprise users
+   - CI/CD GitLab + AWS; 40% faster deploys; zero-downtime
+   - REST APIs / DB optimization; 35% faster response
+   - Agile/Jira; reusable UI + backend integrations
+
+2. Full Stack Developer — Infobell IT Solutions Pvt Ltd — Bangalore, India — 01/2023 -- 03/2024
+   - React Native App Store / Play Store; 99.5% uptime
+   - React.js + Redux; Firebase notifications/auth; +30% engagement
+   - MongoDB schemas; mentored juniors
+
+3. MEAN Stack Developer Intern — Redbee 365 Studio Pvt Ltd — Chennai (Remote) — 09/2022 -- 12/2022
+   - Angular, Node, Express, MongoDB warehouse app from Figma
+   - 25% faster APIs via indexing
+
+4. React Native Developer Intern — Earthetic — Bangalore (Remote) — 07/2022 -- 10/2022
+   - React Native CLI iOS/Android; dynamic UI; e-commerce; Figma
+
+5. MERN Stack Developer Intern — Yes Real Technologies Pvt Ltd — Bangalore (Remote) — 01/2022 -- 06/2022
+   - MERN college ERP; auth, data management, APIs
+
+6. Backend Developer Intern — Hirecraft — Bangalore (Remote) — 07/2020 -- 08/2020
+   - Node.js + MongoDB project tracking; 50+ languages; graphical reports
+
+ALSO REQUIRED ON AMAZON-STYLE OUTPUT:
+- Web Developer (Part-Time), Associated Students Inc. (ASI), CSULB, Apr 2026 -- Present
+
+SKILLS CATALOG (pick/align to JD; put languages in Skills section):
+Languages: JavaScript, TypeScript, ES6, Python, SQL, HTML5, CSS3 (+ Java, Go, C++, PHP as in amazon template when JD needs)
+Frontend: React.js, Angular, Next.js, Vue.js, React Native, Redux, Bootstrap, Material-UI, Tailwind CSS
+Backend: Node.js, Express.js, Nest.js, Flask, REST, GraphQL, Apollo, Microservices
+Databases: MongoDB, PostgreSQL
+Mobile: React Native CLI, Android Studio, Xcode, Firebase
+Cloud/DevOps: AWS (EC2, S3, …), GitOps, CI/CD, Docker
+API Tools: Swagger, Postman, GraphQL Playground
+Testing: JMeter, manual/performance/load testing
+VC/PM: GitHub, GitLab, Jira, Notion, Zoho Sheet, Slack
+AI/ML: AI integration, ML implementation, Amazon Bedrock, LangGraph (AWS AI Summer Camp Jul 2026)
+
+KEY / DETAILED PROJECTS (verified — pick top 5 from FULL pool in projectPool.txt; ≥3 must be LINKED):
+LINKED: NativeNest (https://nativenest.in), Origem India (https://www.origemindia.com), B4IGO (https://www.b4igo.com), ASI ADP Job Alerts (https://adp-scraper-vercel.vercel.app/), Upturn (https://www.upturn.io), Arikya (https://arikya.com)
+NO-LINK (still valid): AWS AI Summer Camp / AI-Assisted Technology Review Workflow (Bedrock, LangGraph, agents), Benchmark Automation, GSI Sales, NextZen ERP HRMS, Nova Physician, Buzz Staff Women, BookingBee, Dynamic Ecommerce, College ERP / Feedback / Exam fee / Digital library / Admission / Recruitment, Smart India Hackathon (AI Slum Control, Agri-Farm), Exam Hall seating, MS Teams attendance, Task Forz, Leave/Salary, Timetable, Exam reports, BGMI tournaments
+- Never invent URLs. For AI/agents/LLM JDs include AWS AI Summer Camp AND still keep ≥3 LINKED.
+
+EDUCATION:
+- MS Computer Science, CSULB — Graduation May 2027 (full-time) / Jan 2028 (internship resumes)
+- B.Tech CSE, JNTU Anantapur -- MITS, GPA 3.69/4.0, Aug 2019 -- May 2023
+
+CERTIFICATIONS: HackerRank Frontend React, JS, Python, Problem Solving, SQL; Coding Ninjas Code Kaze 2022
+PUBLICATION: Fake News Detection NLP/ML, ICCTDC 2025, IEEE DOI https://doi.org/10.1109/ICCTDC64446.2025.11158216

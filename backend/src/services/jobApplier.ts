@@ -3,7 +3,11 @@ import { applyLinkedInJob } from './linkedinApplier';
 import { applyExternalJob } from './externalApplier';
 
 function usesLinkedInEasyApply(url: string): boolean {
-  return url.includes('linkedin.com/jobs') || url.includes('linkedin.com/job');
+  return /linkedin\.com\/(jobs|job)/i.test(url);
+}
+
+export function isLinkedInEasyApplyUrl(url: string): boolean {
+  return usesLinkedInEasyApply(url);
 }
 
 /**

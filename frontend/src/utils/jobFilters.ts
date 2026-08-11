@@ -1,12 +1,25 @@
 import type { Job, JobStatus } from '../types';
 
-export type JobSource = 'jobright' | 'linkedin' | 'indeed' | 'career_portal' | 'other';
+export type JobSource =
+  | 'jobright'
+  | 'linkedin'
+  | 'indeed'
+  | 'career_portal'
+  | 'greenhouse'
+  | 'lever'
+  | 'github'
+  | 'company_portal'
+  | 'other';
 
 export const PLATFORM_LABELS: Record<JobSource, string> = {
   jobright: 'Jobright',
   linkedin: 'LinkedIn',
   indeed: 'Indeed',
-  career_portal: 'Career Portal',
+  career_portal: 'Google',
+  greenhouse: 'Greenhouse',
+  lever: 'Lever',
+  github: 'GitHub list',
+  company_portal: 'Company portal',
   other: 'Other',
 };
 
@@ -74,14 +87,14 @@ export function formatPostedOnPlatform(job: Job): string | undefined {
 
 export function formatScrapedOn(job: Job): string {
   const platform = platformLabel(job.platform || job.source);
-  const when = new Date(job.createdAt).toLocaleDateString('en-US', {
+  const when = new Date(job.createdAt).toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
   });
-  return `Scraped from ${platform}: ${when}`;
+  return `Scraped on ${when} · ${platform}`;
 }
 
 export type SortOption =
@@ -114,7 +127,7 @@ export const DEFAULT_FILTERS: JobFilters = {
   jobType: 'all',
   hasApplicants: 'all',
   hasPosted: 'all',
-  sort: 'priority',
+  sort: 'newest',
 };
 
 function parseApplicantCount(text?: string): number {
@@ -137,7 +150,12 @@ export function filterAndSortJobs(jobs: Job[], filters: JobFilters): Job[] {
       if (!hay.includes(q)) return false;
     }
     if (filters.source !== 'all' && job.source !== filters.source) return false;
-    if (filters.status !== 'all' && job.status !== filters.status) return false;
+    if (filters.status === 'all') {
+      // Keep closed / chrome-JD rows out of the default inbox
+      if (job.status === 'invalid_job') return false;
+    } else if (job.status !== filters.status) {
+      return false;
+    }
     if (filters.priority === 'faang' && job.priority !== 'faang') return false;
     if (filters.priority === 'standard' && job.priority === 'faang') return false;
     if (filters.jobType !== 'all' && job.jobType !== filters.jobType) return false;
@@ -199,10 +217,15 @@ export function filterAndSortJobs(jobs: Job[], filters: JobFilters): Job[] {
 }
 
 export const STATUS_OPTIONS: { value: JobStatus | 'all'; label: string }[] = [
-  { value: 'all', label: 'All statuses' },
+  { value: 'all', label: 'All (hide invalid)' },
   { value: 'scraped', label: 'Scraped' },
   { value: 'resume_generated', label: 'Resume generated' },
   { value: 'pdf_uploaded', label: 'PDF uploaded' },
   { value: 'applied', label: 'Applied' },
+  { value: 'assessment', label: 'Assessment' },
+  { value: 'interview', label: 'Interview' },
+  { value: 'confused_hold', label: 'Confused - Hold' },
+  { value: 'invalid_job', label: 'Invalid job' },
+  { value: 'accepted', label: 'Accepted' },
   { value: 'failed', label: 'Failed / skipped' },
 ];
