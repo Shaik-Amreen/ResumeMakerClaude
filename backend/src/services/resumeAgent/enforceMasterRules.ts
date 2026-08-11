@@ -388,20 +388,130 @@ function capKeyProjects(latex: string, maxProjects = 5): string {
   return latex.replace(m[0], rebuilt);
 }
 
+/** Locked Work Experience headers — titles / companies / dates / locations never change. */
+export const CANONICAL_EXPERIENCE_HEADERS = [
+  '\\textbf{Software Engineer Intern} \\hfill \\uline{\\textbf{Amazon - Bellevue, WA}} \\hfill \\hspace{0.1em} \\textbf{05/2026 - 08/2026}',
+  '\\textbf{Software Engineer} \\hfill \\uline{\\textbf{Associated Students, Inc. - CSULB}} \\hfill \\hspace{0.1em} \\textbf{02/2025 - Present}',
+  '\\textbf{Software Engineer} \\hfill \\uline{\\textbf{Infobell IT Solutions Pvt Ltd}} \\hfill \\hspace{0.1em} \\textbf{01/2023 - 01/2025}',
+] as const;
+
+const FAKE_EMPLOYER_SCRUBS: Array<[RegExp, string]> = [
+  [/Advanced\s+Systems\s+Inc\.?/gi, 'Associated Students, Inc.'],
+  [/\bRedbee(?:\s+(?:Technologies|365(?:\s+Studio)?))?\b/gi, ''],
+];
+
+/**
+ * Rewrite every Work Experience job header to the locked Amazon → ASI → Infobell lines.
+ * Keeps model bullets; strips invented employers/dates (e.g. Jan 2024 Amazon, Advanced Systems Inc).
+ */
+export function forceCanonicalExperienceHeaders(latex: string): string {
+  const sectionRe =
+    /(\\section\{\\textbf\{Work Experience\}\}\s*(?:\\vspace\{[^}]+\})?\s*)([\s\S]*?)(?=\\section\{\\textbf\{Skills\}\}|\\section\{\\textbf\{Key Projects\}\}|\\end\{document\})/i;
+  const m = latex.match(sectionRe);
+  if (!m) return latex;
+
+  const head = m[1];
+  let body = m[2];
+
+  for (const [re, replacement] of FAKE_EMPLOYER_SCRUBS) {
+    body = body.replace(re, replacement);
+  }
+
+  // Split into job blocks: optional header line(s) + itemize
+  const blocks: string[] = [];
+  const itemizeRe = /([\s\S]*?)(\\begin\{itemize\}[\s\S]*?\\end\{itemize\})/gi;
+  let match: RegExpExecArray | null;
+  let consumed = 0;
+  while ((match = itemizeRe.exec(body)) !== null) {
+    const preamble = match[1].trim();
+    const itemize = match[2];
+    blocks.push(`${preamble}\n${itemize}`.trim());
+    consumed = match.index + match[0].length;
+  }
+  const trailing = body.slice(consumed).trim();
+
+  if (!blocks.length) return latex;
+
+  const rebuilt: string[] = [];
+  const n = Math.min(blocks.length, CANONICAL_EXPERIENCE_HEADERS.length);
+  for (let i = 0; i < n; i++) {
+    const itemizeMatch = blocks[i].match(/(\\begin\{itemize\}[\s\S]*?\\end\{itemize\})/i);
+    const itemize = itemizeMatch ? itemizeMatch[1] : beginItemize() + '\n\\item \n\\end{itemize}';
+    rebuilt.push(`${CANONICAL_EXPERIENCE_HEADERS[i]}\n${itemize}`);
+  }
+  // Drop extra invented employers beyond the three locked roles
+  if (trailing && !/\\begin\{itemize\}/i.test(trailing)) {
+    /* ignore orphan text */
+  }
+
+  const newBody = `${rebuilt.join('\n\n')}\n\n`;
+  return latex.replace(sectionRe, `${head}${newBody}`);
+}
+
+/** Locked Education block — models must not invent schools (e.g. San Jose State). */
+export const CANONICAL_EDUCATION_BLOCK = `\\section{\\textbf{Education}}
+\\vspace{2pt}
+\\textbf{M.S. in Computer Science (3.67/4)} \\hfill \\uline{\\textbf{California State University, Long Beach}} \\hfill \\textit{Long Beach, CA, USA} \\hspace{0.1em} \\textbf{01/2025 - 01/2027}\\\\
+\\textbf{B.Tech in Computer Science (3.60/4)} \\hfill \\uline{\\textbf{JNTU Anantapur - MITS}} \\hfill \\textit{Andhra Pradesh, India} \\hspace{0.1em} \\textbf{08/2019 - 05/2023}
+`;
+
+const FAKE_SCHOOL_PATTERNS: Array<[RegExp, string]> = [
+  [/San\s*Jose\s*State\s*University/gi, 'California State University, Long Beach'],
+  [/\bSJSU\b/g, 'CSULB'],
+  [/San\s*Jos[eé]\s*State/gi, 'California State University, Long Beach'],
+];
+
+/**
+ * Replace the entire Education section with the locked CSULB + JNTU block.
+ * Also scrub leftover fake school names anywhere in the doc.
+ */
+export function forceCanonicalEducation(latex: string): string {
+  let out = latex;
+  if (/\\section\{\\textbf\{Education\}\}/i.test(out)) {
+    out = out.replace(
+      /\\section\{\\textbf\{Education\}\}[\s\S]*?(?=\\section\{\\textbf\{Certifications\}\}|\\end\{document\})/i,
+      `${CANONICAL_EDUCATION_BLOCK}\n\n`
+    );
+  } else if (/\\section\{\\textbf\{Certifications\}\}/i.test(out)) {
+    out = out.replace(
+      /\\section\{\\textbf\{Certifications\}\}/i,
+      `${CANONICAL_EDUCATION_BLOCK}\n\n\\section{\\textbf{Certifications}}`
+    );
+  } else {
+    out = out.replace(/\\end\{document\}/i, `${CANONICAL_EDUCATION_BLOCK}\n\n\\end{document}`);
+  }
+
+  for (const [re, replacement] of FAKE_SCHOOL_PATTERNS) {
+    out = out.replace(re, replacement);
+  }
+  // Location that often accompanies invented SJSU
+  out = out.replace(
+    /(\\textit\{)\s*San\s*Jos[eé],\s*CA(?:,\s*USA)?\s*(\})/gi,
+    '$1Long Beach, CA, USA$2'
+  );
+  return out;
+}
+
 /**
  * Apply mechanical guards on model LaTeX for Karthik template.
  * Keeps Open to Relocate + GPA (present in standard template).
  * Forces experience bullets onto one printed line; caps volume for 1 page.
+ * Locks Education to CSULB + JNTU (models must not invent schools).
+ * Locks Work Experience titles/companies/dates/locations (Amazon → ASI → Infobell).
  */
 export function enforceMasterRules(latex: string): string {
   let out = sanitizeResumeLatex(latex);
   out = stripRemovedEmployers(out);
+  out = forceCanonicalExperienceHeaders(out);
+  out = forceCanonicalEducation(out);
   out = normalizeKarthikTemplateLayout(out);
   out = enforceBulletCaps(out);
   out = capKeyProjects(out, 5);
   out = enforceSingleLineBullets(out);
   out = normalizeKarthikTemplateLayout(out); // re-apply itemize opts after bullet rewrite
   out = enforceCppSoleBackend(out);
+  out = forceCanonicalExperienceHeaders(out);
+  out = forceCanonicalEducation(out); // re-lock after layout/bullet rewrites
   out = sanitizeResumeLatex(out);
   return out;
 }

@@ -20,6 +20,7 @@ import {
 import { extractLatexFromModelResponse } from './extractLatex';
 import { Agent, fetch as undiciFetch } from 'undici';
 import { makeTraceId, traceError, traceLog } from '../debugTrace';
+import { isPipelineAbortError } from '../pipelineAbort';
 
 export type { ResumeJobContext, PasteResumeContext, ResumeGenerationResult };
 
@@ -54,6 +55,7 @@ export async function generateResumeLatex(ctx: ResumeJobContext): Promise<Resume
       traceLog(traceId, 'agent.claude-code.start');
       return await generateResumeWithClaudeCode(ctx);
     } catch (err) {
+      if (isPipelineAbortError(err)) throw err;
       console.warn(`⚠️ Claude Code generation failed (${errMessage(err).slice(0, 150)}) — falling back to OmniRoute/OpenRouter…`);
       traceError(traceId, 'agent.claude-code.failed', err);
       try {
@@ -171,7 +173,7 @@ async function reviseWithOpenRouter(
         ].join('\n'),
       },
     ],
-    { temperature: Math.min(0.35, openRouter.temperature), traceId }
+    { temperature: Math.min(0.35, openRouter.temperature), traceId, signal: ctx.abortSignal }
   );
   const revised = extractLatexFromModelResponse(content);
   traceLog(traceId, 'openrouter.revise.done', { latexChars: revised.length });
@@ -198,6 +200,7 @@ export async function reviseResumeLatex(
       traceLog(traceId, 'agent.revise.claude-code.start');
       return await reviseResumeWithClaudeCode(ctx, latex, instruction);
     } catch (err) {
+      if (isPipelineAbortError(err)) throw err;
       console.warn(`⚠️ Claude Code revise failed (${errMessage(err).slice(0, 150)}) — falling back to OmniRoute/OpenRouter…`);
       traceError(traceId, 'agent.revise.claude-code.failed', err);
       try {

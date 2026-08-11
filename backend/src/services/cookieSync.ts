@@ -71,13 +71,15 @@ function decryptChromeCookieValue(encrypted: Buffer, key: Buffer): string | null
 /**
  * Copy Google/LinkedIn auth state from your daily Chrome profile into automation Chrome.
  * Close automation Chrome before calling. Daily Chrome can stay open for read-only cookie copy.
+ * sourceProfileDirectory and destProfileDirectory may differ (e.g. daily "Profile 7" → automation "Profile 1").
  */
 export function syncAuthFilesFromDailyChrome(
   sourceProfileDirectory: string,
-  automationUserDataDir: string
+  automationUserDataDir: string,
+  destProfileDirectory: string = sourceProfileDirectory
 ): boolean {
   const srcDir = path.join(DAILY_CHROME_USER_DATA, sourceProfileDirectory);
-  const dstDir = path.join(automationUserDataDir, sourceProfileDirectory);
+  const dstDir = path.join(automationUserDataDir, destProfileDirectory);
 
   if (!fs.existsSync(srcDir)) {
     console.error(`Daily Chrome profile not found: ${srcDir}`);
@@ -99,7 +101,9 @@ export function syncAuthFilesFromDailyChrome(
   }
 
   if (copied.length) {
-    console.log(`Synced auth files → automation (${sourceProfileDirectory}): ${copied.join(', ')}`);
+    console.log(
+      `Synced auth files → automation (${sourceProfileDirectory} → ${destProfileDirectory}): ${copied.join(', ')}`
+    );
     return true;
   }
 
@@ -184,7 +188,13 @@ export async function injectCookiesFromDailyChrome(
   }
 
   console.log(`Read ${cookies.length} cookies from ${sourceProfileDirectory} for ${domainKeyword}`);
-  if (!cookies.length) return false;
+  if (!cookies.length) {
+    // Still open the real target — career apply must not stay on about:blank
+    console.log(`No cookies for ${domainKeyword} — opening ${targetUrl} anyway`);
+    await driver.get(targetUrl);
+    await driver.sleep(2000);
+    return false;
+  }
 
   const seedUrl = domainKeyword.includes('.')
     ? `https://${domainKeyword}/robots.txt`
@@ -218,7 +228,23 @@ export async function injectCookiesFromDailyChrome(
 
 export async function syncOrangeSession(driver: WebDriver, targetUrl: string): Promise<void> {
   const { linkedin } = config;
-  await injectCookiesFromDailyChrome(driver, 'linkedin.com', targetUrl, linkedin.profileDirectory);
+  // LinkedIn cookie sync is optional; career/Workday applies only need the stored job URL opened.
+  // Cookies come from daily Chrome (sourceProfileDirectory), not the automation folder name.
+  try {
+    await injectCookiesFromDailyChrome(
+      driver,
+      'linkedin.com',
+      targetUrl,
+      linkedin.sourceProfileDirectory
+    );
+  } catch (err) {
+    console.warn(
+      'Orange cookie sync skipped:',
+      err instanceof Error ? err.message : String(err)
+    );
+    await driver.get(targetUrl);
+    await driver.sleep(2000);
+  }
 }
 
 export async function syncGreenSession(driver: WebDriver, targetUrl: string): Promise<void> {

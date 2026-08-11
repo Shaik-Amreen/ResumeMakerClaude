@@ -9,10 +9,17 @@ import { scrapeAtsBoards } from './atsScraper';
 import { scrapeFaangPriorityPortals } from './faangPortalScraper';
 import { scrapeGithubInternshipLists } from './githubInternshipScraper';
 import { scrapeSimplifyNewGradLists } from './simplifyListScraper';
+import { scrapeScoutifyJobs } from './scoutifyScraper';
 import { refreshExistingJobs } from './jobRefresher';
-import { deleteAllJobs, pruneNonSoftwareJobs, resetAllJobsToScraped } from './jobMaintenance';
+import {
+  deleteAllJobs,
+  pruneNonSoftwareJobs,
+  resetAllJobsToScraped,
+  normalizeJobSourceFilter,
+} from './jobMaintenance';
 import { runClaudeOnlyPipeline } from './pipelineService';
 import { shouldAbortScrape, withScrapeRun } from './scrapeContext';
+import { isPipelineAbortError, pipelineJobTimeoutMs } from './pipelineAbort';
 import { generateOutreachArtifacts } from './outreachService';
 import { autoApplyToJob, isLinkedInEasyApplyUrl } from './jobApplier';
 import {
@@ -26,6 +33,7 @@ import {
   setResumeProgress,
   setTaskError,
   setTaskPhase,
+  setTaskProgress,
   startTask,
 } from './taskStatusService';
 import Job from '../models/Job';
@@ -49,6 +57,17 @@ export function isScrapeRunning(): boolean {
     resumeBatchRunning ||
     resumePreparationRunning ||
     !isResumeQueueIdle() ||
+    isTaskActive()
+  );
+}
+
+/** Batch resume / scrape / pipeline / active task — excludes per-job enqueue idle check. */
+export function isBulkTaskRunning(): boolean {
+  return (
+    scrapeRunning ||
+    pipelineRunning ||
+    resumeBatchRunning ||
+    resumePreparationRunning ||
     isTaskActive()
   );
 }
@@ -99,21 +118,46 @@ export async function runResumePipelineQueue(
       previousResumePhase: job?.resumePhase,
     });
     try {
-      const JOB_TIMEOUT_MS = 5 * 60 * 1000;
-      let jobTimer: NodeJS.Timeout | undefined;
-      const jobTimeoutPromise = new Promise<never>((_, reject) => {
-        jobTimer = setTimeout(
-          () => reject(new Error(`Job resume generation timed out after ${JOB_TIMEOUT_MS / 60000}m`)),
-          JOB_TIMEOUT_MS
-        );
-      });
+      const jobAbort = new AbortController();
+      const jobTimeoutMs = pipelineJobTimeoutMs();
+      let stopPoll: ReturnType<typeof setInterval> | undefined;
+      let jobTimer: ReturnType<typeof setTimeout> | undefined;
+
+      stopPoll = setInterval(() => {
+        if (shouldAbortScrape()) {
+          jobAbort.abort('Stop requested by user');
+        }
+      }, 500);
+
+      jobTimer = setTimeout(() => {
+        jobAbort.abort(`Job resume generation timed out after ${Math.round(jobTimeoutMs / 60000)}m`);
+      }, jobTimeoutMs);
+
       try {
-        await Promise.race([runResumePipeline(jobIds[i]), jobTimeoutPromise]);
+        await runResumePipeline(jobIds[i], traceId, { signal: jobAbort.signal });
       } finally {
+        if (stopPoll) clearInterval(stopPoll);
         if (jobTimer) clearTimeout(jobTimer);
       }
       traceLog(traceId, 'batch.job.done', { index: i + 1, total });
     } catch (err) {
+      if (isPipelineAbortError(err)) {
+        const msg = err.message;
+        const isUserStop = msg.includes('Stop requested');
+        if (isUserStop) {
+          appendTaskLog(`⏹ Resume ${i + 1}/${total} cancelled — ${msg}`);
+          traceLog(traceId, 'batch.job.cancelled', { index: i + 1, total, reason: msg });
+          appendTaskLog(`Resume queue stopped at ${i + 1}/${total}`);
+          traceLog(batchTraceId, 'batch.stop-requested', { index: i + 1, total });
+          break;
+        } else {
+          failed += 1;
+          console.error(`Resume ${i + 1}/${total} failed:`, err);
+          appendTaskLog(`❌ Resume ${i + 1}/${total} failed: ${msg.slice(0, 180)}`);
+          traceError(traceId, 'batch.job.failed', err, { index: i + 1, total });
+        }
+        continue;
+      }
       failed += 1;
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`Resume ${i + 1}/${total} failed:`, err);
@@ -145,42 +189,47 @@ export async function runResumePipelineQueue(
 /**
  * Jobs eligible for the "Generate resumes" batch:
  * - scraped (never attempted)
- * - failed with resumePhase failed (prior generation failed — retry)
- * Does not pick active resume_generating jobs, apply failures, or manually
- * skipped jobs that already have a done resume.
+ * - failed (any resumePhase) — prior hard failures
+ * - resume_generated + resumePhase failed — e.g. 2-page PDF after auto-repair
+ * Does not pick active in-flight resume_generating, approval-ready PDFs, or applied.
+ * Optional `source` limits to one scrape platform (e.g. scoutify).
  */
-export function resumeQueueJobFilter(): Record<string, unknown> {
-  return {
+export function resumeQueueJobFilter(source?: string | null): Record<string, unknown> {
+  const filter: Record<string, unknown> = {
     jobType: 'fulltime',
     $or: [
       { status: 'scraped' },
-      { status: 'failed', resumePhase: 'failed' },
+      { status: 'failed' },
+      { status: 'resume_generated', resumePhase: 'failed' },
     ],
   };
+  const normalized = normalizeJobSourceFilter(source);
+  if (normalized) filter.source = normalized;
+  return filter;
 }
 
-async function recoverStaleResumeGeneratingJobs(): Promise<number> {
+async function recoverStaleResumeGeneratingJobs(source?: string | null): Promise<number> {
   const staleCutoff = new Date(Date.now() - STALE_RESUME_GENERATING_MS);
-  const result = await Job.updateMany(
-    {
-      jobType: 'fulltime',
-      status: 'resume_generating',
-      updatedAt: { $lt: staleCutoff },
+  const filter: Record<string, unknown> = {
+    jobType: 'fulltime',
+    status: 'resume_generating',
+    updatedAt: { $lt: staleCutoff },
+  };
+  const normalized = normalizeJobSourceFilter(source);
+  if (normalized) filter.source = normalized;
+  const result = await Job.updateMany(filter, {
+    $set: {
+      status: 'failed',
+      resumePhase: 'failed',
+      pendingAction: null,
+      errorMessage: 'Resume generation was abandoned or server restarted before completion.',
+      approvalNote: 'Stale resume generation reset. It will be retried by batch generation.',
     },
-    {
-      $set: {
-        status: 'failed',
-        resumePhase: 'failed',
-        pendingAction: null,
-        errorMessage: 'Resume generation was abandoned or server restarted before completion.',
-        approvalNote: 'Stale resume generation reset. It will be retried by batch generation.',
-      },
-    }
-  );
+  });
   const modified = result.modifiedCount || 0;
   if (modified > 0) {
     appendTaskLog(`Reset ${modified} stale resume generation(s) for retry.`);
-    traceLog('resume-recovery', 'stale-reset', { modified });
+    traceLog('resume-recovery', 'stale-reset', { modified, source: normalized || 'all' });
   }
   return modified;
 }
@@ -189,43 +238,58 @@ async function recoverStaleResumeGeneratingJobs(): Promise<number> {
 export async function runResumesForScrapedJobs(options?: {
   limit?: number;
   withOutreach?: boolean;
+  source?: string;
 }) {
   if (scrapeRunning || pipelineRunning || resumeBatchRunning) {
     throw new Error('Another scrape, pipeline, or resume batch is already running.');
   }
   resumeBatchRunning = true;
   clearStopRequest();
-  startTask('generating_resumes', 'Preparing the sequential resume queue…');
+  const source = normalizeJobSourceFilter(options?.source);
+  const sourceLabel = source ? ` (${source})` : '';
+  startTask('generating_resumes', `Preparing the sequential resume queue${sourceLabel}…`);
   const traceId = makeTraceId('batch-start');
   traceLog(traceId, 'runResumesForScrapedJobs.start', {
     limit: options?.limit,
     withOutreach: options?.withOutreach,
+    source: source || 'all',
   });
 
   const limit = options?.limit && options.limit > 0 ? options.limit : 0;
   try {
-    await recoverStaleResumeGeneratingJobs();
-    const query = Job.find(resumeQueueJobFilter()).sort({ createdAt: 1 });
-    const jobs = limit ? await query.limit(limit) : await query;
+    await recoverStaleResumeGeneratingJobs(source);
+    // Newest first so recent scrapes (usually cleaner JDs) run before old leftovers.
+    // Prefer jobs that actually have a JD body — empty JD wastes the whole batch slot.
+    const query = Job.find({
+      ...resumeQueueJobFilter(source),
+      jobDescription: { $exists: true, $type: 'string', $ne: '' },
+    }).sort({ createdAt: -1 });
+    let jobs = limit ? await query.limit(Math.max(limit * 3, limit)).exec() : await query.exec();
+    jobs = jobs.filter((j) => String(j.jobDescription || '').trim().length >= 80);
+    if (limit > 0) jobs = jobs.slice(0, limit);
     const jobIds = jobs.map((j) => j.id);
-    traceLog(traceId, 'runResumesForScrapedJobs.selected', { count: jobIds.length });
+    traceLog(traceId, 'runResumesForScrapedJobs.selected', { count: jobIds.length, source: source || 'all' });
 
     if (!jobIds.length) {
-      finishTask('No scraped or failed jobs waiting for resume generation.');
+      finishTask(
+        source
+          ? `No ${source} jobs waiting for resume generation.`
+          : 'No scraped or failed jobs waiting for resume generation.'
+      );
       traceLog(traceId, 'runResumesForScrapedJobs.none');
       return { count: 0 };
     }
 
     setTaskPhase(
       'resumes',
-      `Generating ${jobIds.length} resume(s) (scraped + failed retries, one by one)…`
+      `Generating ${jobIds.length} resume(s)${sourceLabel} (scraped + failed retries, one by one)…`
     );
     await runResumePipelineQueue(jobIds, options?.withOutreach ?? false);
     if (shouldAbortScrape()) {
       abortTask(`Stopped — processed ${jobIds.length} resume slot(s) before stop.`);
       traceLog(traceId, 'runResumesForScrapedJobs.aborted');
     } else {
-      finishTask(`Resume queue complete — ${jobIds.length} job(s) processed.`);
+      finishTask(`Resume queue complete — ${jobIds.length} job(s) processed${sourceLabel}.`);
       traceLog(traceId, 'runResumesForScrapedJobs.finished', { count: jobIds.length });
     }
     return { count: jobIds.length };
@@ -281,7 +345,8 @@ async function runSingleSourceScrape(
     | 'scraping_career_portals'
     | 'scraping_faang_portals'
     | 'scraping_github_lists'
-    | 'scraping_ats',
+    | 'scraping_ats'
+    | 'scraping_scoutify',
   label: string,
   cap: number,
   fn: () => Promise<string[]>
@@ -375,10 +440,19 @@ export function runScrapeAts(cap?: number, jobType: 'internship' | 'fulltime' = 
   );
 }
 
+/** Scoutify public browse feed — latest US eng roles, no browser. */
+export function runScrapeScoutify(cap?: number, jobType: 'internship' | 'fulltime' = 'fulltime') {
+  const limit = cap ?? config.pipeline.perSourceCap;
+  return runSingleSourceScrape('scraping_scoutify', 'Scoutify', limit, () =>
+    scrapeScoutifyJobs([], jobType)
+  );
+}
+
 export interface MasterPipelineResult {
   deleted: number;
   faangPortals: number;
   githubLists: number;
+  scoutify: number;
   jobright: number;
   linkedin: number;
   careerPortals: number;
@@ -421,6 +495,7 @@ export async function runMasterPipeline(options?: {
       deleted,
       faangPortals: 0,
       githubLists: 0,
+      scoutify: 0,
       jobright: 0,
       linkedin: 0,
       careerPortals: 0,
@@ -462,30 +537,36 @@ export async function runMasterPipeline(options?: {
       return [...fromGithub, ...fromSimplify];
     });
 
-    // Phase 3 — Jobright
+    // Phase 3 — Scoutify (public realtime feed, US eng / full-time / YOE capped)
+    const scoutifyNew = await runPhase('scoutify', 'Scoutify', () =>
+      scrapeScoutifyJobs([], jobType)
+    );
+
+    // Phase 4 — Jobright
     const jobrightNew = await runPhase('jobright', 'Jobright', () =>
       scrapeJobrightJobs([], jobType)
     );
 
-    // Phase 4 — LinkedIn
+    // Phase 5 — LinkedIn
     const linkedinNew = await runPhase('linkedin', 'LinkedIn', () =>
       scrapeLinkedInJobs([], jobType)
     );
 
-    // Phase 5 — Indeed
+    // Phase 6 — Indeed
     const indeedNew = await runPhase('indeed', 'Indeed', () => scrapeIndeedJobs([], jobType));
 
-    // Phase 6 — Google Jobs
+    // Phase 7 — Google Jobs
     const portalNew = await runPhase('portals', 'Google Jobs', () =>
       scrapePriorityCareerPortals(jobType)
     );
 
-    // Phase 7 — ATS boards
+    // Phase 8 — ATS boards
     const atsNew = await runPhase('ats', 'ATS boards', () => scrapeAtsBoards(jobType));
 
     const allNew = [
       ...faangNew,
       ...githubNew,
+      ...scoutifyNew,
       ...jobrightNew,
       ...linkedinNew,
       ...indeedNew,
@@ -500,7 +581,7 @@ export async function runMasterPipeline(options?: {
     const total = allNew.length;
     const summary =
       `Pipeline done — ${total}/${totalCap} job(s). FAANG ${faangNew.length}, GitHub ${githubNew.length}, ` +
-      `Jobright ${jobrightNew.length}, LinkedIn ${linkedinNew.length}, Indeed ${indeedNew.length}, ` +
+      `Scoutify ${scoutifyNew.length}, Jobright ${jobrightNew.length}, LinkedIn ${linkedinNew.length}, Indeed ${indeedNew.length}, ` +
       `Google ${portalNew.length}, ATS ${atsNew.length}.`;
 
     if (shouldAbortScrape()) abortTask(`Stopped. ${summary}`);
@@ -510,6 +591,7 @@ export async function runMasterPipeline(options?: {
       deleted,
       faangPortals: faangNew.length,
       githubLists: githubNew.length,
+      scoutify: scoutifyNew.length,
       jobright: jobrightNew.length,
       linkedin: linkedinNew.length,
       careerPortals: portalNew.length + indeedNew.length,
@@ -528,7 +610,7 @@ export async function runMasterPipeline(options?: {
 }
 
 /**
- * LinkedIn Easy Apply one-by-one for ready resumes.
+ * LinkedIn Easy Apply one-by-one for ready resumes (fallback path).
  * Skips FAANG/MANGO. Pauses in UI for message + Submit approval.
  */
 export async function runLinkedInApplyQueue(limit = 50): Promise<number> {
@@ -566,6 +648,73 @@ export async function runLinkedInApplyQueue(limit = 50): Promise<number> {
 
   appendTaskLog(`LinkedIn apply queue finished — ${started} job(s) processed.`);
   return started;
+}
+
+/**
+ * Career-page / ATS apply queue (primary). One at a time on orange Chrome.
+ * Prefers Greenhouse/Lever/Ashby/Workday/company URLs; skips LinkedIn + FAANG.
+ * Pauses at final Submit for your approval.
+ */
+export async function runCareerApplyQueue(limit = 20): Promise<number> {
+  if (scrapeRunning || pipelineRunning) {
+    throw new Error('Another pipeline task is already running.');
+  }
+
+  pipelineRunning = true;
+  startTask('applying_career', 'Career-page apply queue…', 'apply');
+  clearStopRequest();
+  noteManualActivity();
+
+  try {
+    const jobs = await Job.find({
+      priority: { $ne: 'faang' },
+      pdfPath: { $exists: true, $nin: [null, ''] },
+      status: { $in: ['pdf_uploaded', 'resume_generated', 'confused_hold'] },
+      url: { $not: /linkedin\.com\/(jobs|job)/i },
+      jobType: 'fulltime',
+    })
+      .sort({ createdAt: 1 })
+      .limit(limit);
+
+    setTaskProgress(0, jobs.length, `Career apply 0/${jobs.length}`);
+    let started = 0;
+
+    for (let i = 0; i < jobs.length; i += 1) {
+      if (shouldAbortScrape()) break;
+      const job = jobs[i];
+
+      if (job.status === 'resume_generated') {
+        job.status = 'pdf_uploaded';
+        job.pendingAction = null;
+      }
+      job.approvalNote =
+        'Starting career-page apply — review Chrome, then Approve Submit in the tracker.';
+      await job.save();
+
+      appendTaskLog(`🏢 Career apply: ${job.title} @ ${job.company}`);
+      setTaskProgress(i + 1, jobs.length, `Career apply ${i + 1}/${jobs.length}`);
+      try {
+        await autoApplyToJob(job.id);
+        started += 1;
+      } catch (err) {
+        console.error(`Career apply failed for ${job.id}:`, err);
+        appendTaskLog(
+          `Career apply failed: ${job.title} — ${err instanceof Error ? err.message : err}`
+        );
+      }
+    }
+
+    const msg = `Career apply queue finished — ${started} job(s) processed.`;
+    finishTask(msg);
+    return started;
+  } catch (err) {
+    setTaskError(err);
+    throw err;
+  } finally {
+    pipelineRunning = false;
+    clearStopRequest();
+    noteManualActivity();
+  }
 }
 
 export async function runScrapeOnly() {
@@ -629,10 +778,16 @@ export function enqueueSingleClaude(jobId: string) {
 }
 
 export function enqueueSingleResume(jobId: string) {
+  if (resumeBatchRunning || resumePreparationRunning) {
+    throw new Error('A resume batch is already running. Stop it or wait, then retry this job.');
+  }
   return enqueueResume(jobId);
 }
 
 export function enqueueSingleOllamaResume(jobId: string) {
+  if (resumeBatchRunning || resumePreparationRunning) {
+    throw new Error('A resume batch is already running. Stop it or wait, then retry this job.');
+  }
   return enqueueResume(jobId);
 }
 

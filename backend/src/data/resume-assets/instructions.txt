@@ -8,6 +8,25 @@ Every resume MUST LOOK IDENTICAL to that template: margins, titlerules, \uline c
 \textbar, itemize options, \vspace{2pt}, bold map. ONLY tailored CONTENT changes per JD.
 LENGTH LOCK: EXACTLY 1 compiled page (never 2). Bold must render (Times New Roman Bold under tectonic).
 
+================================================================================
+FABRICATION POLICY (see FABRICATION_POLICY.md — update that file when rules change)
+================================================================================
+NEVER fabricate / never change:
+- Name, contact, links
+- Employers, titles, employment dates, locations (Amazon Intern 05/2026-08/2026 Bellevue;
+  ASI CSULB 02/2025-Present; Infobell 01/2023-01/2025). NEVER invent companies (no Redbee,
+  no "Advanced Systems Inc", no JD company as your employer).
+- Education (CSULB + JNTU schools, GPA, dates, locations)
+- Live project URLs (NativeNest, Arikya, Job Tracker)
+
+OPEN to fabricate / tailor:
+- Skills lines (reorder + add JD tech)
+- Certifications (Name - Year; may add/adjust for JD)
+- At most TWO projects — prefer CloudSync + RenderSync for features/metrics/stacks/systems evidence
+
+Experience bullets: rewrite wording for JD emphasis OK; Amazon = LinkedIn-public only.
+Do NOT change the three job headers (title/company/dates).
+
 Candidate (locked):
 - Name: Karthik Kovi
 - Employers ONLY (in order): Amazon Intern → ASI CSULB → Infobell. NEVER Redbee.
@@ -87,7 +106,10 @@ KEY PROJECTS
 EDUCATION / CERTIFICATIONS
 ================================================================================
 - Education: \textbf{Degree (GPA)} \hfill \uline{\textbf{School}} \hfill \textit{Location} \hspace{0.1em} \textbf{dates}\\
-- Keep both MS and B.Tech from the template.
+- LOCKED schools (copy verbatim from amazonResumeTemplate.tex):
+  - M.S. Computer Science (3.67/4) — California State University, Long Beach — Long Beach, CA, USA — 01/2025 - 01/2027
+  - B.Tech Computer Science (3.60/4) — JNTU Anantapur - MITS — Andhra Pradesh, India — 08/2019 - 05/2023
+- NEVER invent or substitute universities (e.g. San Jose State / SJSU). Education is not JD-tailorable.
 - Certifications: Name - Year \\
 
 ================================================================================
@@ -97,9 +119,13 @@ SKILL COVERAGE — ADAPTABLE CANDIDATE & EVIDENCE REQUIREMENT (RULE 1)
 - Verified Skills & Evidence Locations:
   - Forecasting / Predictive Analytics: Amazon Internship AI Assistant Skill (predictive batch job run/monitoring & failure forecasting).
   - Computer Vision / Image Recognition: B.Tech CS coursework & projects (OpenCV, PyTorch, image recognition/inspection).
+  - Operating Systems, Computer Architecture, Networking: B.Tech CS coursework (JNTU Anantapur - MITS) with solid working knowledge.
+    When a JD needs these, FABRICATE concrete evidence into Key Projects (prefer CloudSync, RenderSync, MirrorMate) and/or Infobell
+    bullets — e.g. process/thread scheduling, memory hierarchy / cache-aware data paths, TCP/UDP sockets, packet/protocol handling.
+    Skills-only listing does NOT count.
   - Kubernetes, K8s, Docker, Helm, Microservices, Kafka, Terraform, Jenkins, Prometheus, Grafana,
     gRPC, GraphQL, REST APIs, Redis, AWS: Infobell IT Solutions, ASI, and Key Projects (CloudSync, NativeNest).
-- When a JD requires Forecasting, Computer Vision, Kubernetes, or any target skill, you MUST include it
+- When a JD requires Forecasting, Computer Vision, Operating Systems, Computer Architecture, Networking, Kubernetes, or any target skill, you MUST include it
   in an Experience bullet (Amazon/Infobell/ASI) or a Key Project bullet with concrete evidence.
   Listing a required skill ONLY under Skills is a match failure (0% evidence).
 
@@ -121,7 +147,8 @@ SAME-CONCEPT SKILL SUBSTITUTION & INFOBELL EXPERIENCE (ALLOWED)
 ================================================================================
 HYGIENE — NO INVENTED FACTS
 ================================================================================
-- FABRICATION ALLOWED: You may fabricate and invent relevant technical features, architectures, and scaling metrics within the existing projects to maximize the JD match. Never invent fake employers.
+- FABRICATION: Skills + Certs + at most 2 projects (prefer CloudSync/RenderSync). NEVER invent employers, schools, or employment dates. Experience headers locked to template.
+- SYSTEMS FABRICATION (user-authorized): For Operating Systems / Computer Architecture / Networking JD keywords, invent plausible project features on CloudSync, RenderSync, MirrorMate, or Infobell (scheduling, memory hierarchy, sockets/protocols) grounded in B.Tech CS coursework knowledge.
 - Amazon details = LinkedIn-public only (Lambda/DynamoDB/SQS, CDK/CI/CD/CloudWatch, AI assistant skill).
 - Never invent or change live project URLs.
 - NEVER use em-dashes or en-dashes (Unicode or LaTeX `--` / `---`). They render as long dashes in the PDF.
@@ -172,20 +199,21 @@ RULE 6: Complete bullets 110–130 chars (filling 90-100% of line width), period
 RULE 6b: Human voice / no AI traces
 RULE 7: Skills six categories
 RULE 8: Key Projects \textbar pattern; ≥3 linked when possible
-RULE 9: Education template pattern
+RULE 9: Education LOCKED to CSULB + JNTU from template — never invent schools
 RULE 10: Certs Name - Year
-RULE 11: Fabrication of features/metrics to match JD is allowed; no fake employers; Amazon LinkedIn-public only; plain " - " hyphens
+RULE 11: Fabrication ONLY for Skills, Certs, and ≤2 projects (CloudSync/RenderSync preferred). NEVER invent employers/schools/dates; Amazon LinkedIn-public only; plain " - " hyphens
 RULE 12: Spread JD skills; reorder Skills for fit
 RULE 13: Co-founder only if JD asks
 RULE 14: One frontend + one backend family per project
 RULE 15: Never invent/change live URLs (Arikya = https://arikya.in)
-RULE 16: Certs template style
+RULE 16: Certs template style (open to add/adjust Name - Year)
 RULE 17: Workflow JD → keywords → title → tailor → 100% → body
 RULE 18: Never mix C++ with Node/Python/Java/Go on one tech line
-RULE 19: Change ≤2 project stacks for unmatched JD skills only
+RULE 19: Change ≤2 project stacks for unmatched JD skills only (CloudSync/RenderSync preferred)
 RULE 20: Header EXACTLY 3 lines; auto-prune low priority details on overflow
-RULE 21: 3–5 bullets/job; Amazon → ASI → Infobell
+RULE 21: 3–5 bullets/job; Amazon → ASI → Infobell headers LOCKED (titles/dates/locations)
 RULE 22: Key Projects template style
-RULE 23: Adaptable coverage — JD skills in Skills/tech lines OK; no fake Experience claims
+RULE 23: Adaptable coverage — JD skills in Skills/tech lines OK; no fake Experience employers
 RULE 24: Same-concept substitution allowed; different concepts stay in Skills only
 RULE 25: Editing discipline — small diffs; template voice; body + MATCH_REPORT only when asked
+RULE 26: Fabrication policy file FABRICATION_POLICY.md is source of truth — update when user changes rules

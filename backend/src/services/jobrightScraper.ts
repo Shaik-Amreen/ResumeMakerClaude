@@ -7,6 +7,13 @@ import { isUndergraduateOnlyJob } from './jobSkipRules';
 import { saveJobIfNew } from './scrapeUtils';
 import { shouldAbortScrape } from './scrapeContext';
 import { appendTaskLog, incrementScraped, logScrapingUrl, setTaskProgress } from './taskStatusService';
+import {
+  isExternalCareerUrl,
+  normalizeCareerApplyUrl,
+  resolveJobrightCareerUrl,
+} from './jobrightApplyLink';
+import { detectAts } from './atsDetector';
+import { fetchJobDescriptionFromApplyUrl } from './applyPageJdFetcher';
 
 function searchUrls(_kind: 'internship' | 'fulltime' = 'fulltime'): string[] {
   const list = config.jobright.fullTimeSearches?.length
@@ -303,15 +310,63 @@ export async function scrapeJobrightJobs(
         await driver.sleep(2800);
 
         const detail = await readJobrightDetail(driver);
+
+        // Click Apply Now → capture employer career / ATS URL (Greenhouse, Lever, Ashby, …).
+        let careerUrl: string | null = null;
+        try {
+          const resolved = await resolveJobrightCareerUrl(driver, { waitMs: 9000 });
+          careerUrl = resolved.careerUrl;
+          if (careerUrl) {
+            console.log(`  ↳ Apply Now → ${careerUrl.slice(0, 100)} (${resolved.method})`);
+            appendTaskLog(`Jobright Apply Now → ${careerUrl.slice(0, 90)}`);
+          } else {
+            console.log(`  ↳ Apply Now: no external URL (${resolved.method})`);
+          }
+        } catch (err) {
+          console.warn('  ↳ Apply Now resolve failed:', err);
+        }
+
+        // Prefer employer URL for apply; keep Jobright JD (usually full) unless thin.
+        let jobDescription = detail.description || '';
+        const applyUrl =
+          careerUrl && isExternalCareerUrl(careerUrl)
+            ? normalizeCareerApplyUrl(careerUrl)
+            : normalizeCareerApplyUrl(await driver.getCurrentUrl());
+
+        if (careerUrl && isExternalCareerUrl(careerUrl) && jobDescription.length < 500) {
+          try {
+            const fromCareer = await fetchJobDescriptionFromApplyUrl(careerUrl);
+            if (fromCareer && fromCareer.length > jobDescription.length) {
+              jobDescription = fromCareer;
+            }
+          } catch {
+            // keep Jobright JD
+          }
+        }
+
+        // Dedup against the real career URL when we have it.
+        if (careerUrl && isExternalCareerUrl(careerUrl)) {
+          const careerDup = await isDuplicateJob(
+            careerUrl,
+            detail.title || card.title,
+            card.company || detail.company || ''
+          );
+          if (careerDup) {
+            console.log('  ↳ Duplicate career URL — skip');
+            continue;
+          }
+        }
+
+        const ats = detectAts(applyUrl, 'jobright');
         const id = await saveJobIfNew({
           title: detail.title || card.title,
           company: card.company || detail.company || 'Unknown',
-          url: (await driver.getCurrentUrl()).split('?')[0],
-          jobDescription: detail.description,
+          url: applyUrl,
+          jobDescription,
           location: card.location,
           posted: detail.posted || card.posted,
           applicants: detail.applicants || card.applicants,
-          source: 'jobright',
+          source: ats.ats === 'greenhouse' || ats.ats === 'lever' ? ats.ats : 'jobright',
           forcedType: jobType,
           pipelinePhase: 'jobright',
         });
@@ -319,7 +374,7 @@ export async function scrapeJobrightJobs(
         if (id) {
           savedJobIds.push(id);
           incrementScraped();
-          console.log(`  ↳ Saved [${savedJobIds.length}/${target}]`);
+          console.log(`  ↳ Saved [${savedJobIds.length}/${target}] → ${applyUrl.slice(0, 80)}`);
           setTaskProgress(
             savedJobIds.length,
             target,

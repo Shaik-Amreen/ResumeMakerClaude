@@ -16,23 +16,41 @@ export function answerCommonQuestions(
     return profile.legallyAuthorizedToWorkInUS;
   }
 
-  if (
-    (lower.includes('sponsorship') || lower.includes('visa') || lower.includes('h-1b') || lower.includes('h1b')) &&
-    (lower.includes('future') || lower.includes('will you') || lower.includes('require in the future') || lower.includes('later'))
-  ) {
-    return profile.futureRequireSponsorship;
-  }
+  const isVisaQ =
+    lower.includes('sponsorship') ||
+    lower.includes('visa') ||
+    lower.includes('h-1b') ||
+    lower.includes('h1b');
 
-  if (
-    (lower.includes('sponsorship') || lower.includes('visa')) &&
-    (lower.includes('now') || lower.includes('currently') || lower.includes('present'))
-  ) {
-    return profile.nowRequireSponsorship;
-  }
-
-  if (lower.includes('sponsorship') || lower.includes('visa') || lower.includes('h-1b') || lower.includes('h1b')) {
-    // Single ambiguous sponsorship question — use requireVisa (No).
+  if (isVisaQ) {
+    // Combined "now or in the future" → Yes
+    if (
+      (lower.includes('now') && lower.includes('future')) ||
+      /now or in the future|now or future|currently or in the future/.test(lower)
+    ) {
+      return profile.futureRequireSponsorship;
+    }
+    if (
+      lower.includes('future') ||
+      lower.includes('will you') ||
+      lower.includes('require in the future') ||
+      lower.includes('later')
+    ) {
+      return profile.futureRequireSponsorship;
+    }
+    if (lower.includes('now') || lower.includes('currently') || lower.includes('present')) {
+      return profile.nowRequireSponsorship;
+    }
+    // Single ambiguous sponsorship question → Yes
     return profile.requireVisa;
+  }
+
+  if (lower.includes('relocate') || lower.includes('relocation')) {
+    return profile.willingToRelocate;
+  }
+
+  if (lower.includes('start date') || lower.includes('available to start') || lower.includes('earliest start')) {
+    return profile.desiredStartDate;
   }
 
   return answer;
@@ -62,20 +80,27 @@ export function resolveTextAnswer(
 
   if (lower.includes('experience') || lower.includes('years')) {
     answer = profile.yearsOfExperience;
-  } else if (lower.includes('phone') || lower.includes('mobile')) {
-    answer = profile.phone;
-  } else if (lower.includes('street')) {
-    answer = profile.street;
-  } else if (lower.includes('city') || lower.includes('location') || lower.includes('address')) {
+  } else if (lower.includes('phone') || lower.includes('mobile') || lower === 'altphone') {
+    // AppOne / Paychex want XXX-XXX-XXXX; strip +1 / parens
+    const digits = profile.phone.replace(/\D/g, '');
+    const ten = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits.slice(-10);
+    answer = ten.length === 10 ? `${ten.slice(0, 3)}-${ten.slice(3, 6)}-${ten.slice(6)}` : profile.phone;
+  } else if (lower.includes('zip') || lower.includes('postal')) {
+    answer = profile.zipcode || '';
+  } else if (lower.includes('street') || lower === 'address' || lower === 'address2' || lower === 'addressline2') {
+    answer = profile.street || '';
+  } else if (lower.includes('city') || lower.includes('location')) {
     answer = profile.currentCity || workLocation;
     needsAutocomplete = true;
+  } else if (lower.includes('address') && !lower.includes('email')) {
+    answer = profile.street || profile.currentCity || workLocation;
   } else if (lower.includes('signature') || (lower.includes('name') && lower.includes('legal'))) {
     answer = profile.fullName;
-  } else if (lower.includes('name')) {
-    if (lower.includes('full')) answer = profile.fullName;
-    else if (lower.includes('first') && !lower.includes('last')) answer = profile.firstName;
-    else if (lower.includes('middle') && !lower.includes('last')) answer = profile.middleName;
-    else if (lower.includes('last') && !lower.includes('first')) answer = profile.lastName;
+  } else if (lower.includes('name') || lower === 'first' || lower === 'last' || lower === 'middle') {
+    if (lower.includes('full') || lower === 'name') answer = profile.fullName;
+    else if (lower.includes('first') || lower === 'first') answer = profile.firstName;
+    else if (lower.includes('middle') || lower === 'middle') answer = profile.middleName;
+    else if (lower.includes('last') || lower === 'last') answer = profile.lastName;
     else if (lower.includes('employer')) answer = profile.recentEmployer;
     else answer = profile.fullName;
   } else if (lower.includes('notice')) {
@@ -90,7 +115,11 @@ export function resolveTextAnswer(
   ) {
     const isCurrent = lower.includes('current') || lower.includes('present');
     const amount = isCurrent ? profile.currentCtc : profile.desiredSalary;
-    answer = formatSalary(amount, label);
+    answer = formatSalary(amount, label, profile);
+  } else if (lower.includes('start date') || lower.includes('available to start')) {
+    answer = profile.desiredStartDate;
+  } else if (lower.includes('relocate') || lower.includes('relocation')) {
+    answer = profile.willingToRelocate;
   } else if (lower.includes('linkedin')) {
     answer = profile.linkedin;
   } else if (

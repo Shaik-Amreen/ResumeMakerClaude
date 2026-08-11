@@ -486,13 +486,6 @@ export async function evaluateWithClaude(
   return { isMatch: false, latex: revised };
 }
 
-export async function evaluateWithClaudeStandalone(
-  latexResume: string,
-  jobDescription: string
-): Promise<{ isMatch: boolean; latex?: string }> {
-  return runClaudeStepOnly(latexResume, jobDescription);
-}
-
 export async function runClaudeStepOnly(
   latexResume: string,
   jobDescription: string

@@ -252,6 +252,14 @@ export const openApiSpec = {
         responses: { '200': { description: 'Started' } },
       },
     },
+    '/api/jobs/scrape/scoutify': {
+      post: {
+        tags: ['Scrape'],
+        summary: 'Scrape Scoutify (public US eng feed)',
+        requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/ScrapeBody' } } } },
+        responses: { '200': { description: 'Started' } },
+      },
+    },
     '/api/jobs/scrape/career-portals': {
       post: {
         tags: ['Scrape'],
@@ -352,10 +360,27 @@ export const openApiSpec = {
         responses: { '200': { description: 'Approved' } },
       },
     },
+    '/api/jobs/apply-career-queue': {
+      post: {
+        tags: ['Jobs'],
+        summary: 'Queue career-page / ATS applies for ready PDFs (pauses at Submit)',
+        requestBody: {
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: { limit: { type: 'integer', default: 20 } },
+              },
+            },
+          },
+        },
+        responses: { '200': { description: 'Queue started' } },
+      },
+    },
     '/api/jobs/{id}/approve-resume-and-apply': {
       post: {
         tags: ['Jobs'],
-        summary: 'Approve resume and start Easy Apply',
+        summary: 'Approve resume and start career-page apply (or LinkedIn Easy Apply fallback)',
         parameters: [{ $ref: '#/components/parameters/JobId' }],
         responses: { '200': { description: 'Started' } },
       },
@@ -381,7 +406,7 @@ export const openApiSpec = {
     '/api/jobs/{id}/apply': {
       post: {
         tags: ['Jobs'],
-        summary: 'Start LinkedIn Easy Apply',
+        summary: 'Start career-page apply (Greenhouse/Lever/etc.) or LinkedIn Easy Apply fallback',
         parameters: [{ $ref: '#/components/parameters/JobId' }],
         responses: { '200': { description: 'Started' } },
       },
@@ -407,7 +432,7 @@ export const openApiSpec = {
     '/api/jobs/{id}/approve-submit': {
       post: {
         tags: ['Jobs'],
-        summary: 'Approve final Easy Apply submit',
+        summary: 'Approve final application submit (career page or Easy Apply)',
         parameters: [{ $ref: '#/components/parameters/JobId' }],
         responses: { '200': { description: 'Approved' } },
       },

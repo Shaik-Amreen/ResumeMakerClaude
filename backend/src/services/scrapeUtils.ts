@@ -1,18 +1,21 @@
 import Job from '../models/Job';
+import { sourceQualityRank } from '../data/candidateTargeting';
 import { isFaangMangoCompany } from '../data/priorityCompanies';
 import { inferJobType, isEligibleJob, isInternshipTitle, isSoftwareRole } from './eligibility';
-import { isDuplicateJob } from './jobDedup';
+import { findDuplicateJob } from './jobDedup';
 import { shouldSkipJobDescription } from './jobSkipRules';
 import { isUsJobLocation } from './usLocation';
 import { sendEmailNotification } from './notifier';
 import { config } from '../config';
 import { enqueueResume } from './resumeQueue';
-import { getActiveScrapeOptions, shouldSkipAutoResume } from './scrapeContext';
+import { shouldSkipAutoResume } from './scrapeContext';
 import { resolvePostedAt } from '../utils/parsePostedDate';
 import { cleanJobDescriptionForResume } from './cleanJobDescription';
 import { isInvalidOrMissingJd } from './applyPageJdFetcher';
 import type { JobType } from '../models/Job';
 import { evaluateJobWithAI } from './aiJobFilter';
+
+const TERMINAL_STATUSES = new Set(['applied', 'assessment', 'interview', 'accepted', 'rejected']);
 
 export type ScrapeSource =
   | 'jobright'
@@ -23,6 +26,7 @@ export type ScrapeSource =
   | 'lever'
   | 'github'
   | 'simplify'
+  | 'scoutify'
   | 'company_portal'
   | 'other';
 
@@ -93,7 +97,33 @@ export async function saveJobIfNew(payload: ScrapedJobPayload): Promise<string |
 
   const jobType: JobType = 'fulltime';
 
-  if (await isDuplicateJob(url, title, company)) return null;
+  const existing = await findDuplicateJob(url, title, company);
+  if (existing) {
+    // Prefer official career / ATS URL over job boards when same company + similar title
+    const newRank = sourceQualityRank(source);
+    const oldRank = sourceQualityRank(existing.source);
+    if (
+      newRank > oldRank &&
+      !TERMINAL_STATUSES.has(String(existing.status || '')) &&
+      url &&
+      url !== existing.url
+    ) {
+      const prevSource = existing.source;
+      existing.url = url;
+      existing.source = source;
+      if (jobDescription.length > (existing.jobDescription || '').length + 80) {
+        existing.jobDescription = jobDescription;
+      }
+      if (payload.location && !existing.location) existing.location = payload.location;
+      await existing.save();
+      console.log(
+        `  ↳ Duplicate upgraded to higher-quality source (${prevSource} → ${source}): ${title} @ ${company}`
+      );
+    } else {
+      console.log(`  ↳ Skipped — duplicate (same company + similar title): ${title} @ ${company}`);
+    }
+    return null;
+  }
 
   const priority = payload.priority ?? (isFaangMangoCompany(company) ? 'faang' : 'standard');
   const postedAt = payload.postedAt ?? resolvePostedAt(payload.posted);

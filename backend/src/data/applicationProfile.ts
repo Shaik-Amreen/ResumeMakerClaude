@@ -20,20 +20,30 @@ export interface ApplicationProfile {
   linkedinSummary: string;
   coverLetter: string;
   yearsOfExperience: string;
-  /** Default when form only asks a single sponsorship question. */
+  /**
+   * Default for single ambiguous sponsorship questions
+   * ("Do you require sponsorship?") — Yes (future H-1B path).
+   */
   requireVisa: string;
   /** "Are you legally authorized to work in the U.S.?" */
   legallyAuthorizedToWorkInUS: string;
-  /** "Do you now require sponsorship?" — No while on F-1 OPT. */
+  /** "Do you now require sponsorship?" — No while OPT-eligible. */
   nowRequireSponsorship: string;
-  /** "Will you require sponsorship in the future?" — No. */
+  /** "Will you require sponsorship in the future?" — Yes (H-1B). */
   futureRequireSponsorship: string;
   usCitizenship: string;
+  willingToRelocate: string;
+  desiredStartDate: string;
   gender: string;
   ethnicity: string;
   disabilityStatus: string;
   veteranStatus: string;
+  /** Midpoint placeholder; prefer desiredSalaryMin/Max for forms. */
   desiredSalary: number;
+  desiredSalaryMin: number;
+  desiredSalaryMax: number;
+  /** Used when a salary field is required but range cannot be entered. */
+  salaryFormFallback: string;
   currentCtc: number;
   noticePeriodDays: number;
   confidenceLevel: string;
@@ -77,21 +87,26 @@ export const applicationProfile: ApplicationProfile = {
     'I am excited to apply for this full-time Software Engineer opportunity. As a Software Engineer Intern at Amazon, I built batch data remediation on AWS Lambda, DynamoDB, and SQS, automated infrastructure with AWS CDK and CI/CD, and shipped an AI assistant skill for operational workflows. Combined with experience at Associated Students, Inc. at CSULB and Infobell IT Solutions, I look forward to contributing strong full-stack and cloud engineering skills to your team.',
   yearsOfExperience: '3+',
   /**
-   * Visa answers:
-   * Career KB says future sponsorship Yes (H-1B).
-   * User override (2026-08-03): future sponsorship No.
+   * Visa (2026-08-10 follow-up):
+   * now = No; future = Yes; ambiguous single = Yes; now-or-future = Yes.
+   * Skip JDs that refuse sponsorship / require auth without sponsorship.
    */
-  requireVisa: 'No',
+  requireVisa: 'Yes',
   legallyAuthorizedToWorkInUS: 'Yes',
   nowRequireSponsorship: 'No',
-  futureRequireSponsorship: 'No',
+  futureRequireSponsorship: 'Yes',
   usCitizenship:
-    'Not a U.S. citizen or permanent resident. Authorized to work under F-1 OPT; does not require sponsorship now. Future sponsorship: No (per candidate).',
+    'Not a U.S. citizen or permanent resident. Authorized to work under F-1 OPT; does not require sponsorship now. Will require H-1B or equivalent employer sponsorship in the future.',
+  willingToRelocate: 'Yes',
+  desiredStartDate: 'January 2027',
   gender: 'Decline',
   ethnicity: 'Decline',
   disabilityStatus: 'Decline',
   veteranStatus: 'Decline',
-  desiredSalary: 0, // UNKNOWN per career KB — do not invent $150k
+  desiredSalary: 0,
+  desiredSalaryMin: 120000,
+  desiredSalaryMax: 170000,
+  salaryFormFallback: 'Negotiable',
   currentCtc: 0,
   noticePeriodDays: 0,
   confidenceLevel: '8',
@@ -99,14 +114,37 @@ export const applicationProfile: ApplicationProfile = {
   userInformationAll: formatResumeProfileForPrompt(),
 };
 
-export function formatSalary(amount: number, label: string): string {
+/** Human range for answer bank / free-text salary fields. */
+export function formatDesiredSalaryRange(profile: ApplicationProfile = applicationProfile): string {
+  if (profile.desiredSalaryMin > 0 && profile.desiredSalaryMax > 0) {
+    return `$${profile.desiredSalaryMin.toLocaleString('en-US')} - $${profile.desiredSalaryMax.toLocaleString('en-US')}`;
+  }
+  return profile.salaryFormFallback || 'Negotiable';
+}
+
+/**
+ * Form salary fill:
+ * - Prefer $120k–$170k range when numeric amount is unset
+ * - If amount is 0 and label looks required → Negotiable / N/A
+ * - If amount is 0 and optional → blank
+ */
+export function formatSalary(amount: number, label: string, profile: ApplicationProfile = applicationProfile): string {
   const lower = label.toLowerCase();
   if (lower.includes('lakh')) {
-    const lakhs = amount / 100000;
+    const lakhs = (amount > 0 ? amount : profile.desiredSalaryMin) / 100000;
     return lakhs.toFixed(2);
   }
   if (lower.includes('month')) {
-    return String(Math.round(amount / 12));
+    const annual = amount > 0 ? amount : Math.round((profile.desiredSalaryMin + profile.desiredSalaryMax) / 2);
+    return String(Math.round(annual / 12));
   }
-  return String(amount);
+  if (amount > 0) return String(amount);
+  if (profile.desiredSalaryMin > 0 && profile.desiredSalaryMax > 0) {
+    return formatDesiredSalaryRange(profile);
+  }
+  if (/\b(?:required|must|mandatory)\b/i.test(label)) {
+    return profile.salaryFormFallback || 'Negotiable';
+  }
+  // Optional / unknown → leave blank
+  return '';
 }

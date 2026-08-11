@@ -16,6 +16,7 @@ import {
   runScrapeOnly,
   refreshExistingJobs,
   isScrapeRunning,
+  isBulkTaskRunning,
   isPipelineRunning,
   runResumesForScrapedJobs,
   resumeQueueJobFilter,
@@ -33,14 +34,23 @@ import {
   runScrapeAts,
   runScrapeFaangPortals,
   runScrapeGithubLists,
+  runScrapeScoutify,
   forceStopCurrentTask,
   getTaskStatus,
+  runCareerApplyQueue,
 } from '../services/orchestratorService';
-import { resetAllJobsToScraped, deleteJobById, markJobsWithInvalidJd } from '../services/jobMaintenance';
+import {
+  resetAllJobsToScraped,
+  deleteJobById,
+  markJobsWithInvalidJd,
+  clearGeneratedResumes,
+  normalizeJobSourceFilter,
+  JOB_SOURCE_FILTERS,
+} from '../services/jobMaintenance';
 import { getSchedulerStatus } from '../services/schedulerService';
 import { filterJobs, normalizeJob, sortJobs, type JobRecord } from '../utils/jobQuery';
 import type { JobStatus } from '../models/Job';
-import { autoApplyToJob } from '../services/jobApplier';
+import { autoApplyToJob, detectAts, prefersCareerApply } from '../services/jobApplier';
 import { compileLatexToPdf } from '../services/latexCompileService';
 import { removeJobResumeFiles } from '../services/resumeFiles';
 
@@ -212,21 +222,59 @@ router.post('/:id/rerun-claude', async (req: Request, res: Response) => {
 
 router.post('/generate-resumes', async (req: Request, res: Response) => {
   try {
-    if (isScrapeRunning()) {
+    if (isBulkTaskRunning()) {
       return res.status(409).json({ message: 'Another task is running. Stop it first or wait.' });
     }
     const limit = Number(req.body?.limit) || 0;
     const withOutreach = req.body?.withOutreach === true;
-    const pending = await Job.countDocuments(resumeQueueJobFilter());
+    const sourceRaw = String(req.body?.source || '').trim();
+    if (sourceRaw && sourceRaw.toLowerCase() !== 'all' && !normalizeJobSourceFilter(sourceRaw)) {
+      return res.status(400).json({
+        message: `Invalid source. Use one of: ${JOB_SOURCE_FILTERS.join(', ')}`,
+      });
+    }
+    const source = normalizeJobSourceFilter(sourceRaw);
+    const pending = await Job.countDocuments(resumeQueueJobFilter(source));
     const count = limit > 0 ? Math.min(limit, pending) : pending;
 
-    runResumesForScrapedJobs({ limit: limit || undefined, withOutreach }).catch(console.error);
+    runResumesForScrapedJobs({
+      limit: limit || undefined,
+      withOutreach,
+      source,
+    }).catch(console.error);
     res.json({
-      message: `Resume generation started for ${count} job(s) — scraped + failed retries (${resumeAgentLabel()}).`,
+      message: source
+        ? `Resume generation started for up to ${count} ${source} job(s) — scraped + failed retries, newest first (${resumeAgentLabel()}).`
+        : `Resume generation started for up to ${count} job(s) — scraped + failed retries, newest first (${resumeAgentLabel()}).`,
       count,
+      source: source || 'all',
     });
   } catch (error) {
     res.status(500).json({ message: 'Error starting resume queue', error });
+  }
+});
+
+/** Clear generated LaTeX/PDFs (keep jobs). Optional source=scoutify|jobright|… */
+router.post('/clear-resumes', async (req: Request, res: Response) => {
+  try {
+    if (isBulkTaskRunning()) {
+      return res.status(409).json({ message: 'Another task is running. Stop it first or wait.' });
+    }
+    const sourceRaw = String(req.body?.source || '').trim();
+    if (sourceRaw && sourceRaw.toLowerCase() !== 'all' && !normalizeJobSourceFilter(sourceRaw)) {
+      return res.status(400).json({
+        message: `Invalid source. Use one of: ${JOB_SOURCE_FILTERS.join(', ')}`,
+      });
+    }
+    const result = await clearGeneratedResumes({ source: sourceRaw || undefined });
+    res.json({
+      message: result.source
+        ? `Cleared resumes for ${result.cleared} ${result.source} job(s) (${result.filesRemoved} file(s) removed). Jobs kept as scraped.`
+        : `Cleared resumes for ${result.cleared} job(s) (${result.filesRemoved} file(s) removed). Jobs kept as scraped.`,
+      ...result,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error clearing resumes', error });
   }
 });
 
@@ -325,6 +373,22 @@ router.post('/scrape/github-lists', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/scrape/scoutify', async (req: Request, res: Response) => {
+  try {
+    if (isScrapeRunning()) {
+      return res.status(409).json({ message: 'Scrape or pipeline already running.' });
+    }
+    const cap = parseScrapeCap(req.body);
+    const jobType = 'fulltime' as const;
+    runScrapeScoutify(cap, jobType).catch(console.error);
+    res.json({
+      message: `Scoutify scrape started (US eng / full-time / YOE-capped public feed): up to ${cap} new jobs.`,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error starting Scoutify scrape', error });
+  }
+});
+
 router.post('/scrape/career-portals', async (req: Request, res: Response) => {
   try {
     if (isScrapeRunning()) {
@@ -392,14 +456,20 @@ router.patch('/:id/status', async (req: Request, res: Response) => {
     job.status = status;
     job.pendingAction = null;
     job.errorMessage = undefined;
-    if (status === 'scraped') {
+    if (status === 'applied') {
+      if (!job.appliedAt) job.appliedAt = new Date();
+      if (!job.followUpAt) {
+        const d = new Date();
+        d.setDate(d.getDate() + 7);
+        job.followUpAt = d;
+      }
+      job.approvalNote = 'Marked as applied.';
+    } else if (status === 'scraped') {
       job.approvalNote = 'Scraped: generate resume manually, then upload PDF.';
     } else if (status === 'resume_generated') {
       job.approvalNote = 'Resume generated: upload your PDF when ready.';
     } else if (status === 'pdf_uploaded') {
       job.approvalNote = 'PDF on file: apply on LinkedIn when ready.';
-    } else if (status === 'applied') {
-      job.approvalNote = 'Marked as applied.';
     } else if (status === 'assessment') {
       job.approvalNote = 'Assessment stage: complete the take-home or online test.';
     } else if (status === 'interview') {
@@ -417,6 +487,66 @@ router.patch('/:id/status', async (req: Request, res: Response) => {
     res.json(job);
   } catch (error) {
     res.status(500).json({ message: 'Error updating status', error });
+  }
+});
+
+/** Notes, interest stars, follow-up date, cover letter / message drafts. */
+router.patch('/:id/workspace', async (req: Request, res: Response) => {
+  try {
+    const job = await Job.findById(req.params.id);
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+
+    if (typeof req.body?.notes === 'string') {
+      job.notes = req.body.notes.slice(0, 8000);
+    }
+    if (req.body?.interest === null || req.body?.interest === '') {
+      job.interest = undefined;
+    } else if (req.body?.interest != null) {
+      const n = Number(req.body.interest);
+      if (!Number.isFinite(n) || n < 1 || n > 5) {
+        return res.status(400).json({ message: 'interest must be 1–5' });
+      }
+      job.interest = Math.round(n);
+    }
+    if (req.body?.followUpAt === null || req.body?.followUpAt === '') {
+      job.followUpAt = undefined;
+    } else if (typeof req.body?.followUpAt === 'string') {
+      const d = new Date(req.body.followUpAt);
+      if (Number.isNaN(d.getTime())) {
+        return res.status(400).json({ message: 'Invalid followUpAt' });
+      }
+      job.followUpAt = d;
+    }
+    if (typeof req.body?.coverLetterDraft === 'string') {
+      job.coverLetterDraft = req.body.coverLetterDraft.slice(0, 12000);
+    }
+    if (typeof req.body?.recruiterMessageDraft === 'string') {
+      job.recruiterMessageDraft = req.body.recruiterMessageDraft.slice(0, 4000);
+    }
+    await job.save();
+    res.json(job);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating workspace', error });
+  }
+});
+
+/** Generate cover letter + LinkedIn note + contact suggestions for this job. */
+router.post('/:id/generate-outreach', async (req: Request, res: Response) => {
+  try {
+    const job = await Job.findById(req.params.id);
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+    const { generateOutreachArtifacts } = await import('../services/outreachService');
+    await generateOutreachArtifacts(String(job._id));
+    const refreshed = await Job.findById(job._id);
+    res.json({
+      message: 'Cover letter & outreach drafts ready',
+      job: refreshed,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error instanceof Error ? error.message : 'Outreach generation failed',
+      error: String(error),
+    });
   }
 });
 
@@ -502,7 +632,9 @@ router.post('/:id/generate-resume', async (req: Request, res: Response) => {
       message: `Resume agent queued (${resumeAgentLabel()}): LaTeX in ~1–3 min.`,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error starting pipeline', error });
+    const msg = error instanceof Error ? error.message : String(error);
+    const status = /already running/i.test(msg) ? 409 : 500;
+    res.status(status).json({ message: msg || 'Error starting pipeline', error: msg });
   }
 });
 
@@ -521,7 +653,9 @@ router.post('/:id/generate-resume-ollama', async (req: Request, res: Response) =
       job: normalizeJob(job.toObject() as unknown as Record<string, unknown>),
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error starting Ollama resume generation', error });
+    const msg = error instanceof Error ? error.message : String(error);
+    const status = /already running/i.test(msg) ? 409 : 500;
+    res.status(status).json({ message: msg || 'Error starting Ollama resume generation', error: msg });
   }
 });
 
@@ -630,6 +764,21 @@ router.post('/:id/latex', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/apply-career-queue', async (req: Request, res: Response) => {
+  try {
+    if (isScrapeRunning() || isPipelineRunning()) {
+      return res.status(409).json({ message: 'Another task is already running.' });
+    }
+    const limit = Math.min(50, Math.max(1, Number(req.body?.limit) || 20));
+    runCareerApplyQueue(limit).catch(console.error);
+    res.json({
+      message: `Career-page apply queue started (up to ${limit}). Approve Submit in the tracker for each job.`,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error starting career apply queue', error });
+  }
+});
+
 router.post('/:id/approve-resume', async (req: Request, res: Response) => {
   try {
     const job = await Job.findById(req.params.id);
@@ -676,13 +825,16 @@ router.post('/:id/approve-resume-and-apply', async (req: Request, res: Response)
     job.pendingAction = null;
     job.status = 'pdf_uploaded';
     job.errorMessage = undefined;
-    job.approvalNote = 'Resume approved: starting LinkedIn Easy Apply (approve before Submit)…';
+    const detection = detectAts(job.url, job.source);
+    const pathLabel = prefersCareerApply(job.url, job.source)
+      ? `${detection.label} career apply`
+      : 'LinkedIn Easy Apply';
+    job.approvalNote = `Resume approved: starting ${pathLabel} (approve before Submit)…`;
     await job.save();
 
     autoApplyToJob(job.id).catch(console.error);
     res.json({
-      message:
-        'Resume approved and auto-apply started. You will be asked to approve before final submit.',
+      message: `Resume approved and ${pathLabel} started. Review Chrome, then approve final Submit.`,
       job: normalizeJob(job.toObject() as unknown as Record<string, unknown>),
     });
   } catch (error) {
@@ -742,10 +894,10 @@ router.post('/:id/apply', async (req: Request, res: Response) => {
       });
     }
 
+    const detection = detectAts(job.url, job.source);
     autoApplyToJob(job.id).catch(console.error);
     res.json({
-      message:
-        'Apply started. Forms fill automatically; you must approve the LinkedIn message and final Submit in the tracker.',
+      message: `${detection.label} apply started. Forms fill automatically; approve final Submit in the tracker.`,
     });
   } catch (error) {
     res.status(500).json({ message: 'Error starting apply', error });
@@ -781,6 +933,50 @@ router.post('/:id/approve-submit', async (req: Request, res: Response) => {
     res.json(job);
   } catch (error) {
     res.status(500).json({ message: 'Error approving submit', error });
+  }
+});
+
+/**
+ * Bring the stored job URL into orange Chrome so you can review the form
+ * (Approve Submit is useless if Chrome is on a different tab/site).
+ */
+router.post('/:id/show-in-chrome', async (req: Request, res: Response) => {
+  try {
+    const job = await Job.findById(req.params.id);
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+    const { sanitizeStoredJobUrl } = await import('../services/jobrightApplyLink');
+    const { attachDriver, releaseDriver } = await import('../services/chromeProfile');
+    const { config } = await import('../config');
+    const target = sanitizeStoredJobUrl(job.url);
+    let driver = null as import('selenium-webdriver').WebDriver | null;
+    try {
+      driver = await attachDriver({
+        kind: 'orange',
+        userDataDir: config.linkedin.userDataDir,
+        profileDirectory: config.linkedin.profileDirectory,
+        debugPort: config.linkedin.debugPort,
+        headless: config.linkedin.headless,
+        startUrl: target,
+      });
+      await driver.get(target);
+      await driver.sleep(2000);
+      // Nudge window focus
+      try {
+        await driver.executeScript('window.focus();');
+      } catch {
+        // ignore
+      }
+      const currentUrl = await driver.getCurrentUrl();
+      const title = await driver.getTitle();
+      job.approvalNote = `Opened in orange Chrome for review: ${title || currentUrl}`;
+      await job.save();
+      res.json({ message: 'Opened in orange Chrome', url: currentUrl, title, job });
+    } finally {
+      await releaseDriver(driver);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ message: `Could not open Chrome: ${message}` });
   }
 });
 

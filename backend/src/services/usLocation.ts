@@ -13,9 +13,9 @@ const US_STATE_CODE =
 const NON_US_COUNTRY =
   /\b(?:canada|mexico|united\s+kingdom|uk|u\.?k\.?|great\s+britain|gb|england|scotland|wales|ireland|germany|france|spain|italy|netherlands|holland|belgium|switzerland|sweden|norway|denmark|finland|poland|portugal|austria|australia|new\s+zealand|india|singapore|japan|china|hong\s+kong|south\s+korea|korea|taiwan|philippines|indonesia|vietnam|thailand|malaysia|brazil|argentina|chile|colombia|israel|uae|united\s+arab\s+emirates|saudi\s+arabia|south\s+africa|nigeria|kenya|egypt|turkey|pakistan|bangladesh|sri\s+lanka|russia|ukraine|romania|czech|hungary|greece|emirates)\b/i;
 
-/** ", UK" / ", U.K." / ", GB" / ", EU" / ", CA" suffix pattern */
+/** ", UK" / ", U.K." / ", GB" / ", EU" suffix — do NOT include CA/IN (US state codes). */
 const NON_US_COUNTRY_SUFFIX =
-  /,\s*(?:UK|U\.K\.|GB|G\.B\.|EU|AU|NZ|IN|SG|CA|DE|FR|NL|IE|ES|IT)\b/i;
+  /,\s*(?:UK|U\.K\.|GB|G\.B\.|EU|AU|NZ|SG|DE|FR|NL|IE|ES|IT)\b/i;
 
 /** Major non-US cities that often appear without a country name. */
 const NON_US_CITY =
@@ -45,15 +45,22 @@ export function isUsJobLocation(location?: string | null, description?: string):
 
   if (FOREIGN_ENROLLMENT_REQUIRED.test(hay)) return false;
 
-  if (
-    NON_US_REGION.test(loc) ||
-    NON_US_COUNTRY.test(loc) ||
-    NON_US_COUNTRY_SUFFIX.test(loc) ||
-    NON_US_CITY.test(loc) ||
-    CANADIAN_HINT.test(loc)
-  ) {
-    return false;
+  const locHasUsSignal =
+    US_ALIASES.test(loc) || US_STATE_NAMES.test(loc) || US_STATE_CODE.test(loc);
+
+  // Clear non-US country/region on the location string
+  if (NON_US_REGION.test(loc) || NON_US_COUNTRY.test(loc) || NON_US_COUNTRY_SUFFIX.test(loc)) {
+    // "Remote Canada" etc. — reject even if somehow mixed
+    if (!locHasUsSignal) return false;
+    // Mixed "Toronto, Canada / NYC, USA" — still reject if Canada/UK explicitly on loc without US outweighing
+    if (/\b(?:canada|united\s+kingdom|uk|india|germany|australia)\b/i.test(loc) && !US_ALIASES.test(loc)) {
+      return false;
+    }
   }
+
+  // Ambiguous shared city names (Cambridge, London, …) — only reject without US signal
+  if (NON_US_CITY.test(loc) && !locHasUsSignal) return false;
+  if (CANADIAN_HINT.test(loc) && !locHasUsSignal) return false;
 
   // Strong non-US office / based-in requirement in the JD
   if (
@@ -92,9 +99,7 @@ export function isUsJobLocation(location?: string | null, description?: string):
     return true;
   }
 
-  if (US_ALIASES.test(loc) || US_STATE_NAMES.test(loc) || US_STATE_CODE.test(loc)) {
-    return true;
-  }
+  if (locHasUsSignal) return true;
 
   if (/^remote\b/i.test(loc) && !NON_US_COUNTRY.test(loc) && !NON_US_CITY.test(loc)) {
     // Remote + JD clearly Amsterdam/Dutch enrollment → reject
@@ -105,6 +110,15 @@ export function isUsJobLocation(location?: string | null, description?: string):
     ) {
       return false;
     }
+    return true;
+  }
+
+  // Remote – North America (US-eligible); Canada-only still rejected via NON_US / CANADIAN_HINT
+  if (
+    /\bremote\b[\s\S]{0,40}\bnorth\s+america\b|\bnorth\s+america\b[\s\S]{0,40}\bremote\b/i.test(loc) ||
+    /\bremote\b[\s\S]{0,40}\bnorth\s+america\b|\bnorth\s+america\b[\s\S]{0,40}\bremote\b/i.test(hay)
+  ) {
+    if (/\bcanada\s+only\b|\bonly\s+canada\b/i.test(hay)) return false;
     return true;
   }
 

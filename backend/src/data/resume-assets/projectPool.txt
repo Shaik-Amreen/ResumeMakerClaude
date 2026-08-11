@@ -14,17 +14,19 @@ NEVER invent a project outside this pool. Prefer JD skill fit; prefer LINKED pro
 8. HeedSites - https://www.heedsites.com - SaaS / automation / product org
 
 === NO-LINK PROJECTS ===
-9. MirrorMate - C#, Miracast - Windows screen casting (Infobell)
+9. MirrorMate - C#, Miracast - Windows screen casting (Infobell); may evidence networking / OS / media streaming
 10. NextZEN ERP HRMS - React Native, Node, MongoDB, AWS
 11. AI Based Slum Control - Angular, Node.js, Twilio - Smart India Hackathon
 12. Video Streaming / VOD - React, Node, AWS S3 (Vasukam)
 13. University ERP / College Management - MERN (Yes Real)
-14. CloudSync - Java, AWS, Docker, Redis, Kafka - from standard resume template
-15. RenderSync - Python, Flask, Prometheus, Docker - from standard resume template
+14. CloudSync - Java, AWS, Docker, Redis, Kafka - distributed data orchestration; PREFERRED for OS / computer architecture / networking fabrication (scheduling, memory hierarchy, sockets)
+15. RenderSync - Python, Flask, Prometheus, Docker - job scheduling & monitoring; PREFERRED for OS / scheduling / systems evidence
+16. SystemsLab (B.Tech) - C/C++, operating systems, computer architecture, networking - academic labs (process scheduling, cache/memory sims, TCP/UDP socket protocols); use when JD is systems-heavy and linked projects cannot absorb the keywords
 
 SELECTION:
 1. Rank by JD relevance.
 2. Prefer 4 - 5 projects; at least 3 LINKED when possible.
 3. AI/LLM JDs: prefer Booking Bee and Instant Backend Generator when relevant.
-4. Never invent URLs or Amazon-confidential details beyond LinkedIn-public bullets.
-5. Never invent metrics beyond the verified catalog.
+4. Systems / OS / architecture / networking JDs: fabricate evidence into CloudSync and/or RenderSync (and MirrorMate if casting/networking fits); add SystemsLab only if still short after that. Candidate completed these as B.Tech coursework with solid knowledge — fabrication is authorized.
+5. Never invent URLs or Amazon-confidential details beyond LinkedIn-public bullets.
+6. Never invent metrics beyond the verified catalog (except modest, interviewable systems fabrication metrics).

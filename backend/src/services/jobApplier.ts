@@ -1,17 +1,13 @@
 import Job from '../models/Job';
 import { applyLinkedInJob } from './linkedinApplier';
-import { applyExternalJob } from './externalApplier';
-
-function usesLinkedInEasyApply(url: string): boolean {
-  return /linkedin\.com\/(jobs|job)/i.test(url);
-}
+import { applyCareerPageJob } from './careerPageApplier';
+import { detectAts, isLinkedInEasyApplyUrl, prefersCareerApply } from './atsDetector';
 
 /**
- * Apply flow:
+ * Apply flow (career-page first):
  * - FAANG/MANGO: never auto-apply (alert only)
- * - LinkedIn Easy Apply (internship or full-time): fill form, wait for your approval before Submit
- * - Other full-time sources: external applier with submit approval
- * - Non-LinkedIn internships: manual apply on company site
+ * - Career / ATS URLs (Greenhouse, Lever, Ashby, Workday, company sites): careerPageApplier
+ * - LinkedIn Easy Apply: fallback only (message + submit approval)
  */
 export async function autoApplyToJob(jobId: string) {
   const job = await Job.findById(jobId);
@@ -24,22 +20,27 @@ export async function autoApplyToJob(jobId: string) {
   }
 
   if (!job.pdfPath) {
-    throw new Error('Approve/build a 2-page PDF before applying.');
-  }
-
-  if (usesLinkedInEasyApply(job.url)) {
-    return applyLinkedInJob(jobId);
+    throw new Error('Approve/build a PDF before applying.');
   }
 
   if (String(job.jobType) === 'internship') {
     throw new Error(
-      'This internship is not a LinkedIn Easy Apply listing. Open the company link and apply manually.'
+      'Internship listings are ignored. This tracker is full-time / new-grad only.'
     );
   }
 
-  return applyExternalJob(jobId);
+  const detection = detectAts(job.url, job.source);
+
+  // Career pages are the primary apply path.
+  if (prefersCareerApply(job.url, job.source) && detection.ats !== 'linkedin') {
+    return applyCareerPageJob(jobId);
+  }
+
+  if (isLinkedInEasyApplyUrl(job.url)) {
+    return applyLinkedInJob(jobId);
+  }
+
+  return applyCareerPageJob(jobId);
 }
 
-export function isLinkedInEasyApplyUrl(url: string): boolean {
-  return usesLinkedInEasyApply(url);
-}
+export { isLinkedInEasyApplyUrl, prefersCareerApply, detectAts };

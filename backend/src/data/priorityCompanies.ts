@@ -92,6 +92,97 @@ export const FAANG_MANGO_COMPANIES: CompanyTarget[] = [
     tier: 'mango',
     searchUrl: 'https://careers.amd.com/careers-home/jobs?keywords=software%20engineer',
   },
+  {
+    name: 'Databricks',
+    tier: 'mango',
+    searchUrl:
+      'https://www.databricks.com/company/careers/open-positions?department=University&location=United%20States',
+  },
+  {
+    name: 'Snowflake',
+    tier: 'mango',
+    searchUrl: 'https://careers.snowflake.com/us/en/search-results?keywords=software%20engineer%20new%20grad',
+  },
+  {
+    name: 'Intuit',
+    tier: 'mango',
+    searchUrl: 'https://jobs.intuit.com/search-jobs/software%20engineer',
+  },
+  {
+    name: 'PayPal',
+    tier: 'mango',
+    searchUrl: 'https://careers.pypl.com/home/search-results?keywords=software%20engineer',
+  },
+  {
+    name: 'ServiceNow',
+    tier: 'mango',
+    searchUrl: 'https://careers.servicenow.com/jobs/?search=software%20engineer%20new%20grad',
+  },
+  {
+    name: 'Atlassian',
+    tier: 'mango',
+    searchUrl: 'https://www.atlassian.com/company/careers/all-jobs?team=Engineering&location=United%20States',
+  },
+  {
+    name: 'Dropbox',
+    tier: 'mango',
+    searchUrl: 'https://jobs.dropbox.com/all-jobs?query=software%20engineer',
+  },
+  {
+    name: 'GitHub',
+    tier: 'mango',
+    searchUrl: 'https://www.github.careers/careers-home/jobs?keywords=software%20engineer',
+  },
+  {
+    name: 'Bloomberg',
+    tier: 'mango',
+    searchUrl: 'https://careers.bloomberg.com/job/search?q=software%20engineer',
+  },
+  {
+    name: 'Capital One',
+    tier: 'mango',
+    searchUrl: 'https://www.capitalonecareers.com/search-jobs/software%20engineer',
+  },
+  {
+    name: 'JPMorgan Chase',
+    tier: 'mango',
+    searchUrl: 'https://careers.jpmorgan.com/us/en/search-results?keywords=software%20engineer%20new%20grad',
+  },
+  {
+    name: 'Goldman Sachs',
+    tier: 'mango',
+    searchUrl: 'https://www.goldmansachs.com/careers/students/programs/',
+  },
+  {
+    name: 'Visa',
+    tier: 'mango',
+    searchUrl: 'https://jobs.smartrecruiters.com/Visa/search?q=software%20engineer',
+  },
+  {
+    name: 'Mastercard',
+    tier: 'mango',
+    searchUrl: 'https://careers.mastercard.com/us/en/search-results?keywords=software%20engineer',
+  },
+  {
+    name: 'Coinbase',
+    tier: 'mango',
+    searchUrl: 'https://www.coinbase.com/careers/positions?query=software%20engineer',
+  },
+  {
+    name: 'Shopify',
+    tier: 'mango',
+    searchUrl: 'https://www.shopify.com/careers/search?query=software%20engineer',
+  },
+  {
+    name: 'TikTok',
+    tier: 'mango',
+    searchUrl: 'https://careers.tiktok.com/position?keywords=software%20engineer&category=&location=United%20States',
+  },
+  {
+    name: 'Roblox',
+    tier: 'mango',
+    searchUrl: 'https://careers.roblox.com/jobs?search=software%20engineer',
+  },
 ];
 
 /** Additional companies checked overnight on career portals */
@@ -101,22 +192,6 @@ export const EXTENDED_CAREER_COMPANIES: CompanyTarget[] = [
     name: 'Palantir',
     tier: 'standard',
     searchUrl: 'https://jobs.lever.co/palantir?team=Engineering',
-  },
-  {
-    name: 'Databricks',
-    tier: 'standard',
-    searchUrl:
-      'https://www.databricks.com/company/careers/open-positions?department=University&location=United%20States',
-  },
-  {
-    name: 'Snowflake',
-    tier: 'standard',
-    searchUrl: 'https://careers.snowflake.com/us/en/search-results?keywords=software%20engineer%20new%20grad',
-  },
-  {
-    name: 'Coinbase',
-    tier: 'standard',
-    searchUrl: 'https://www.coinbase.com/careers/positions?query=software%20engineer',
   },
   {
     name: 'Snap',
@@ -134,44 +209,9 @@ export const EXTENDED_CAREER_COMPANIES: CompanyTarget[] = [
     searchUrl: 'https://www.lifeatspotify.com/jobs?search=software%20engineer',
   },
   {
-    name: 'Intuit',
-    tier: 'standard',
-    searchUrl: 'https://jobs.intuit.com/search-jobs/software%20engineer',
-  },
-  {
-    name: 'PayPal',
-    tier: 'standard',
-    searchUrl: 'https://careers.pypl.com/home/search-results?keywords=software%20engineer',
-  },
-  {
-    name: 'Shopify',
-    tier: 'standard',
-    searchUrl: 'https://www.shopify.com/careers/search?query=software%20engineer',
-  },
-  {
-    name: 'ServiceNow',
-    tier: 'standard',
-    searchUrl: 'https://careers.servicenow.com/jobs/?search=software%20engineer%20new%20grad',
-  },
-  {
-    name: 'Atlassian',
-    tier: 'standard',
-    searchUrl: 'https://www.atlassian.com/company/careers/all-jobs?team=Engineering&location=United%20States',
-  },
-  {
     name: 'Cisco',
     tier: 'standard',
     searchUrl: 'https://jobs.cisco.com/jobs/SearchJobs/?keyword=software%20engineer%20new%20grad',
-  },
-  {
-    name: 'TikTok',
-    tier: 'standard',
-    searchUrl: 'https://careers.tiktok.com/position?keywords=software%20engineer&category=&location=United%20States',
-  },
-  {
-    name: 'Roblox',
-    tier: 'standard',
-    searchUrl: 'https://careers.roblox.com/jobs?search=software%20engineer',
   },
 ];
 

@@ -27,6 +27,26 @@ export type ResumePhase =
   | 'done'
   | 'failed';
 
+export type ApplyPhase =
+  | 'idle'
+  | 'opening'
+  | 'filling'
+  | 'uploading'
+  | 'awaiting_submit'
+  | 'submitting'
+  | 'done'
+  | 'failed'
+  | 'confused_hold';
+
+export type AtsType =
+  | 'greenhouse'
+  | 'lever'
+  | 'ashby'
+  | 'workday'
+  | 'linkedin'
+  | 'indeed'
+  | 'unknown';
+
 export type JobSource =
   | 'jobright'
   | 'linkedin'
@@ -36,6 +56,7 @@ export type JobSource =
   | 'lever'
   | 'github'
   | 'simplify'
+  | 'scoutify'
   | 'company_portal'
   | 'other';
 
@@ -80,10 +101,17 @@ export interface Job {
   pdfUrl?: string;
   recruiterMessageDraft?: string;
   coverLetterDraft?: string;
+  notes?: string;
+  /** 1–5 excitement rating */
+  interest?: number;
+  followUpAt?: string;
+  appliedAt?: string;
   contactSuggestions?: ContactSuggestion[];
   pipelinePhase?: 'jobright' | 'linkedin' | 'career_portal';
   pendingAction?: 'resume_review' | 'message_send' | 'submit_application' | null;
   resumePhase?: ResumePhase;
+  applyPhase?: ApplyPhase;
+  atsType?: AtsType;
   approvalNote?: string;
   errorMessage?: string;
   createdAt: string;

@@ -148,39 +148,39 @@ export function LatexStudioPage() {
   return (
     <div className="min-h-screen bg-paper text-ink relative font-sans flex flex-col">
       <Background3D />
-      <div className="relative z-10 flex flex-col flex-1 max-w-[1600px] w-full mx-auto p-4 md:p-6 gap-4 min-h-0">
-        <header className="shrink-0">
-          <p className="text-primary-500 text-sm font-medium tracking-widest uppercase mb-1">
-            Portal resume → amazon.pdf LaTeX
-          </p>
-          <h1 className="text-3xl font-bold text-ink">Paste → LaTeX Studio</h1>
-          <p className="text-ink-muted text-sm mt-1">
-            Provider: <span className="text-primary-500 font-medium">{provider}</span> · Paste from
+      <div className="relative z-10 flex flex-col flex-1 max-w-[1600px] w-full mx-auto p-4 md:p-6 gap-5 min-h-0">
+        <header className="shrink-0 animate-fade-up">
+          <p className="section-label text-cedar mb-2">Portal resume → amazon.pdf LaTeX</p>
+          <h1 className="font-display text-[2rem] md:text-[2.35rem] font-bold tracking-tight text-ink leading-tight">
+            Paste → LaTeX Studio
+          </h1>
+          <p className="text-ink-muted text-sm mt-2 max-w-2xl leading-relaxed">
+            Provider: <span className="text-cedar font-semibold">{provider}</span> · Paste from
             another portal, generate LaTeX, chat to revise, Recompile for PDF.
           </p>
         </header>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 flex-1 min-h-0">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 flex-1 min-h-0 animate-fade-up stagger-1">
           {/* Left: paste + chat */}
-          <div className="glass rounded-2xl flex flex-col overflow-hidden min-h-[32rem]">
-            <div className="p-4 border-b border-slate-200 space-y-3 shrink-0 bg-gradient-to-r from-teal-50/80 to-sky-50/60">
+          <div className="surface overflow-hidden flex flex-col min-h-[32rem]">
+            <div className="p-4 border-b border-paper-line/80 space-y-3 shrink-0 bg-gradient-to-b from-cedar-soft/40 to-transparent">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Role title (optional)"
-                  className="rounded-xl bg-white border border-slate-200/90 px-3 py-2 text-sm text-slate-800 shadow-2xs focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all"
+                  className="rounded-full bg-white/95 border border-paper-line px-3.5 py-2 text-sm text-ink shadow-soft focus:outline-none focus:border-cedar focus:shadow-ring transition-all duration-300 ease-apple"
                 />
                 <input
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
                   placeholder="Company (optional)"
-                  className="rounded-xl bg-white border border-slate-200/90 px-3 py-2 text-sm text-slate-800 shadow-2xs focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all"
+                  className="rounded-full bg-white/95 border border-paper-line px-3.5 py-2 text-sm text-ink shadow-soft focus:outline-none focus:border-cedar focus:shadow-ring transition-all duration-300 ease-apple"
                 />
                 <select
                   value={jobType}
                   onChange={(e) => setJobType(e.target.value as JobType | '')}
-                  className="rounded-xl bg-white border border-slate-200/90 px-3 py-2 text-sm text-slate-800 shadow-2xs focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all"
+                  className="rounded-full bg-white/95 border border-paper-line px-3.5 py-2 text-sm text-ink shadow-soft focus:outline-none focus:border-cedar focus:shadow-ring transition-all duration-300 ease-apple"
                 >
                   <option value="internship">Internship</option>
                   <option value="fulltime">Full-time</option>
@@ -192,50 +192,50 @@ export function LatexStudioPage() {
                 onChange={(e) => setResumeText(e.target.value)}
                 rows={6}
                 placeholder="Paste resume text from LinkedIn / Jobright / Word / PDF copy…"
-                className="w-full rounded-xl bg-white border border-slate-200/90 p-3 text-sm font-mono text-slate-800 shadow-2xs focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all"
+                className="w-full rounded-2xl bg-white/95 border border-paper-line p-3.5 text-sm font-mono text-ink shadow-soft focus:outline-none focus:border-cedar focus:shadow-ring transition-all duration-300 ease-apple"
               />
               <textarea
                 value={jobDescription}
                 onChange={(e) => setJobDescription(e.target.value)}
                 rows={3}
                 placeholder="Optional: paste JD to tailor skills/bullets…"
-                className="w-full rounded-xl bg-white border border-slate-200/90 p-3 text-sm text-slate-800 shadow-2xs focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all"
+                className="w-full rounded-2xl bg-white/95 border border-paper-line p-3.5 text-sm text-ink shadow-soft focus:outline-none focus:border-cedar focus:shadow-ring transition-all duration-300 ease-apple"
               />
               <button
                 type="button"
                 disabled={busy || resumeText.trim().length < 80}
                 onClick={generate}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 text-white text-sm font-bold hover:from-teal-700 hover:to-teal-800 disabled:opacity-40 shadow-md shadow-teal-500/20 transition-all active:scale-[0.98]"
+                className="btn-primary inline-flex items-center gap-2 !px-5 !py-2.5 !text-sm"
               >
                 {busy ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
                 Generate LaTeX Resume
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-white/70">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-white/50">
               {messages.map((m) => (
                 <div
                   key={m.id}
-                  className={`rounded-2xl px-3.5 py-2.5 text-xs font-medium leading-relaxed whitespace-pre-wrap shadow-2xs ${
+                  className={`rounded-2xl px-3.5 py-2.5 text-xs font-medium leading-relaxed whitespace-pre-wrap shadow-soft transition-all duration-300 ease-apple ${
                     m.role === 'user'
-                      ? 'bg-teal-50 border border-teal-200/90 text-teal-950 ml-8'
+                      ? 'bg-cedar-soft border border-cedar/20 text-cedar-ink ml-8'
                       : m.role === 'assistant'
-                        ? 'bg-sky-50 border border-sky-200/90 text-sky-950 mr-8'
-                        : 'bg-slate-50 border border-slate-200/90 text-slate-600'
+                        ? 'bg-white border border-paper-line text-ink mr-8'
+                        : 'bg-mist/80 border border-paper-line text-ink-muted'
                   }`}
                 >
                   {m.text}
                 </div>
               ))}
               {busy && (
-                <p className="text-xs text-slate-400 font-medium inline-flex items-center gap-2">
-                  <Loader2 size={14} className="animate-spin text-teal-600" /> Generating content…
+                <p className="text-xs text-ink-faint font-medium inline-flex items-center gap-2">
+                  <Loader2 size={14} className="animate-spin text-cedar" /> Generating content…
                 </p>
               )}
               <div ref={chatEndRef} />
             </div>
 
-            <div className="p-3 border-t border-slate-200/80 flex gap-2 shrink-0 bg-white">
+            <div className="p-3 border-t border-paper-line/80 flex gap-2 shrink-0 bg-white/80">
               <input
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
@@ -247,13 +247,13 @@ export function LatexStudioPage() {
                 }}
                 disabled={busy || !latex}
                 placeholder="Chat: e.g. put PHP first in skills…"
-                className="flex-1 rounded-xl bg-slate-50 border border-slate-200/90 px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-500/20 transition-all disabled:opacity-50"
+                className="flex-1 rounded-full bg-mist/60 border border-paper-line px-3.5 py-2 text-sm text-ink focus:outline-none focus:border-cedar focus:shadow-ring transition-all duration-300 ease-apple disabled:opacity-50"
               />
               <button
                 type="button"
                 disabled={busy || !latex || !chatInput.trim()}
                 onClick={sendChat}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 text-white text-xs font-bold hover:bg-sky-700 disabled:opacity-40 shadow-sm transition-all active:scale-[0.98]"
+                className="btn-primary inline-flex items-center gap-1.5 !px-4"
               >
                 <Send size={14} /> Send
               </button>
@@ -261,10 +261,10 @@ export function LatexStudioPage() {
           </div>
 
           {/* Right: LaTeX + PDF */}
-          <div className="glass rounded-2xl flex flex-col overflow-hidden min-h-[32rem]">
-            <div className="flex flex-wrap items-center justify-between gap-2 p-3 border-b border-slate-200 bg-violet-50/50 shrink-0">
-              <div className="flex items-center gap-2 text-sm font-semibold text-ink">
-                <FileCode2 size={16} className="text-violet-600" />
+          <div className="surface overflow-hidden flex flex-col min-h-[32rem]">
+            <div className="flex flex-wrap items-center justify-between gap-2 p-3.5 border-b border-paper-line/80 bg-gradient-to-b from-cedar-soft/30 to-transparent shrink-0">
+              <div className="flex items-center gap-2 text-sm font-semibold font-display text-ink">
+                <FileCode2 size={16} className="text-cedar" />
                 LaTeX &amp; PDF
               </div>
               <div className="flex flex-wrap gap-2">
@@ -272,7 +272,7 @@ export function LatexStudioPage() {
                   type="button"
                   disabled={!latex}
                   onClick={copyLatex}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-white border border-slate-200 text-ink-muted disabled:opacity-40"
+                  className="chip !py-1.5 !px-3"
                 >
                   <Copy size={13} /> Copy
                 </button>
@@ -280,7 +280,7 @@ export function LatexStudioPage() {
                   type="button"
                   disabled={!latex || recompiling}
                   onClick={recompile}
-                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white disabled:opacity-40"
+                  className="btn-primary inline-flex items-center gap-1.5 !py-1.5 !px-4 !text-xs"
                 >
                   {recompiling ? (
                     <>
@@ -294,29 +294,27 @@ export function LatexStudioPage() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 flex-1 min-h-0">
-              <div className="border-b lg:border-b-0 lg:border-r border-slate-200 flex flex-col min-h-[18rem]">
-                <p className="text-[10px] uppercase tracking-wide text-violet-700 px-2 py-1.5 border-b border-slate-100">
-                  LaTeX source
-                </p>
+              <div className="border-b lg:border-b-0 lg:border-r border-paper-line/80 flex flex-col min-h-[18rem]">
+                <p className="section-label px-3 py-2 border-b border-paper-line/60">LaTeX source</p>
                 <textarea
                   value={latex}
                   onChange={(e) => setLatex(e.target.value)}
                   spellCheck={false}
                   placeholder="Generated LaTeX appears here…"
-                  className="flex-1 w-full p-2 text-xs font-mono bg-white focus:outline-none resize-none min-h-[16rem]"
+                  className="flex-1 w-full p-3 text-xs font-mono bg-white/70 focus:outline-none resize-none min-h-[16rem]"
                 />
               </div>
-              <div className="flex flex-col min-h-[18rem] bg-sky-50/30">
-                <div className="flex items-center justify-between px-2 py-1.5 border-b border-slate-100">
-                  <p className="text-[10px] uppercase tracking-wide text-sky-700 inline-flex items-center gap-1">
-                    <FileText size={12} /> PDF preview
+              <div className="flex flex-col min-h-[18rem] bg-mist/30">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-paper-line/60">
+                  <p className="section-label inline-flex items-center gap-1.5 normal-case tracking-normal">
+                    <FileText size={12} className="text-cedar" /> PDF preview
                   </p>
                   {previewSrc && (
                     <a
                       href={previewSrc}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-[11px] text-primary-500"
+                      className="text-[11px] font-semibold text-cedar hover:text-cedar-ink transition-colors"
                     >
                       Open
                     </a>

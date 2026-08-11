@@ -1,4 +1,9 @@
-import { maxExperienceAllowed, parseExperienceRequirement } from './jobSkipRules';
+import { isNewGradOrEntryTitle } from '../data/candidateTargeting';
+import {
+  maxExperienceAllowed,
+  parseExperienceRequirement,
+  shouldSkipForExperience,
+} from './jobSkipRules';
 
 export type JobType = 'internship' | 'fulltime';
 export { isInternGraduationEligible } from './internGraduation';
@@ -17,10 +22,12 @@ const FULLTIME_TITLE_HINTS =
   /\b(new\s*grad|entry[\s-]?level|full[\s-]?time|associate|software\s+engineer(?!\s+intern)|\d\s*[-–to+]+\s*\d*\s*years?)\b/i;
 
 const FULLTIME_EXPERIENCE_HINTS = [
-  /\b0\s*[-–to]+\s*3(?:\.\d+)?\s*years?\b/i,
-  /\b1\s*[-–to]+\s*3(?:\.\d+)?\s*years?\b/i,
-  /\b2\s*[-–to]+\s*3(?:\.\d+)?\s*years?\b/i,
-  /\bup\s+to\s+3(?:\.\d+)?\s*years?\b/i,
+  /\b0\s*[-–to]+\s*[35](?:\.\d+)?\s*years?\b/i,
+  /\b1\s*[-–to]+\s*[35](?:\.\d+)?\s*years?\b/i,
+  /\b2\s*[-–to]+\s*[35](?:\.\d+)?\s*years?\b/i,
+  /\b3\s*[-–to]+\s*5(?:\.\d+)?\s*years?\b/i,
+  /\b0\s*[-–to]+\s*5(?:\.\d+)?\s*years?\b/i,
+  /\bup\s+to\s+[35](?:\.\d+)?\s*years?\b/i,
   /\b(?:minimum|min\.?|at\s+least)\s+3(?:\.\d+)?\s*\+?\s*years?\b/i,
   /\b3\s*\+\s*years?\b/i,
   /\b3\.\d+\s*years?\b/i,
@@ -31,7 +38,7 @@ const FULLTIME_EXPERIENCE_HINTS = [
 const SENIOR_TITLE_BLOCK = /\b(senior|staff|principal|sr\.|lead|architect|director|manager|head\s+of)\b/i;
 
 const SOFTWARE_HINTS =
-  /\b(software|developer|swe\b|programming|full[\s-]?stack|backend|frontend|front[\s-]?end|web\s+dev|mobile\s+dev|devops|machine\s+learning|\bml\b|data\s+engineer|cloud\s+engineer|computer\s*science|\bcs\b|react|node\.?js|typescript|javascript|python\s+dev)\b/i;
+  /\b(software|developer|swe\b|programming|full[\s-]?stack|backend|frontend|front[\s-]?end|web\s+dev|mobile\s+dev|react\s*native|data\s+engineer|cloud\s+engineer|platform\s+engineer|computer\s*science|\bcs\b|react|node\.?js|typescript|javascript|python\s+dev|machine\s+learning\s+engineer|ml\s+engineer)\b/i;
 
 /** Hardware / non-SWE roles — never scrape or keep these. */
 const NON_SOFTWARE_EXCLUSIONS = [
@@ -92,12 +99,21 @@ export function isEligibleJob(jobType: JobType, title: string, description: stri
     /\b(software|developer|engineer)\b/i.test(title);
   if (!isFtRole) return false;
 
-  if (SENIOR_TITLE_BLOCK.test(title) && !/\b(associate|entry|new\s*grad)\b/i.test(title)) {
+  // Always skip senior/staff/principal — even if title also says New Grad
+  if (SENIOR_TITLE_BLOCK.test(title)) {
     return false;
   }
 
-  const { min: requiredMin } = parseExperienceRequirement(text);
-  const expCap = maxExperienceAllowed();
+  if (/\bpart[\s-]?time\b/i.test(title) || /\bseasonal\b/i.test(title)) {
+    return false;
+  }
+
+  const yoeSkip = shouldSkipForExperience(title, description);
+  if (yoeSkip?.skip) return false;
+
+  const { min: requiredMin, max: requiredMax, hasRange } = parseExperienceRequirement(text);
+  const expCap = maxExperienceAllowed(); // default 3
+  const inKeepableRange = hasRange && requiredMax <= 5 && requiredMin <= 3;
 
   // New grad / Summer 2027 graduation
   if (
@@ -110,23 +126,31 @@ export function isEligibleJob(jobType: JobType, title: string, description: stri
     return true;
   }
 
-  // 3+, 3.2, 0–3 yrs, etc.
-  if (matchesAny(text, FULLTIME_EXPERIENCE_HINTS)) {
-    return requiredMin === 0 || requiredMin <= expCap;
+  // 0–5 / 3–5 / 3+ yrs, etc.
+  if (inKeepableRange || matchesAny(text, FULLTIME_EXPERIENCE_HINTS)) {
+    return (
+      inKeepableRange ||
+      requiredMin === 0 ||
+      requiredMin <= expCap ||
+      (requiredMin <= 4 && isNewGradOrEntryTitle(title, description))
+    );
   }
 
-  if (requiredMin > 0 && requiredMin <= expCap) {
+  if (
+    requiredMin > 0 &&
+    (requiredMin <= expCap || (requiredMin <= 4 && isNewGradOrEntryTitle(title, description)))
+  ) {
     return true;
   }
 
   // No years stated — junior SWE titles only (not senior+)
-  if (requiredMin === 0 && /\b(software|developer)\b/i.test(title)) {
-    return !SENIOR_TITLE_BLOCK.test(title);
+  if (requiredMin === 0 && /\b(software|developer|engineer)\b/i.test(title)) {
+    return true;
   }
 
   return false;
 }
 
 export function eligibilityReason(_jobType?: JobType): string {
-  return 'Full-time software — new grad / entry-level / up to ~3.5 years (MS grad January 2027)';
+  return 'Full-time software — new grad / entry-level / ≤3 years (keep 0–5 & 3–5 ranges; 4y only if new-grad/entry; MS grad January 2027)';
 }

@@ -1,9 +1,9 @@
-import { execFile } from 'child_process';
+import { exec } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { promisify } from 'util';
 import { config } from '../../config';
+import { PipelineAbortError, throwIfAborted } from '../pipelineAbort';
 import {
   buildResumeSystemPrompt,
   buildResumeUserPrompt,
@@ -12,8 +12,6 @@ import {
 import { extractLatexFromModelResponse, parseModelResumeResponse } from './extractLatex';
 import type { ResumeGenerationResult } from './openRouterProvider';
 import { makeTraceId, traceError, traceLog } from '../debugTrace';
-
-const execFileAsync = promisify(execFile);
 
 function findClaudeBinary(): string {
   const configured = config.resumeAgent.claudeCode.binary?.trim();
@@ -32,9 +30,13 @@ function findClaudeBinary(): string {
   return 'claude';
 }
 
-import { exec } from 'child_process';
-
-export async function runClaudePrint(systemPrompt: string, userPrompt: string, traceId = makeTraceId('claude')): Promise<string> {
+export async function runClaudePrint(
+  systemPrompt: string,
+  userPrompt: string,
+  traceId = makeTraceId('claude'),
+  options?: { signal?: AbortSignal }
+): Promise<string> {
+  throwIfAborted(options?.signal);
   const { model, timeoutMs } = config.resumeAgent.claudeCode;
   const bin = findClaudeBinary();
 
@@ -64,7 +66,7 @@ export async function runClaudePrint(systemPrompt: string, userPrompt: string, t
   });
 
   return new Promise<string>((resolve, reject) => {
-    exec(cmd, {
+    const child = exec(cmd, {
       timeout: timeoutMs,
       maxBuffer: 20 * 1024 * 1024,
       env: {
@@ -72,6 +74,7 @@ export async function runClaudePrint(systemPrompt: string, userPrompt: string, t
         CLAUDE_CODE_SIMPLE: '1',
       },
     }, (err, stdout, stderr) => {
+      signal?.removeEventListener('abort', onAbort);
       try { fs.unlinkSync(tmpFile); } catch {}
       const elapsedSec = ((Date.now() - callStart) / 1000).toFixed(1);
       const content = String(stdout || '').trim();
@@ -82,6 +85,10 @@ export async function runClaudePrint(systemPrompt: string, userPrompt: string, t
         stderrChars: String(stderr || '').length,
         hadError: Boolean(err),
       });
+
+      if (signal?.aborted) {
+        return reject(new PipelineAbortError(String(signal.reason || 'Claude Code generation aborted')));
+      }
 
       if (err) {
         traceError(traceId, 'claude.exec.error', err, { stderr: String(stderr || '').slice(0, 300) });
@@ -95,6 +102,20 @@ export async function runClaudePrint(systemPrompt: string, userPrompt: string, t
       }
       resolve(content);
     });
+
+    const signal = options?.signal;
+    const onAbort = () => {
+      child.kill('SIGTERM');
+      reject(new PipelineAbortError(String(signal?.reason || 'Claude Code generation aborted')));
+    };
+
+    if (signal) {
+      if (signal.aborted) {
+        onAbort();
+        return;
+      }
+      signal.addEventListener('abort', onAbort, { once: true });
+    }
   });
 }
 
@@ -107,7 +128,7 @@ export async function generateResumeWithClaudeCode(
   const userPrompt = buildResumeUserPrompt(ctx.jobDescription);
 
   const attempt = async (prompt: string) => {
-    const content = await runClaudePrint(systemPrompt, prompt, traceId);
+    const content = await runClaudePrint(systemPrompt, prompt, traceId, { signal: ctx.abortSignal });
     return parseModelResumeResponse(content);
   };
 
@@ -115,6 +136,7 @@ export async function generateResumeWithClaudeCode(
   try {
     parsed = await attempt(userPrompt);
   } catch (err) {
+    if (err instanceof PipelineAbortError) throw err;
     const msg = err instanceof Error ? err.message : String(err);
     if (!/No LaTeX found|empty output/i.test(msg)) throw err;
     console.warn(`Claude Code first reply unusable (${msg.slice(0, 160)}) — retrying once…`);
@@ -163,7 +185,7 @@ export async function reviseResumeWithClaudeCode(
     latexChars: latex.length,
     instructionChars: instruction.length,
   });
-  const content = await runClaudePrint(systemPrompt, userPrompt, traceId);
+  const content = await runClaudePrint(systemPrompt, userPrompt, traceId, { signal: ctx.abortSignal });
   const revised = extractLatexFromModelResponse(content);
   traceLog(traceId, 'claude.revise.done', { latexChars: revised.length });
   return revised;

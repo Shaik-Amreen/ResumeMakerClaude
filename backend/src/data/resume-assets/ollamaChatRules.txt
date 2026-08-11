@@ -14,19 +14,21 @@ BODY ONLY — preamble/header locked.
 8) Bullets 3–5/job; Amazon → ASI → Infobell; NEVER Redbee. Complete lines — no mid-phrase cuts.
 9) Skills: Languages / Backend / Frontend / Cloud \& DevOps / Monitoring / Practices.
 10) Projects: \href{\textbf{Name - Tagline}} \,\textbar\, {stack}\\ + evidence; \vspace{2pt}; ≥3 LINKED when possible.
-11) Education/Certs: template patterns. Certs = Name - Year.
-12) Fabrication of features/metrics to maximize JD match is ALLOWED. Never invent employers. Amazon = LinkedIn-public only.
+11) Education LOCKED: California State University, Long Beach + JNTU Anantapur - MITS only (never invent San Jose State / other schools). Certs = Name - Year (open to add/adjust).
+12) FABRICATION: Skills + Certs + ≤2 projects (prefer CloudSync/RenderSync). NEVER invent employers, employment dates/locations, or schools. Experience headers LOCKED (Amazon 05/2026-08/2026 Bellevue; ASI 02/2025-Present; Infobell 01/2023-01/2025). Amazon bullets = LinkedIn-public only.
+12b) SYSTEMS: OS / Computer Architecture / Networking evidence → CloudSync/RenderSync only (within 2-project cap).
 13) Dates/titles/certs: plain " - " only (spaces both sides). NEVER LaTeX -- / --- or Unicode en/em dashes.
 14) One frontend + one backend family per project; never mix C++ with Node/Python/Java/Go.
-15) Change ≤2 project stacks for unmatched JD skills only. Co-founder ONLY if JD asks.
-16) FULL JD coverage: Kubernetes, K8s, Docker, Helm, Microservices, Kafka, Terraform, Jenkins, Prometheus, Grafana, gRPC, GraphQL, REST, Redis, AWS are verified skills under Infobell IT Solutions & Projects.
-17) EVIDENCE REQUIREMENT: Every required JD skill must be written into an Infobell/ASI or Key Project bullet with concrete evidence.
+15) Change ≤2 project stacks for unmatched JD skills only (CloudSync/RenderSync preferred). Co-founder ONLY if JD asks.
+16) FULL JD coverage via Skills + real employer bullet emphasis + ≤2 fabricatable projects. Never invent Advanced Systems Inc or other fake employers.
+17) EVIDENCE: Prefer Skills + CloudSync/RenderSync + real Amazon/ASI/Infobell wording — not fake employers.
 18) Same-concept substitution OK (Kubernetes/EKS/Helm, Postgres↔MySQL, Kafka↔RabbitMQ, Express↔Fastify, …).
-19) You may fabricate and invent features/metrics within existing projects; tool labels and evidence adapt per JD.
+19) Fabricate features/metrics only on ≤2 projects; keep NativeNest/Arikya/Job Tracker URLs real.
 20) Ban AI words: leveraged, utilized, spearheaded, orchestrated, cutting-edge, seamless, robust,
     holistic, synergy, streamline, delve, showcase, empower, foster, unlock, elevate, pivotal,
     myriad, plethora, best-in-class, state-of-the-art, impactful, passionate, excited, landscape.
 21) Prefer: built, wrote, shipped, fixed, cut, added, owned, led, used, automated, optimized, …
 22) No first person; no "it's not just X, it's Y" / "from A to B"; no emoji.
-23) Pipeline auto: trim ≤95 without mid-phrase cut; strip Redbee; humanize buzzwords; finish incomplete lines.
+23) Pipeline auto: trim bullets; strip Redbee; lock experience headers + education; humanize buzzwords.
 24) Small diffs: change only what the JD needs; keep template voice; LaTeX body only (+ MATCH_REPORT when asked).
+25) Policy source: FABRICATION_POLICY.md — update when user changes rules.

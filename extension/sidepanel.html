@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ResumeMaker Attach</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Resume Attach</h1>
+      <p class="tagline">Simplify fills the form · this attaches your tracker PDF · you Submit</p>
+    </header>
+
+    <section class="card">
+      <div class="row">
+        <span class="label">Backend</span>
+        <span id="backendStatus" class="pill muted">…</span>
+      </div>
+      <div class="row">
+        <span class="label">Page</span>
+        <span id="pageHost" class="mono truncate">—</span>
+      </div>
+      <div class="row">
+        <span class="label">Job</span>
+        <span id="jobMatch" class="truncate">—</span>
+      </div>
+      <div class="row">
+        <span class="label">Resume</span>
+        <span id="resumeStatus" class="truncate">—</span>
+      </div>
+    </section>
+
+    <section class="actions single">
+      <button type="button" id="btnRefresh">Refresh</button>
+      <button type="button" id="btnResume" class="primary" disabled>Attach resume</button>
+      <button type="button" id="btnAttachApplied" class="accent" disabled>Attach + mark applied</button>
+      <button type="button" id="btnApplied" disabled>Mark applied</button>
+      <button type="button" id="btnTracker" disabled>Open in tracker</button>
+      <button type="button" id="btnSave" disabled>Save page to tracker</button>
+    </section>
+
+    <p class="notice">
+      Use Simplify for field fill. <strong>Attach resume</strong> swaps in the tailored PDF.
+      After you Submit, use <strong>Attach + mark applied</strong> (or Mark applied) to sync the tracker.
+      Never auto-submits.
+    </p>
+
+    <section class="card">
+      <h2>Status</h2>
+      <pre id="log" class="log">Ready.</pre>
+    </section>
+
+    <script type="module" src="sidepanel.js"></script>
+  </body>
+</html>

@@ -36,8 +36,10 @@ export interface TaskStatus {
     | 'scraping_faang_portals'
     | 'scraping_github_lists'
     | 'scraping_ats'
+    | 'scraping_scoutify'
     | 'generating_resumes'
     | 'master_pipeline'
+    | 'applying_career'
     | 'outreach';
   phase?: string;
   message: string;
@@ -67,6 +69,12 @@ export const api = {
     }),
   scrapeGithubLists: (limit: number, jobType: JobType = 'fulltime') =>
     request<{ message: string }>('/jobs/scrape/github-lists', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ limit, jobType }),
+    }),
+  scrapeScoutify: (limit: number, jobType: JobType = 'fulltime') =>
+    request<{ message: string }>('/jobs/scrape/scoutify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ limit, jobType }),
@@ -101,12 +109,21 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ limit, jobType }),
     }),
-  generateResumes: (opts?: { limit?: number; withOutreach?: boolean }) =>
-    request<{ message: string }>('/jobs/generate-resumes', {
+  generateResumes: (opts?: { limit?: number; withOutreach?: boolean; source?: string }) =>
+    request<{ message: string; count?: number; source?: string }>('/jobs/generate-resumes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(opts || {}),
     }),
+  clearResumes: (opts?: { source?: string }) =>
+    request<{ message: string; cleared: number; filesRemoved: number; source?: string }>(
+      '/jobs/clear-resumes',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(opts || {}),
+      }
+    ),
   deleteAll: () => request<{ message: string; deleted: number }>('/jobs/delete-all', { method: 'POST' }),
   deleteJob: (id: string) =>
     request<{ message: string; deleted: boolean }>(`/jobs/${id}`, { method: 'DELETE' }),
@@ -180,6 +197,12 @@ export const api = {
       method: 'POST',
     }),
   apply: (id: string) => request<{ message: string }>(`/jobs/${id}/apply`, { method: 'POST' }),
+  applyCareerQueue: (limit = 20) =>
+    request<{ message: string }>('/jobs/apply-career-queue', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ limit }),
+    }),
   approveMessage: (id: string, message?: string) =>
     request<Job>(`/jobs/${id}/approve-message`, {
       method: 'POST',
@@ -187,6 +210,10 @@ export const api = {
       body: JSON.stringify({ message }),
     }),
   approveSubmit: (id: string) => request<Job>(`/jobs/${id}/approve-submit`, { method: 'POST' }),
+  showInChrome: (id: string) =>
+    request<{ message: string; url: string; title?: string; job: Job }>(`/jobs/${id}/show-in-chrome`, {
+      method: 'POST',
+    }),
   reject: (id: string, reason?: string) =>
     request<Job>(`/jobs/${id}/reject`, {
       method: 'POST',
@@ -237,4 +264,46 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ latex }),
     }),
+
+  updateWorkspace: (
+    id: string,
+    body: {
+      notes?: string;
+      interest?: number | null;
+      followUpAt?: string | null;
+      coverLetterDraft?: string;
+      recruiterMessageDraft?: string;
+    }
+  ) =>
+    request<Job>(`/jobs/${id}/workspace`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+
+  generateOutreach: (id: string) =>
+    request<{ message: string; job: Job }>(`/jobs/${id}/generate-outreach`, { method: 'POST' }),
+
+  getAnswers: () =>
+    request<{
+      answers: { question: string; questionNorm: string; answer: string; updatedAt: string }[];
+      count: number;
+    }>('/answers'),
+
+  saveAnswer: (question: string, answer: string) =>
+    request<{ ok: boolean; count: number }>('/answers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, answer }),
+    }),
+
+  deleteAnswer: (questionNorm: string) =>
+    request<{ ok: boolean; count: number }>('/answers/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ questionNorm }),
+    }),
+
+  resetCustomAnswers: () =>
+    request<{ ok: boolean; count: number }>('/answers/reset-custom', { method: 'POST' }),
 };

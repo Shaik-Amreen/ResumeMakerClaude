@@ -1,6 +1,6 @@
 import path from 'path';
 import { By, type Locator, WebElement } from 'selenium-webdriver';
-import Job, { type IJob } from '../models/Job';
+import { type ApplyPhase, type IJob } from '../models/Job';
 import { config } from '../config';
 import { applicationProfile, type ApplicationProfile } from '../data/applicationProfile';
 import { waitForApproval } from './pipelineService';
@@ -83,11 +83,22 @@ export async function uploadPdfToVisibleInputs(
   }
 }
 
+export async function setApplyPhase(
+  job: IJob,
+  phase: ApplyPhase,
+  note?: string
+): Promise<void> {
+  job.applyPhase = phase;
+  if (note) job.approvalNote = note;
+  await job.save();
+}
+
 /** Always pause for your approval before the final submit click. */
 export async function requestSubmitApproval(job: IJob, jobId: string, platformLabel: string) {
   job.status = 'pending_submit_approval';
   job.pendingAction = 'submit_application';
-  job.approvalNote = `Final step on ${platformLabel} — approve to submit the application.`;
+  job.applyPhase = 'awaiting_submit';
+  job.approvalNote = `Final step on ${platformLabel} — review the form in Chrome, then approve to submit.`;
   await job.save();
 
   await sendEmailNotification(
@@ -103,6 +114,7 @@ export async function requestSubmitApproval(job: IJob, jobId: string, platformLa
 export async function markApplySuccess(job: IJob, platformLabel: string) {
   job.status = 'applied';
   job.pendingAction = null;
+  job.applyPhase = 'done';
   job.approvalNote = `Application submitted successfully via ${platformLabel}.`;
   job.errorMessage = undefined;
   await job.save();
@@ -112,11 +124,32 @@ export async function markApplySuccess(job: IJob, platformLabel: string) {
 export async function markApplyFailed(job: IJob, err: unknown, platformLabel: string) {
   const message = err instanceof Error ? err.message : 'Auto-apply failed';
   job.status = 'failed';
+  job.applyPhase = 'failed';
   job.errorMessage = message;
   job.pendingAction = null;
   await job.save();
   console.error(`${platformLabel} apply error:`, err);
   await sendEmailNotification(`❌ Apply failed (${platformLabel})\n${job.title} @ ${job.company}\n${message}`);
+}
+
+/**
+ * Soft failure: leave Chrome on the form so you can finish manually.
+ * Used when Next/Submit/required fields cannot be automated reliably.
+ */
+export async function markApplyConfusedHold(
+  job: IJob,
+  reason: string,
+  platformLabel: string
+): Promise<void> {
+  job.status = 'confused_hold';
+  job.applyPhase = 'confused_hold';
+  job.pendingAction = null;
+  job.errorMessage = reason;
+  job.approvalNote = `${platformLabel}: paused for manual finish — Chrome should still be on the form. ${reason}`;
+  await job.save();
+  await sendEmailNotification(
+    `⏸️ Career apply needs you (${platformLabel})\n${job.title} @ ${job.company}\n${reason}`
+  );
 }
 
 export async function cleanupApplySession() {

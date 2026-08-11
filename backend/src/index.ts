@@ -8,6 +8,8 @@ import { config } from './config';
 import jobRoutes from './routes/jobRoutes';
 import ollamaRoutes from './routes/ollamaRoutes';
 import resumeRoutes from './routes/resumeRoutes';
+import extensionRoutes from './routes/extensionRoutes';
+import answerBankRoutes from './routes/answerBankRoutes';
 import { openApiSpec } from './swagger/openapi';
 import { startJobScheduler } from './services/schedulerService';
 import { warmOllamaModel } from './services/ollamaService';
@@ -18,7 +20,16 @@ const HOST = config.host;
 
 app.use(
   cors({
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5002', 'http://127.0.0.1:5002'],
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+      if (
+        origin.startsWith('chrome-extension://') ||
+        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)
+      ) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
@@ -41,7 +52,10 @@ app.use((err: unknown, _req: express.Request, res: express.Response, next: expre
 });
 
 app.use((req, _res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  // Quiet by default in production; local/dev keeps request traces.
+  if (process.env.DEBUG_HTTP === 'true' || process.env.NODE_ENV !== 'production') {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  }
   next();
 });
 
@@ -69,6 +83,8 @@ app.use(
 app.use('/api/resume', resumeRoutes);
 app.use('/api/ollama', ollamaRoutes);
 app.use('/api/jobs', jobRoutes);
+app.use('/api/answers', answerBankRoutes);
+app.use('/api/extension', extensionRoutes);
 
 async function startServer() {
   try {

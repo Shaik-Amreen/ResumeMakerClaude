@@ -10,7 +10,7 @@ interface Props {
 }
 
 const inputClass =
-  'w-full rounded-xl bg-white border border-slate-200/90 px-3 py-1.5 text-xs text-slate-800 shadow-2xs focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 transition-all font-medium';
+  'w-full rounded-full bg-white/90 border border-paper-line px-3 py-1.5 text-[11px] text-ink shadow-soft focus:outline-none focus:border-cedar focus:shadow-ring transition-all duration-200 font-medium';
 
 export function JobFiltersBar({ filters, onChange, total, visible }: Props) {
   const set = (patch: Partial<JobFilters>) => onChange({ ...filters, ...patch });
@@ -18,43 +18,42 @@ export function JobFiltersBar({ filters, onChange, total, visible }: Props) {
   const activeCount = [
     filters.search,
     filters.source !== 'all',
-    filters.status !== 'all',
+    filters.status !== 'all' && filters.status !== 'action_queue',
     filters.priority !== 'all',
     filters.jobType !== 'all',
     filters.hasApplicants !== 'all',
     filters.hasPosted !== 'all',
-    filters.sort !== 'priority',
+    filters.sort !== 'action',
   ].filter(Boolean).length;
 
   return (
-    <div className="p-3.5 border-b border-slate-200/80 bg-gradient-to-r from-slate-50/90 via-teal-50/40 to-sky-50/40 shrink-0 space-y-2.5">
+    <div className="p-3 border-b border-paper-line/80 bg-gradient-to-b from-cedar-soft/40 to-transparent shrink-0 space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700">
-          <Filter size={14} className="text-teal-600" />
-          Filter Jobs
+        <div className="flex items-center gap-1.5 text-xs font-bold tracking-tight text-ink font-display">
+          <Filter size={12} className="text-cedar" />
+          Filters
         </div>
-        <span className="text-[10px] font-semibold text-slate-500 bg-white/80 px-2 py-0.5 rounded-full border border-slate-200/80 shadow-2xs">
-          Showing {visible} of {total}
-          {activeCount > 0 ? ` · ${activeCount} active` : ''}
+        <span className="text-[10px] font-semibold text-ink-muted bg-white/80 px-2 py-0.5 rounded-full border border-paper-line">
+          {visible}/{total}
+          {activeCount > 0 ? ` · ${activeCount}` : ''}
         </span>
       </div>
 
-      <div className="relative">
-        <input
-          type="search"
-          placeholder="Search title, company, JD keywords…"
-          value={filters.search}
-          onChange={(e) => set({ search: e.target.value })}
-          className={inputClass}
-        />
-      </div>
+      <input
+        type="search"
+        placeholder="Search title, company…"
+        value={filters.search}
+        onChange={(e) => set({ search: e.target.value })}
+        className={inputClass}
+      />
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-1.5">
         <select value={filters.source} onChange={(e) => set({ source: e.target.value })} className={inputClass}>
           <option value="all">All platforms</option>
           <option value="company_portal">FAANG / company</option>
           <option value="github">GitHub list</option>
           <option value="simplify">Simplify</option>
+          <option value="scoutify">Scoutify</option>
           <option value="jobright">Jobright</option>
           <option value="linkedin">LinkedIn</option>
           <option value="indeed">Indeed</option>
@@ -65,6 +64,7 @@ export function JobFiltersBar({ filters, onChange, total, visible }: Props) {
         </select>
 
         <select value={filters.sort} onChange={(e) => set({ sort: e.target.value as JobFilters['sort'] })} className={inputClass}>
+          <option value="action">Sort: Action first</option>
           <option value="priority">Sort: FAANG first</option>
           <option value="newest">Sort: Newest added</option>
           <option value="oldest">Sort: Oldest added</option>
@@ -116,9 +116,9 @@ export function JobFiltersBar({ filters, onChange, total, visible }: Props) {
         <button
           type="button"
           onClick={() => onChange({ ...DEFAULT_FILTERS })}
-          className="text-[11px] font-semibold text-teal-700 hover:text-teal-900 inline-flex items-center gap-1 pt-1 transition-colors"
+          className="text-[11px] font-semibold text-cedar hover:text-cedar-ink inline-flex items-center gap-1 transition-colors duration-300 ease-apple"
         >
-          <X size={12} /> Clear all filters ({activeCount})
+          <X size={12} /> Clear filters
         </button>
       )}
     </div>

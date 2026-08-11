@@ -102,7 +102,15 @@ async function readSseChatContent(res: Response, traceId: string): Promise<strin
  */
 export async function openRouterChatCompletion(
   messages: ChatMessage[],
-  opts?: { maxTokens?: number; temperature?: number; model?: string; apiKey?: string; baseUrl?: string; traceId?: string; }
+  opts?: {
+    maxTokens?: number;
+    temperature?: number;
+    model?: string;
+    apiKey?: string;
+    baseUrl?: string;
+    traceId?: string;
+    signal?: AbortSignal;
+  }
 ): Promise<string> {
   const { openRouter } = config.resumeAgent;
   const apiKey = opts?.apiKey || openRouter.apiKey;
@@ -117,6 +125,11 @@ export async function openRouterChatCompletion(
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
+
+  if (opts?.signal) {
+    if (opts.signal.aborted) controller.abort();
+    else opts.signal.addEventListener('abort', () => controller.abort(), { once: true });
+  }
 
   const requestStart = Date.now();
   const url = `${baseUrl}/chat/completions`;
@@ -245,7 +258,7 @@ export async function generateResumeWithOpenRouter(
   const content = await openRouterChatCompletion([
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userPrompt },
-  ], { traceId });
+  ], { traceId, signal: ctx.abortSignal });
 
   const parsed = parseModelResumeResponse(content);
   traceLog(traceId, 'openrouter.generate.parsed', {

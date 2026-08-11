@@ -8,7 +8,7 @@ import {
   yesNoPhrases,
 } from './applicationAnswers';
 import type { FormQuestionContext } from './applyHelpers';
-
+import { isHoneypotField } from './careerApplyUtils';
 async function fuzzySelectOption(select: Select, answer: string, optionsText: string[]): Promise<string> {
   try {
     await select.selectByVisibleText(answer);
@@ -77,9 +77,25 @@ async function fillTextInput(
   if (!(await input.isDisplayed())) return;
 
   const labelOrg = await labelForField(driver, input);
+  const nameAttr = (await input.getAttribute('name')) || '';
+  const idAttr = (await input.getAttribute('id')) || '';
+  // Workday + generic ATS honeypots — never fill (auto-apply research 2026).
+  if (
+    isHoneypotField(labelOrg) ||
+    isHoneypotField(nameAttr) ||
+    isHoneypotField(idAttr)
+  ) {
+    return;
+  }
+
   const label = labelOrg.toLowerCase();
   const prev = (await input.getAttribute('value')) || '';
   if (!ctx.profile.overwritePreviousAnswers && prev.trim()) return;
+
+  // Never fill name=Suffix / MI with years-of-experience fallback
+  if (/^(suffix|mi|middle)$/i.test(nameAttr) || /^suffix$/i.test(label.trim())) {
+    return;
+  }
 
   let { answer, needsAutocomplete } = resolveTextAnswer(label, ctx.profile, ctx.workLocation);
 
@@ -87,7 +103,7 @@ async function fillTextInput(
     const ai = await ctx.aiAnswer(labelOrg, 'text', ctx.jobDescription);
     if (ai) answer = ai;
   }
-  if (!answer) answer = ctx.profile.yearsOfExperience;
+  if (!answer) return;
 
   await input.clear();
   await input.sendKeys(answer);
@@ -252,14 +268,21 @@ export async function fillGenericFormFields(
     }
   }
 
-  const radioNames = await driver.executeScript(`
-    const root = arguments[0];
+  // When root is the WebDriver, Selenium cannot pass it as a DOM node — use document.
+  const radioScope = root === driver ? null : root;
+  const radioNames = await driver.executeScript(
+    `
+    const arg = arguments[0];
+    const root =
+      arg && typeof arg.querySelectorAll === 'function' ? arg : document;
     const names = new Set();
-    for (const el of root.querySelectorAll('input[type="radio"][name]')) {
+    for (const el of Array.from(root.querySelectorAll('input[type="radio"][name]'))) {
       if (el.offsetParent !== null) names.add(el.name);
     }
     return [...names];
-  `, root);
+    `,
+    radioScope
+  );
 
   if (Array.isArray(radioNames)) {
     for (const name of radioNames as string[]) {
@@ -278,19 +301,52 @@ export async function findSubmitButton(
   root: WebDriver | WebElement
 ): Promise<WebElement | null> {
   const xpaths = [
+    './/*[@data-automation-id="bottom-navigation-next-button" and (contains(translate(., "SUBMIT", "submit"), "submit") or contains(translate(., "REVIEW", "review"), "review"))]',
+    './/*[@data-automation-id="pageFooterNextButton"]',
     './/button[contains(translate(., "SUBMIT", "submit"), "submit")]',
-    './/button[contains(translate(., "APPLY", "apply"), "apply") and not(contains(translate(., "EASY", "easy"), "easy"))]',
-    './/input[@type="submit"]',
-    './/button[@type="submit"]',
     './/button[contains(., "Send application")]',
     './/button[contains(., "Submit application")]',
     './/button[contains(., "Complete application")]',
+    './/button[contains(translate(., "FINISH", "finish"), "finish")]',
+    './/input[contains(translate(@value, "FINISH", "finish"), "finish")]',
+    './/*[@id="buttonPrimary" and (contains(translate(@value, "FINISH", "finish"), "finish") or contains(translate(., "FINISH", "finish"), "finish"))]',
+    './/*[@data-qa="btn-submit"]',
+    './/*[@data-qa="btn-submit-application"]',
+    './/input[@type="submit"]',
+    './/button[@type="submit"]',
+    // Some ATS use a plain "Apply" as the final submit — never treat "Apply Now" (JD entry) as submit.
+    './/button[contains(translate(normalize-space(.), "APPLY", "apply"), "apply") and not(contains(translate(., "EASY", "easy"), "easy")) and not(contains(translate(., "APPLY NOW", "apply now"), "apply now"))]',
   ];
 
   for (const xpath of xpaths) {
     const buttons = await root.findElements(By.xpath(xpath));
     for (const btn of buttons) {
       try {
+        const text = (
+          ((await btn.getText()) || '') +
+          ' ' +
+          ((await btn.getAttribute('value')) || '') +
+          ' ' +
+          ((await btn.getAttribute('aria-label')) || '')
+        )
+          .trim()
+          .toLowerCase();
+        if (!text) continue;
+        // Never treat login / account-wall CTAs as application submit
+        if (
+          /standard login|sign in|log in|login|create account|sign up|register|forgot password/.test(
+            text
+          )
+        ) {
+          continue;
+        }
+        // Resume upload step (AppOne "Submit Resume") is not the final application submit
+        if (/submit resume|upload resume|attach resume|upload cv|submit cv/.test(text)) {
+          continue;
+        }
+        // "Continue" / "Next" are multi-step navigation — handled by findNextButton
+        if (/^(continue|next|save and continue)$/i.test(text.trim())) continue;
+        if (text === 'apply now' || text.startsWith('apply now')) continue;
         if (await btn.isDisplayed() && await btn.isEnabled()) return btn;
       } catch {
         // try next
@@ -302,17 +358,35 @@ export async function findSubmitButton(
 
 export async function findNextButton(root: WebDriver | WebElement): Promise<WebElement | null> {
   const xpaths = [
+    './/*[@data-automation-id="bottom-navigation-next-button"]',
+    './/*[@data-automation-id="pageFooterNextButton"]',
     './/button[contains(., "Next")]',
     './/button[contains(., "Continue")]',
+    './/button[contains(., "Save and Continue")]',
     './/button[contains(., "Review")]',
     './/a[contains(., "Next")]',
     './/input[@value="Next"]',
+    './/input[@value="Continue"]',
+    './/input[contains(@value, "Continue")]',
+    './/input[@id="ucButtons_btnSubmit"]',
+    './/input[contains(@name, "btnSubmit")]',
+    './/input[contains(@value, "Submit Resume")]',
+    './/button[contains(., "Submit Resume")]',
   ];
 
   for (const xpath of xpaths) {
     const buttons = await root.findElements(By.xpath(xpath));
     for (const btn of buttons) {
       try {
+        const text = (
+          ((await btn.getText()) || '') +
+          ' ' +
+          ((await btn.getAttribute('value')) || '')
+        )
+          .trim()
+          .toLowerCase();
+        // Skip login-wall continues that aren't form navigation
+        if (/standard login|sign in|^log in$/.test(text)) continue;
         if (await btn.isDisplayed() && await btn.isEnabled()) return btn;
       } catch {
         // try next
@@ -323,13 +397,96 @@ export async function findNextButton(root: WebDriver | WebElement): Promise<WebE
 }
 
 export async function clickApplyEntryPoint(driver: WebDriver): Promise<boolean> {
+  // Prefer a primary Apply CTA via DOM scoring (Paychex AppOne header vs sidebar [Apply Now]).
+  try {
+    const clicked = (await driver.executeScript(`
+      function visible(el) {
+        if (!el) return false;
+        const r = el.getBoundingClientRect();
+        if (r.width < 2 || r.height < 2) return false;
+        const st = window.getComputedStyle(el);
+        return st.visibility !== 'hidden' && st.display !== 'none';
+      }
+      function inNoise(el) {
+        let n = el;
+        for (let i = 0; i < 8 && n; i++) {
+          const t = ((n.innerText || n.textContent || '') + ' ' + (n.className || '') + ' ' + (n.id || '')).toLowerCase();
+          if (/we also recommend|other jobs|similar jobs|recommended|related jobs|sidebar/.test(t) && t.length < 4000) {
+            // Only treat as noise if this subtree is a recommendation chrome, not the whole page
+            if (/we also recommend|other jobs within|similar openings/.test(t)) return true;
+          }
+          n = n.parentElement;
+        }
+        return false;
+      }
+      const nodes = Array.from(document.querySelectorAll('a, button, [role="button"], input[type="button"], input[type="submit"]'));
+      let best = null;
+      let bestScore = -1;
+      for (const el of nodes) {
+        if (!visible(el)) continue;
+        if (inNoise(el)) continue;
+        const text = ((el.innerText || el.value || el.getAttribute('aria-label') || el.textContent || '') + '').replace(/\\s+/g, ' ').trim();
+        const low = text.toLowerCase();
+        if (!low) continue;
+        if (/applied|view application|already applied|withdraw/.test(low)) continue;
+        if (!/\\bapply\\b/.test(low) && !/apply now|start application|apply for this|apply to this|apply with/.test(low)) continue;
+        // Skip sidebar-style "[Apply Now]" for other listings when possible
+        let score = 0;
+        if (/^apply now$/i.test(text)) score += 50;
+        else if (/apply now/i.test(text)) score += 35;
+        else if (/^apply$/i.test(text)) score += 30;
+        else if (/start application|apply for this job/i.test(text)) score += 40;
+        else score += 10;
+        const href = (el.getAttribute('href') || el.href || '').toLowerCase();
+        if (/javascript:.*submit/.test(href)) score += 60;
+        if (/applytojob|appone|\\/apply|apply\\?/.test(href)) score += 25;
+        // Paychex sidebar / other-job links
+        if (/\\[apply now\\]/.test(text)) score -= 40;
+        if (/maininforeq\\.asp/.test(href) && /r_id=/.test(href)) score -= 30;
+        const cls = String(el.className || '').toLowerCase() + ' ' + String(el.id || '').toLowerCase();
+        if (/apply/.test(cls)) score += 15;
+        // Prefer top-of-page primary CTA (Paychex grey bar)
+        const top = el.getBoundingClientRect().top;
+        if (top >= 0 && top < 220) score += 20;
+        if (top >= 0 && top < 120) score += 10;
+        // Prefer form-submit Apply Now over secondary Main.asp links
+        if (/^apply now$/i.test(text) && /javascript:/i.test(href)) score += 25;
+        if (score > bestScore) {
+          bestScore = score;
+          best = el;
+        }
+      }
+      if (!best || bestScore < 10) return { ok: false, score: bestScore };
+      best.scrollIntoView({ block: 'center', inline: 'nearest' });
+      best.click();
+      return { ok: true, score: bestScore, text: ((best.innerText || best.value || '') + '').trim().slice(0, 80) };
+    `)) as { ok: boolean; score?: number; text?: string };
+    if (clicked?.ok) {
+      await driver.sleep(2500);
+      const handles = await driver.getAllWindowHandles();
+      if (handles.length > 1) {
+        await driver.switchTo().window(handles[handles.length - 1]);
+      }
+      console.log(`Career apply: clicked Apply entry (${clicked.text || 'Apply'}, score=${clicked.score})`);
+      return true;
+    }
+  } catch (err) {
+    console.warn('Career apply: primary Apply click script failed:', err);
+  }
+
+  // XPath fallback
   const xpaths = [
+    "//a[normalize-space()='Apply Now' or normalize-space()='APPLY NOW']",
+    "//button[normalize-space()='Apply Now' or normalize-space()='APPLY NOW']",
+    "//a[contains(translate(., 'APPLY NOW', 'apply now'), 'apply now')]",
+    "//button[contains(translate(., 'APPLY NOW', 'apply now'), 'apply now')]",
+    "//a[contains(@href, 'ApplyToJob') or contains(@href, 'applytojob')]",
+    "//a[contains(@href, '/apply')]",
+    "//a[contains(@href, 'apply?')]",
     "//button[contains(translate(., 'APPLY', 'apply'), 'apply')]",
     "//a[contains(translate(., 'APPLY', 'apply'), 'apply')]",
     "//button[@id='indeedApplyButton']",
     "//button[contains(@data-testid, 'apply')]",
-    "//a[contains(@href, '/apply')]",
-    "//a[contains(@href, 'apply?')]",
   ];
 
   for (const xpath of xpaths) {
@@ -338,9 +495,14 @@ export async function clickApplyEntryPoint(driver: WebDriver): Promise<boolean> 
       try {
         const text = (await btn.getText()).toLowerCase();
         if (text.includes('applied') || text.includes('view application')) continue;
+        if (/\[apply now\]/.test(text) && text.length > 20) continue;
         if (await btn.isDisplayed() && await btn.isEnabled()) {
           const handlesBefore = await driver.getAllWindowHandles();
-          await btn.click();
+          try {
+            await driver.executeScript('arguments[0].click();', btn);
+          } catch {
+            await btn.click();
+          }
           await driver.sleep(2500);
           const handlesAfter = await driver.getAllWindowHandles();
           if (handlesAfter.length > handlesBefore.length) {

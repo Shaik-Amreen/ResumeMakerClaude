@@ -1,4 +1,14 @@
 import { config } from '../config';
+import {
+  isCryptoOnlyRole,
+  isMlEngineerWithoutSoftwareFocus,
+  isNewGradOrEntryTitle,
+  isSolutionsRoleWithoutCoding,
+  isUnpaidOrContractOnly,
+  mentionsNoSponsorship,
+  requiresImmediateStartBeforeGrad,
+  shouldSkipTargetTitle,
+} from '../data/candidateTargeting';
 import { isInternGraduationEligible } from './internGraduation';
 
 const PLUS_YEARS = /\b(\d+(?:\.\d+)?)\s*\+\s*years?\b/gi;
@@ -24,6 +34,8 @@ export interface ExperienceRequirement {
   min: number;
   /** Highest stated requirement (e.g. 5 from "3-5 years"). */
   max: number;
+  /** True when a numeric range like 0-5 / 3-5 was parsed. */
+  hasRange: boolean;
 }
 
 function pushYear(values: number[], raw: string) {
@@ -33,38 +45,83 @@ function pushYear(values: number[], raw: string) {
 
 /** Parse min/max years from JD text — supports 3+, 3.2, 3-5, etc. */
 export function parseExperienceRequirement(text: string): ExperienceRequirement {
-  const mins: number[] = [];
-  const maxs: number[] = [];
-
-  for (const m of text.matchAll(PLUS_YEARS)) {
-    pushYear(mins, m[1]);
-    pushYear(maxs, m[1]);
-  }
+  const rangeLows: number[] = [];
+  const rangeHighs: number[] = [];
+  const floors: number[] = [];
 
   for (const m of text.matchAll(RANGE_YEARS)) {
-    pushYear(mins, m[1]);
-    pushYear(maxs, m[2]);
+    pushYear(rangeLows, m[1]);
+    pushYear(rangeHighs, m[2]);
+  }
+
+  for (const m of text.matchAll(PLUS_YEARS)) {
+    pushYear(floors, m[1]);
   }
 
   for (const m of text.matchAll(MIN_YEARS)) {
-    pushYear(mins, m[1]);
-    pushYear(maxs, m[1]);
+    pushYear(floors, m[1]);
   }
 
   for (const m of text.matchAll(EXP_YEARS)) {
-    pushYear(mins, m[1]);
-    pushYear(maxs, m[1]);
+    // Avoid treating the high end of "0-5 years of experience" as a 5-year floor
+    const idx = m.index ?? 0;
+    if (idx > 0 && /[-–]/.test(text[idx - 1] || '')) continue;
+    pushYear(floors, m[1]);
   }
 
   for (const m of text.matchAll(DECIMAL_YEARS)) {
-    pushYear(mins, m[1]);
-    pushYear(maxs, m[1]);
+    const idx = m.index ?? 0;
+    if (idx > 0 && /[-–]/.test(text[idx - 1] || '')) continue;
+    pushYear(floors, m[1]);
   }
 
-  return {
-    min: mins.length ? Math.max(...mins) : 0,
-    max: maxs.length ? Math.max(...maxs) : 0,
-  };
+  const hasRange = rangeLows.length > 0;
+  const rangeMin = hasRange ? Math.min(...rangeLows) : 0;
+  const rangeMax = hasRange ? Math.max(...rangeHighs) : 0;
+  const floorMin = floors.length ? Math.max(...floors) : 0;
+
+  if (hasRange) {
+    // Range band is primary (keeps 0–5 / 3–5). Escalate only if a stricter floor exceeds the band.
+    if (floorMin > rangeMax) {
+      return { min: floorMin, max: floorMin, hasRange: true };
+    }
+    return { min: rangeMin, max: rangeMax, hasRange: true };
+  }
+
+  return { min: floorMin, max: floorMin, hasRange: false };
+}
+
+/** Keep 0–5 / 3–5 style bands; skip hard 5+ floors; allow 4 only for new-grad/entry. */
+export function shouldSkipForExperience(
+  title: string,
+  description: string
+): JobSkipResult | null {
+  const rules = config.skipRules;
+  if (rules.currentExperience < 0) return null;
+
+  const { min, max, hasRange } = parseExperienceRequirement(description);
+  const hardCap = maxExperienceAllowed();
+
+  // Explicit keep: ranges like 0-5 or 3-5 years
+  if (hasRange && max <= 5 && min <= 3) {
+    return null;
+  }
+
+  if (min >= 5) {
+    return { skip: true, reason: `Requires ${min}+ years (skip 5+)` };
+  }
+
+  if (min > hardCap) {
+    if (min <= 4 && isNewGradOrEntryTitle(title, description)) return null;
+    return {
+      skip: true,
+      reason: `Requires ${min}+ years (cap: ${hardCap}${
+        min <= 4 ? '; 4y only for new-grad/entry titles' : ''
+      })`,
+    };
+  }
+
+  return null;
 }
 
 /** @deprecated Prefer parseExperienceRequirement — returns minimum stated years. */
@@ -121,7 +178,7 @@ const MASTERS_OR_GRAD_WELCOME =
 
 /**
  * Hard blockers for Masters F-1 students (citizenship / permanent resident only).
- * "No sponsorship" postings are kept — CPT/OPT internships often still work.
+ * "No sponsorship" is handled separately via mentionsNoSponsorship (skip).
  * Intentionally avoids bare "US Citizen" substring so "citizenship not required" still passes.
  */
 const F1_INELIGIBLE_PATTERNS: RegExp[] = [
@@ -133,6 +190,8 @@ const F1_INELIGIBLE_PATTERNS: RegExp[] = [
   /\b(?:open|available)\s+(?:exclusively\s+)?to\s+(?:u\.?s\.?\s+)?citizens?\b/i,
   /\bmust\s+be\s+(?:a\s+)?(?:permanent\s+resident|green\s+card\s+holder)\b/i,
   /\b(?:permanent\s+residents?|green\s+card\s+holders?)\s+only\b/i,
+  /\bgreen\s+card\s+(?:is\s+)?required\b/i,
+  /\bpermanent\s+residency\s+(?:is\s+)?required\b/i,
 ];
 
 /** True when posting requires citizenship / PR that blocks F-1 students. */
@@ -162,7 +221,7 @@ export function isPhdOnlyJob(title: string, description: string): boolean {
   return /\bintern/i.test(title);
 }
 
-/** Skip rules ported from Auto_job_applier_linkedIn config/search.py */
+/** Skip rules for Karthik targeting brief + Auto_job_applier-style filters. */
 export function shouldSkipJobDescription(
   title: string,
   company: string,
@@ -177,6 +236,9 @@ export function shouldSkipJobDescription(
     return { skip: true, reason: `Non-US country in job title: "${title}"` };
   }
 
+  const titleSkip = shouldSkipTargetTitle(title);
+  if (titleSkip.skip) return titleSkip;
+
   if (isUndergraduateOnlyJob(title, description)) {
     return { skip: true, reason: 'Undergraduate students only (MS candidates skipped)' };
   }
@@ -189,6 +251,48 @@ export function shouldSkipJobDescription(
     return {
       skip: true,
       reason: 'Not eligible for Masters F-1 (U.S. citizenship / PR required)',
+    };
+  }
+
+  if (mentionsNoSponsorship(text)) {
+    return {
+      skip: true,
+      reason: 'No visa sponsorship (now or future) — F-1 OPT / future H-1B path blocked',
+    };
+  }
+
+  if (isUnpaidOrContractOnly(text)) {
+    return { skip: true, reason: 'Unpaid or contract-only role' };
+  }
+
+  if (/\bpart[\s-]?time\b/i.test(title) || /\bseasonal\b/i.test(title)) {
+    return { skip: true, reason: 'Part-time or seasonal role' };
+  }
+
+  if (
+    /\bcontract[\s-]?to[\s-]?hire\b/i.test(text) ||
+    /\bc2h\b/i.test(text) ||
+    /\btemp[\s-]?to[\s-]?hire\b/i.test(text)
+  ) {
+    return { skip: true, reason: 'Contract-to-hire / temp-to-hire (skip)' };
+  }
+
+  if (isCryptoOnlyRole(title, description)) {
+    return { skip: true, reason: 'Crypto-only role' };
+  }
+
+  if (isMlEngineerWithoutSoftwareFocus(title, description)) {
+    return { skip: true, reason: 'ML Engineer without software/platform focus' };
+  }
+
+  if (isSolutionsRoleWithoutCoding(title, description)) {
+    return { skip: true, reason: 'Solutions/Forward Deployed without coding focus' };
+  }
+
+  if (requiresImmediateStartBeforeGrad(title, description)) {
+    return {
+      skip: true,
+      reason: 'Requires full-time start before January 2027 graduation',
     };
   }
 
@@ -237,20 +341,9 @@ export function shouldSkipJobDescription(
     return { skip: true, reason: 'Requires security clearance' };
   }
 
-  let experienceBuffer = 0;
-  if (rules.didMasters && lower.includes('master')) {
-    experienceBuffer = 2;
-  }
-
   if (rules.currentExperience >= 0) {
-    const { min } = parseExperienceRequirement(description);
-    const cap = maxExperienceAllowed() + experienceBuffer;
-    if (min > cap) {
-      return {
-        skip: true,
-        reason: `Requires ${min}+ years (cap: ${cap})`,
-      };
-    }
+    const yoeSkip = shouldSkipForExperience(title, description);
+    if (yoeSkip) return yoeSkip;
   }
 
   return { skip: false };

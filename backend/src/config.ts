@@ -97,9 +97,18 @@ export const config = {
   },
 
   linkedin: {
-    /** Daily Chrome profile used for LinkedIn/Jobright/Indeed/FAANG scrape + Easy Apply. */
-    profileDirectory: process.env.ORANGE_PROFILE_DIR || 'Default',
-    accountEmail: process.env.ORANGE_ACCOUNT_EMAIL || 'karthik.kovi2001@gmail.com',
+    /**
+     * Orange automation Chrome profile (must match --profile-directory under userDataDir).
+     * Default Profile 1 = "karthik" / karthikkovik@gmail.com in .orange_chrome_automation.
+     */
+    profileDirectory: process.env.ORANGE_PROFILE_DIR || 'Profile 1',
+    /**
+     * Daily Google Chrome folder to copy cookies/Login Data from
+     * (~/Library/Application Support/Google/Chrome/<dir>).
+     * Profile 7 = "Apply Jobs" / karthikkovik@gmail.com.
+     */
+    sourceProfileDirectory: process.env.ORANGE_SOURCE_PROFILE_DIR || 'Profile 7',
+    accountEmail: process.env.ORANGE_ACCOUNT_EMAIL || 'karthikkovik@gmail.com',
     debugPort: Number(process.env.ORANGE_DEBUG_PORT) || 9333,
     userDataDir: path.join(backendRoot, '.orange_chrome_automation'),
     headless: process.env.ORANGE_HEADLESS === 'false' ? false : process.env.ORANGE_HEADLESS === 'true',
@@ -240,6 +249,18 @@ export const config = {
   },
 
   /**
+   * Scoutify public browse feed (https://app.scoutify.com/) — free, no login/browser.
+   * Filters: US place, engineering categories, full-time, max YOE.
+   */
+  scoutify: {
+    placeId: Number(process.env.SCOUTIFY_PLACE_ID) || 241, // United States
+    maxYoe: Number(process.env.SCOUTIFY_MAX_YOE ?? process.env.CURRENT_EXPERIENCE ?? 3),
+    pageSize: Number(process.env.SCOUTIFY_PAGE_SIZE) || 25,
+    maxPages: Number(process.env.SCOUTIFY_MAX_PAGES) || 8,
+    categories: parseEnvList(process.env.SCOUTIFY_CATEGORIES, []),
+  },
+
+  /**
    * Direct ATS board scraping — free, no browser automation.
    * Greenhouse: slug = the token in boards.greenhouse.io/{slug}
    * Lever: slug = the token in jobs.lever.co/{slug}
@@ -288,13 +309,45 @@ export const config = {
 
   apply: {
     overwritePreviousAnswers: process.env.APPLY_OVERWRITE_ANSWERS === 'true',
-    useAiForQuestions: process.env.APPLY_USE_AI !== 'false',
+    /**
+     * Mid-apply Claude Q&A (green Chrome) — OFF by default.
+     * Resume is already tailored before apply; forms use applicationProfile answers only.
+     * Set APPLY_USE_AI=true only if you explicitly want Claude for unknown Easy Apply questions.
+     */
+    useAiForQuestions: process.env.APPLY_USE_AI === 'true',
+    /**
+     * API Apply Manager — directs orange Chrome actions (no Claude website).
+     * Default on. Provider: auto = OpenRouter then Ollama.
+     */
+    managerEnabled: process.env.APPLY_MANAGER !== 'false',
+    managerProvider: (process.env.APPLY_MANAGER_PROVIDER || 'auto') as
+      | 'auto'
+      | 'openrouter'
+      | 'ollama',
+    managerTimeoutMs: Number(process.env.APPLY_MANAGER_TIMEOUT_MS) || 20000,
+    managerMaxTurns: Number(process.env.APPLY_MANAGER_MAX_TURNS) || 20,
+    /**
+     * Shared credentials for ATS / career-portal sign-up & login
+     * (AppOne, Workday create-account, etc.). Password from env only.
+     */
+    portalEmail:
+      process.env.APPLY_PORTAL_EMAIL ||
+      process.env.EMAILJS_TO_EMAIL ||
+      'karthikkovik@gmail.com',
+    portalPassword: process.env.APPLY_PORTAL_PASSWORD || '',
+    /** Fixed ATS username when portals ask for one (AppOne, etc.). */
+    portalUsername: process.env.APPLY_PORTAL_USERNAME || 'karthikkovi01',
+    /** Shared security-question answer for AppOne / similar portals. */
+    portalSecurityAnswer:
+      process.env.APPLY_PORTAL_SECURITY_ANSWER || 'LongBeachCA',
+    gmailInboxUrl:
+      process.env.APPLY_GMAIL_INBOX_URL || 'https://mail.google.com/mail/u/0/#inbox',
+    otpWaitMs: Number(process.env.APPLY_OTP_WAIT_MS) || 90000,
   },
 
   skipRules: {
     badWords: parseEnvList(process.env.SKIP_BAD_WORDS, [
-      // Citizenship handled by isIneligibleForMastersF1 (avoid bare "US Citizen"
-      // substring matching "citizenship not required"). Keep no-sponsorship jobs.
+      // Citizenship / no-sponsorship handled in jobSkipRules + candidateTargeting.
       'No C2C',
       'No Corp2Corp',
       'security clearance',
@@ -302,18 +355,22 @@ export const config = {
       'Embedded Programming',
       'FPGA',
       'CNC',
-      // Full-time targeting: skip senior/staff titles when they appear as hard filters in JD text.
-      // Intern/Senior title filtering is also handled in eligibility.ts.
     ]),
-    aboutCompanyBadWords: parseEnvList(process.env.SKIP_COMPANY_BAD_WORDS, ['Crossover', 'Staffing']),
+    aboutCompanyBadWords: parseEnvList(process.env.SKIP_COMPANY_BAD_WORDS, [
+      'Crossover',
+      'Staffing',
+      'staffing agency',
+      'staffing firm',
+      'third-party recruiter',
+    ]),
     aboutCompanyGoodWords: parseEnvList(process.env.SKIP_COMPANY_GOOD_WORDS, []),
     companyBlacklist: parseEnvList(process.env.SKIP_COMPANY_BLACKLIST, []),
     securityClearance: process.env.HAS_SECURITY_CLEARANCE === 'true',
     didMasters: process.env.DID_MASTERS !== 'false',
-    /** Years on your resume — jobs above this + tolerance are skipped */
+    /** Max JD years before skip (brief: 3; 4 only if new-grad/entry title) */
     currentExperience: Number(process.env.CURRENT_EXPERIENCE ?? 3),
-    /** Extra headroom for fractional reqs (e.g. 3.2 years) and 3+ wording */
-    experienceTolerance: Number(process.env.EXPERIENCE_TOLERANCE ?? 0.5),
+    /** Fractional headroom (e.g. 3.2). Default 0 — hard 3y cap per targeting brief. */
+    experienceTolerance: Number(process.env.EXPERIENCE_TOLERANCE ?? 0),
   },
 };
 

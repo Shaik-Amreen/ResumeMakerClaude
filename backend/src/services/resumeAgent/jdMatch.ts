@@ -4,6 +4,7 @@
  * Only real tech tokens — never HTML tags, prose phrases, or UI chrome.
  */
 
+import { NEVER_MISSING_SKILL_WORDS } from '../../data/candidateTargeting';
 import { cleanJobDescriptionForResume } from '../cleanJobDescription';
 
 const STOP = new Set([
@@ -16,7 +17,64 @@ const STOP = new Set([
   'have', 'has', 'plus', 'etc', 'other', 'such', 'across', 'within', 'knowledge',
   'skills', 'abilities', 'proficiency', 'familiarity', 'exposure', 'judgment',
   'diplomacy', 'nbsp', 'strong', 'p', 'div', 'span', 'li', 'ul',
+  // Generic software words — appear inside project bullets by default; not standalone skills
+  'module', 'modules', 'derivation', 'derivations', 'package', 'packages',
+  'component', 'components', 'service', 'services', 'system', 'systems',
+  'tool', 'tools', 'tooling', 'framework', 'frameworks', 'library', 'libraries',
+  'test', 'tests', 'testing', 'feature', 'features', 'platform', 'platforms',
+  'application', 'applications', 'pipeline', 'pipelines', 'environment', 'environments',
+  ...NEVER_MISSING_SKILL_WORDS.map((w) => w.toLowerCase()),
 ]);
+
+/**
+ * Generic / compositional tokens that should never be "missing skill" blockers.
+ * e.g. Nix "modules"/"derivations", "VM tests" — covered by projects/CI by default.
+ */
+const GENERIC_SKILL_PHRASES = [
+  /^modules?$/i,
+  /^derivations?$/i,
+  /^packages?$/i,
+  /^components?$/i,
+  /^vm\s*tests?$/i,
+  /^unit\s*tests?$/i,
+  /^integration\s*tests?$/i,
+  /^end[- ]to[- ]end\s*tests?$/i,
+  /^e2e\s*tests?$/i,
+  /^test\s*labs?$/i,
+  /^cli\s*tooling$/i,
+  /^production\s*ci$/i,
+  /^self[- ]hosted\s*runners?$/i,
+  /^large[- ]scale\s*test/i,
+  /^debugging\s*flaky/i,
+  /^hardware\s*test\s*frameworks?$/i,
+  /^target\s*bring[- ]?up$/i,
+  /^ci\/?hil\s*concepts?$/i,
+  /^systems?\s*administration$/i,
+  /^bare[- ]metal\s*linux/i,
+  /^embedded\s*devices?$/i,
+  /^ci\/cd\s*pipeline\s*design$/i,
+  /^best\s*practices?$/i,
+  /^design\s*patterns?$/i,
+  /^problem\s*solving$/i,
+  /^customer\s*obsession$/i,
+  /^clean\s*code$/i,
+  /^cross[- ]functional$/i,
+  /^fast[- ]paced$/i,
+  /^sdlc$/i,
+  /^maintainability$/i,
+  /^scalability$/i,
+  /^reliability$/i,
+  /^collaboration$/i,
+  /^communication$/i,
+  /^ownership$/i,
+  /^workflows?$/i,
+  /^concepts?$/i,
+  /^tooling$/i,
+  /^agile$/i,
+  /^ambiguity$/i,
+  /^production$/i,
+  /^enterprise$/i,
+];
 
 /** Canonical tech skills we score / inject. Display form is the Map value. */
 const TECH_PATTERNS: Array<{ re: RegExp; display: string }> = [
@@ -93,7 +151,7 @@ function normalizeSkill(s: string): string {
   return out;
 }
 
-/** Reject HTML residue / prose / UI chrome that must never land on the resume. */
+/** Reject HTML residue / prose / UI chrome / generic project words. */
 export function isJunkSkillToken(token: string): boolean {
   const t = token.trim().replace(/[.,;:]+$/g, '');
   if (t.length < 2 || t.length > 36) return true;
@@ -102,11 +160,15 @@ export function isJunkSkillToken(token: string): boolean {
   if (/<\/?[a-z]|^\s*p\b|&nbsp;|nbsp|strong|div|span|font-size|FeedBlock|Themeable/i.test(t)) {
     return true;
   }
+  if (GENERIC_SKILL_PHRASES.some((re) => re.test(t))) return true;
   if (
-    /\b(knowledge|abilities|proficiency|familiarity|diplomacy|judgment|escalat|identify|troubleshoot and resolve|sound judgment|preferred|required|plus|concepts|build|design|ship|bring|demonstrated|ability|physical|world|you'll|internship|production systems|what you|prior|collaborative|firmware|batteries|ercot|participate|shadow|partner)\b/i.test(
+    /\b(knowledge|abilities|proficiency|familiarity|diplomacy|judgment|escalat|identify|troubleshoot and resolve|sound judgment|preferred|required|plus|concepts|build|design|ship|bring|demonstrated|ability|physical|world|you'll|internship|production systems|what you|prior|collaborative|firmware|batteries|ercot|participate|shadow|partner|modules?|derivations?|scalability|maintainability|reliability|ownership|collaboration|communication|workflows?|tooling|ambiguity|enterprise|sdlc|clean code|best practices|design patterns|problem solving|customer obsession|cross-functional|fast-paced)\b/i.test(
       t
     )
   ) {
+    return true;
+  }
+  if (NEVER_MISSING_SKILL_WORDS.some((w) => normalizeSkill(t) === w.toLowerCase())) {
     return true;
   }
   if (STOP.has(normalizeSkill(t))) return true;
@@ -115,6 +177,21 @@ export function isJunkSkillToken(token: string): boolean {
     if (!/\b(api|rest|sql|oop|ood|ci|cd|iot|tcp|udp|mvc|aws|gcp|net)\b/i.test(t)) return true;
   }
   return false;
+}
+
+/** Drop junk / generic tokens from LLM or regex keyword lists. */
+export function filterSkillTokens(tokens: string[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of tokens) {
+    const t = String(raw || '').trim();
+    if (!t || isJunkSkillToken(t)) continue;
+    const key = normalizeSkill(t);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+  }
+  return out;
 }
 
 /** True if resume plain text already covers this keyword (C++ covers C++20/23). */
@@ -258,31 +335,40 @@ export function mergeLlmAndRegexMatch(
     };
   }
 
-  const matchedSet = new Set(
-    [...llm.matched, ...regex.matched].map((s) => s.trim()).filter(Boolean)
+  const matched = filterSkillTokens([...llm.matched, ...regex.matched]);
+  const matchedLower = new Set(matched.map((s) => s.toLowerCase()));
+  const missingFromLlm = filterSkillTokens(llm.missing).filter(
+    (s) => !matchedLower.has(s.toLowerCase())
   );
-  const missingFromLlm = llm.missing.filter((s) => !matchedSet.has(s));
   // Also surface regex-missing that LLM forgot to list
-  for (const m of regex.missing) {
-    if (![...matchedSet].some((x) => x.toLowerCase() === m.toLowerCase())) {
-      if (!missingFromLlm.some((x) => x.toLowerCase() === m.toLowerCase())) {
-        missingFromLlm.push(m);
-      }
+  for (const m of filterSkillTokens(regex.missing)) {
+    if (matchedLower.has(m.toLowerCase())) continue;
+    if (!missingFromLlm.some((x) => x.toLowerCase() === m.toLowerCase())) {
+      missingFromLlm.push(m);
     }
   }
 
-  const keywords = [
-    ...new Set([...(llm.jdSkills.length ? llm.jdSkills : regex.keywords), ...matchedSet, ...missingFromLlm]),
-  ].slice(0, 40);
+  const keywords = filterSkillTokens([
+    ...(llm.jdSkills.length ? llm.jdSkills : regex.keywords),
+    ...matched,
+    ...missingFromLlm,
+  ]).slice(0, 40);
 
-  const matched = [...matchedSet];
   const missing = missingFromLlm;
   const score =
     keywords.length === 0
       ? 100
       : Math.round((matched.length / Math.max(matched.length + missing.length, 1)) * 100);
 
-  const llmGaps = (llm.skillGaps || []).map((s) => s.trim()).filter(Boolean);
+  const llmGaps = (llm.skillGaps || [])
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .filter((g) => {
+      const quoted = g.match(/"([^"]+)"/);
+      if (quoted && isJunkSkillToken(quoted[1])) return false;
+      if (/\b(?:modules?|derivations?|vm\s*tests?)\b/i.test(g) && !missing.length) return false;
+      return true;
+    });
   const explained = new Set(
     llmGaps.flatMap((g) =>
       missing

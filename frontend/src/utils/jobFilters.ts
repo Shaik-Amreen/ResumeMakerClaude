@@ -9,6 +9,7 @@ export type JobSource =
   | 'lever'
   | 'github'
   | 'simplify'
+  | 'scoutify'
   | 'company_portal'
   | 'other';
 
@@ -21,6 +22,7 @@ export const PLATFORM_LABELS: Record<JobSource, string> = {
   lever: 'Lever',
   github: 'GitHub list',
   simplify: 'Simplify',
+  scoutify: 'Scoutify',
   company_portal: 'Company portal',
   other: 'Other',
 };
@@ -100,6 +102,7 @@ export function formatScrapedOn(job: Job): string {
 }
 
 export type SortOption =
+  | 'action'
   | 'priority'
   | 'newest'
   | 'oldest'
@@ -124,13 +127,51 @@ export interface JobFilters {
 export const DEFAULT_FILTERS: JobFilters = {
   search: '',
   source: 'all',
-  status: 'all',
+  status: 'action_queue',
   priority: 'all',
   jobType: 'fulltime',
   hasApplicants: 'all',
   hasPosted: 'all',
-  sort: 'priority',
+  sort: 'action',
 };
+
+/** Career-page apply candidates (excludes FAANG + LinkedIn Easy Apply). */
+export function isLinkedInJobUrl(url: string): boolean {
+  return /linkedin\.com\/(jobs|job)/i.test(url);
+}
+
+export function isReadyToApply(job: Job): boolean {
+  return (
+    job.priority !== 'faang' &&
+    Boolean(job.pdfPath) &&
+    ['pdf_uploaded', 'resume_generated'].includes(job.status) &&
+    !isLinkedInJobUrl(job.url)
+  );
+}
+
+export function isNeedsYou(job: Job): boolean {
+  return (
+    [
+      'pending_resume_approval',
+      'pending_submit_approval',
+      'pending_message_approval',
+      'confused_hold',
+    ].includes(job.status) || Boolean(job.pendingAction)
+  );
+}
+
+export function isActionQueueJob(job: Job): boolean {
+  return isNeedsYou(job) || isReadyToApply(job);
+}
+
+function actionRank(job: Job): number {
+  if (job.status === 'pending_submit_approval') return 0;
+  if (job.status === 'pending_message_approval') return 1;
+  if (job.status === 'pending_resume_approval') return 2;
+  if (job.status === 'confused_hold' || job.pendingAction) return 3;
+  if (isReadyToApply(job)) return 4;
+  return 5;
+}
 
 function parseApplicantCount(text?: string): number {
   if (!text) return 999999;
@@ -155,6 +196,12 @@ export function filterAndSortJobs(jobs: Job[], filters: JobFilters): Job[] {
     if (filters.status === 'all') {
       // Keep closed / chrome-JD rows out of the default inbox
       if (job.status === 'invalid_job') return false;
+    } else if (filters.status === 'action_queue') {
+      if (!isActionQueueJob(job)) return false;
+    } else if (filters.status === 'needs_you') {
+      if (!isNeedsYou(job)) return false;
+    } else if (filters.status === 'ready_apply') {
+      if (!isReadyToApply(job)) return false;
     } else if (job.status !== filters.status) {
       return false;
     }
@@ -169,6 +216,14 @@ export function filterAndSortJobs(jobs: Job[], filters: JobFilters): Job[] {
   });
 
   switch (filters.sort) {
+    case 'action':
+      list = list.sort((a, b) => {
+        const aR = actionRank(a);
+        const bR = actionRank(b);
+        if (aR !== bR) return aR - bR;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+      break;
     case 'oldest':
       list = list.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       break;
@@ -218,15 +273,24 @@ export function filterAndSortJobs(jobs: Job[], filters: JobFilters): Job[] {
   return list;
 }
 
-export const STATUS_OPTIONS: { value: JobStatus | 'all'; label: string }[] = [
+export const STATUS_OPTIONS: {
+  value: JobStatus | 'all' | 'action_queue' | 'needs_you' | 'ready_apply';
+  label: string;
+}[] = [
+  { value: 'action_queue', label: 'Today’s queue (needs you + ready)' },
   { value: 'all', label: 'All (hide invalid)' },
+  { value: 'needs_you', label: 'Needs you (review / hold)' },
+  { value: 'ready_apply', label: 'Ready to apply' },
   { value: 'scraped', label: 'Scraped' },
+  { value: 'pending_resume_approval', label: 'Review resume' },
   { value: 'resume_generated', label: 'Resume generated' },
-  { value: 'pdf_uploaded', label: 'PDF uploaded' },
+  { value: 'pdf_uploaded', label: 'PDF uploaded / ready' },
+  { value: 'applying', label: 'Applying' },
+  { value: 'pending_submit_approval', label: 'Approve submit' },
   { value: 'applied', label: 'Applied' },
   { value: 'assessment', label: 'Assessment' },
   { value: 'interview', label: 'Interview' },
-  { value: 'confused_hold', label: 'Confused - Hold' },
+  { value: 'confused_hold', label: 'Needs you (hold)' },
   { value: 'invalid_job', label: 'Invalid job' },
   { value: 'accepted', label: 'Accepted' },
   { value: 'failed', label: 'Failed / skipped' },

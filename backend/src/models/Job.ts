@@ -32,6 +32,27 @@ export type ResumePhase =
   | 'done'
   | 'failed';
 
+/** Live progress while filling a career-page / ATS application. */
+export type ApplyPhase =
+  | 'idle'
+  | 'opening'
+  | 'filling'
+  | 'uploading'
+  | 'awaiting_submit'
+  | 'submitting'
+  | 'done'
+  | 'failed'
+  | 'confused_hold';
+
+export type AtsType =
+  | 'greenhouse'
+  | 'lever'
+  | 'ashby'
+  | 'workday'
+  | 'linkedin'
+  | 'indeed'
+  | 'unknown';
+
 export interface ContactSuggestion {
   name?: string;
   title?: string;
@@ -67,6 +88,7 @@ export interface IJob extends Document {
     | 'lever'
     | 'github'
     | 'simplify'
+    | 'scoutify'
     | 'company_portal'
     | 'other';
   /** FAANG + MANGOES companies get email alerts and sort to top */
@@ -82,12 +104,23 @@ export interface IJob extends Document {
   latexResume?: string;
   pdfPath?: string;
   recruiterMessageDraft?: string;
+  notes?: string;
+  /** 1–5 how excited you are about this role (Teal-style). */
+  interest?: number;
+  /** When to follow up (email / check portal). */
+  followUpAt?: Date;
+  /** When marked applied (for stale follow-up insights). */
+  appliedAt?: Date;
   coverLetterDraft?: string;
   contactSuggestions?: ContactSuggestion[];
   pipelinePhase?: 'jobright' | 'linkedin' | 'career_portal';
   pendingAction: PendingAction;
   /** Step while resume is generating (shown in UI progress). */
   resumePhase?: ResumePhase;
+  /** Step while career-page / ATS apply is running. */
+  applyPhase?: ApplyPhase;
+  /** Detected ATS for the apply URL (set when apply starts). */
+  atsType?: AtsType;
   approvalNote?: string;
   errorMessage?: string;
   createdAt: Date;
@@ -120,6 +153,7 @@ const JobSchema: Schema = new Schema(
         'lever',
         'github',
         'simplify',
+        'scoutify',
         'company_portal',
         'other',
       ],
@@ -156,6 +190,10 @@ const JobSchema: Schema = new Schema(
     pdfPath: { type: String },
     recruiterMessageDraft: { type: String },
     coverLetterDraft: { type: String },
+    notes: { type: String, default: '' },
+    interest: { type: Number, min: 1, max: 5 },
+    followUpAt: { type: Date },
+    appliedAt: { type: Date },
     contactSuggestions: [
       {
         name: { type: String },
@@ -186,6 +224,25 @@ const JobSchema: Schema = new Schema(
         'failed',
       ],
       default: 'idle',
+    },
+    applyPhase: {
+      type: String,
+      enum: [
+        'idle',
+        'opening',
+        'filling',
+        'uploading',
+        'awaiting_submit',
+        'submitting',
+        'done',
+        'failed',
+        'confused_hold',
+      ],
+      default: 'idle',
+    },
+    atsType: {
+      type: String,
+      enum: ['greenhouse', 'lever', 'ashby', 'workday', 'linkedin', 'indeed', 'unknown'],
     },
     approvalNote: { type: String },
     errorMessage: { type: String },

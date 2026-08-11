@@ -7,8 +7,10 @@ export type TaskKind =
   | 'scraping_faang_portals'
   | 'scraping_github_lists'
   | 'scraping_ats'
+  | 'scraping_scoutify'
   | 'generating_resumes'
   | 'master_pipeline'
+  | 'applying_career'
   | 'outreach';
 
 export interface TaskProgress {

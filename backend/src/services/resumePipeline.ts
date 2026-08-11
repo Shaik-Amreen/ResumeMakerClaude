@@ -22,6 +22,7 @@ import { isInternshipTitle } from './eligibility';
 import { sendEmailNotification } from './notifier';
 import type { JobType } from '../models/Job';
 import { makeTraceId, traceError, traceLog } from './debugTrace';
+import { isPipelineAbortError, throwIfAborted } from './pipelineAbort';
 
 const MAX_PAGE_REPAIRS = 2;
 const MIN_LINKED_PROJECTS = 3;
@@ -39,6 +40,11 @@ type ResumeCtx = {
   company?: string;
   jobType?: JobType;
   traceId?: string;
+  abortSignal?: AbortSignal;
+};
+
+export type RunResumePipelineOptions = {
+  signal?: AbortSignal;
 };
 
 function compileWithJdHeader(latex: string, jobId: string, ctx: ResumeCtx) {
@@ -90,6 +96,7 @@ async function compileAndFitOnePage(
   let pageCount = 0;
 
   for (let attempt = 0; attempt <= MAX_PAGE_REPAIRS; attempt++) {
+    throwIfAborted(ctx.abortSignal);
     const compileStart = Date.now();
     try {
       const compiled = compileWithJdHeader(latex, jobId, ctx);
@@ -142,7 +149,12 @@ async function compileAndFitOnePage(
   return { latex, pdfPath, pageCount };
 }
 
-export async function runResumePipeline(jobId: string, traceId = makeTraceId('resume')) {
+export async function runResumePipeline(
+  jobId: string,
+  traceId = makeTraceId('resume'),
+  options?: RunResumePipelineOptions
+) {
+  throwIfAborted(options?.signal);
   const job = await Job.findById(jobId);
   if (!job) throw new Error('Job not found');
   traceLog(traceId, 'pipeline.loaded', {
@@ -165,15 +177,28 @@ export async function runResumePipeline(jobId: string, traceId = makeTraceId('re
     return;
   }
 
+  if (String(job.jobDescription || '').trim().length < 80) {
+    traceLog(traceId, 'pipeline.skip-short-jd', { jdLen: String(job.jobDescription || '').length });
+    job.status = 'failed';
+    job.resumePhase = 'failed';
+    job.pendingAction = null;
+    job.errorMessage = 'Job description too short or empty — cannot tailor a resume.';
+    job.approvalNote = 'Skipped: JD missing/too short. Refresh the listing or paste a full JD, then Generate.';
+    await job.save();
+    return;
+  }
+
   const ctx: ResumeCtx = {
     jobDescription: job.jobDescription,
     title: job.title,
     company: job.company,
     jobType: 'fulltime',
     traceId,
+    abortSignal: options?.signal,
   };
 
   try {
+    throwIfAborted(options?.signal);
     traceLog(traceId, 'pipeline.start', { provider: agentLabel });
     job.status = 'resume_generating';
     job.resumePhase = 'generating';
@@ -192,6 +217,7 @@ export async function runResumePipeline(jobId: string, traceId = makeTraceId('re
     console.log(`\n📄 Resume agent started: ${job.title} @ ${job.company} (Provider: ${agentLabel})`);
 
     traceLog(traceId, 'pipeline.generate.start');
+    throwIfAborted(options?.signal);
     const generated = await generateResumeLatex(ctx);
     const activeProvider = generated.usedProvider || agentLabel;
     traceLog(traceId, 'pipeline.generate.done', {
@@ -212,6 +238,7 @@ export async function runResumePipeline(jobId: string, traceId = makeTraceId('re
     job.approvalNote = `[${elapsed(pipelineStart)}] Generated via ${activeProvider} · Compiling LaTeX → PDF (1-page fit)…`;
     await job.save();
     traceLog(traceId, 'pipeline.compile.start');
+    throwIfAborted(options?.signal);
 
     const fitStart = Date.now();
     let fitted = await compileAndFitOnePage(ctx, latex, job.id, async (note) => {
@@ -321,6 +348,16 @@ export async function runResumePipeline(jobId: string, traceId = makeTraceId('re
     );
     traceLog(traceId, 'pipeline.complete', { totalElapsed: elapsed(pipelineStart) });
   } catch (err) {
+    if (isPipelineAbortError(err)) {
+      job.status = 'scraped';
+      job.resumePhase = undefined;
+      job.pendingAction = null;
+      job.errorMessage = undefined;
+      job.approvalNote = 'Generation cancelled — ready to retry.';
+      await job.save();
+      traceLog(traceId, 'pipeline.aborted', { reason: err.message });
+      throw err;
+    }
     const message = err instanceof Error ? err.message : 'Resume generation failed';
     job.status = 'failed';
     job.resumePhase = 'failed';

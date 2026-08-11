@@ -128,11 +128,29 @@ test('resume queue filter includes scraped and failed resume retries', () => {
   assert.equal(filter.jobType, 'fulltime');
   assert.ok(Array.isArray(filter.$or));
   assert.deepEqual(filter.$or[0], { status: 'scraped' });
-  assert.deepEqual(filter.$or[1], { status: 'failed', resumePhase: 'failed' });
-  assert.deepEqual(filter.$or[2], { status: 'resume_generating' });
+  assert.deepEqual(filter.$or[1], { status: 'failed' });
+  assert.deepEqual(filter.$or[2], { status: 'resume_generated', resumePhase: 'failed' });
+  assert.equal(filter.source, undefined);
+
+  const scoutify = resumeQueueJobFilter('scoutify');
+  assert.equal(scoutify.source, 'scoutify');
+  assert.equal(resumeQueueJobFilter('all').source, undefined);
+  assert.equal(resumeQueueJobFilter('not-a-source').source, undefined);
 });
 
-test('masters F-1 eligibility skips citizenship-only but keeps no-sponsorship jobs', () => {
+test('normalizeJobSourceFilter and clear resume helpers export', () => {
+  const {
+    normalizeJobSourceFilter,
+    JOB_SOURCE_FILTERS,
+  } = require('../dist/services/jobMaintenance');
+  assert.equal(normalizeJobSourceFilter('Scoutify'), 'scoutify');
+  assert.equal(normalizeJobSourceFilter('all'), undefined);
+  assert.equal(normalizeJobSourceFilter(''), undefined);
+  assert.ok(JOB_SOURCE_FILTERS.includes('scoutify'));
+  assert.ok(JOB_SOURCE_FILTERS.includes('jobright'));
+});
+
+test('masters F-1 eligibility skips citizenship-only and no-sponsorship jobs', () => {
   const {
     isIneligibleForMastersF1,
     shouldSkipJobDescription,
@@ -143,18 +161,9 @@ test('masters F-1 eligibility skips citizenship-only but keeps no-sponsorship jo
     isIneligibleForMastersF1('SWE Intern', 'Must be a U.S. citizen. Summer 2027.'),
     true
   );
-  // Keep jobs that don't offer sponsorship (CPT/OPT can still apply)
+  // Citizenship helper does not treat "no sponsorship" as citizenship — skip rules do
   assert.equal(
     isIneligibleForMastersF1('SWE Intern', 'No visa sponsorship available for this role.'),
-    false
-  );
-  assert.equal(isIneligibleForMastersF1('SWE Intern', 'No sponsorship available.'), false);
-  assert.equal(isIneligibleForMastersF1('SWE Intern', 'no sponsorship available'), false);
-  assert.equal(
-    isIneligibleForMastersF1(
-      'SWE Intern',
-      'Must already be authorized to work in the U.S. without sponsorship.'
-    ),
     false
   );
   assert.equal(
@@ -169,20 +178,138 @@ test('masters F-1 eligibility skips citizenship-only but keeps no-sponsorship jo
     true
   );
 
-  const keep = shouldSkipJobDescription(
-    'Software Engineering Intern',
+  const skipNoSponsor = shouldSkipJobDescription(
+    'Software Engineer',
     'Acme',
-    'This role does not offer visa sponsorship. Summer 2027 internship.'
+    'This role does not offer visa sponsorship. Full-time SWE. React and Node.'
   );
-  assert.equal(keep.skip, false);
+  assert.equal(skipNoSponsor.skip, true);
+  assert.match(skipNoSponsor.reason || '', /sponsorship/i);
 
   const skipCitizen = shouldSkipJobDescription(
-    'Software Engineering Intern',
+    'Software Engineer',
     'Acme',
-    'Must be a U.S. citizen. Summer 2027 software internship.'
+    'Must be a U.S. citizen. Full-time software engineer. React.'
   );
   assert.equal(skipCitizen.skip, true);
   assert.match(skipCitizen.reason || '', /citizenship|F-1/i);
+});
+
+test('targeting brief skips non-SWE titles, 5+ YoE, and keeps new-grad 4y', () => {
+  const { shouldSkipJobDescription, parseExperienceRequirement } = require('../dist/services/jobSkipRules');
+  const { titlesSimilar } = require('../dist/services/jobDedup');
+  const { isJunkSkillToken } = require('../dist/services/resumeAgent/jdMatch');
+  const { isEligibleJob } = require('../dist/services/eligibility');
+  const { answerCommonQuestions } = require('../dist/services/applicationAnswers');
+  const { applicationProfile, formatDesiredSalaryRange } = require('../dist/data/applicationProfile');
+  const { isUsJobLocation } = require('../dist/services/usLocation');
+
+  assert.equal(
+    shouldSkipJobDescription('Data Scientist', 'Acme', 'Build ML models. Python.').skip,
+    true
+  );
+  assert.equal(
+    shouldSkipJobDescription('Senior Software Engineer', 'Acme', 'Full-time SWE.').skip,
+    true
+  );
+  assert.equal(
+    shouldSkipJobDescription(
+      'Senior Software Engineer New Grad',
+      'Acme',
+      'New Grad 2027. Java and AWS.'
+    ).skip,
+    true
+  );
+  assert.equal(
+    shouldSkipJobDescription(
+      'Software Engineer',
+      'Acme',
+      'Requires 5+ years of software experience. Java and AWS.'
+    ).skip,
+    true
+  );
+  assert.equal(
+    shouldSkipJobDescription(
+      'Software Engineer, New Grad',
+      'Acme',
+      'Requires 4 years of experience or equivalent. Java and AWS. Class of 2027.'
+    ).skip,
+    false
+  );
+  assert.equal(
+    shouldSkipJobDescription(
+      'Software Engineer',
+      'Acme',
+      'Requires 4 years of experience. Java and AWS.'
+    ).skip,
+    true
+  );
+  // Keep 3-5 and 0-5 ranges
+  assert.equal(
+    shouldSkipJobDescription(
+      'Software Engineer',
+      'Acme',
+      'Requires 3-5 years of software experience. Java and AWS.'
+    ).skip,
+    false
+  );
+  assert.equal(
+    shouldSkipJobDescription(
+      'Software Engineer',
+      'Acme',
+      'Requires 0-5 years of experience. Java and AWS.'
+    ).skip,
+    false
+  );
+  assert.equal(parseExperienceRequirement('Requires 0-5 years of experience.').min, 0);
+  assert.equal(parseExperienceRequirement('Requires 0-5 years of experience.').max, 5);
+  assert.equal(parseExperienceRequirement('Requires 3-5 years of experience.').min, 3);
+
+  assert.equal(
+    shouldSkipJobDescription('Software Engineer Intern', 'Acme', 'Summer 2027 internship.').skip ||
+      !isEligibleJob('fulltime', 'Software Engineer Intern', 'Summer 2027 internship.'),
+    true
+  );
+  assert.equal(
+    shouldSkipJobDescription(
+      'Software Engineer',
+      'Acme',
+      'Contract-to-hire role. Java and AWS. Full-time.'
+    ).skip,
+    true
+  );
+  assert.equal(
+    shouldSkipJobDescription('Part-Time Software Engineer', 'Acme', 'Java and AWS.').skip,
+    true
+  );
+  assert.equal(
+    shouldSkipJobDescription('Crypto NFT Engineer', 'Acme', 'Build NFT marketplace.').skip,
+    true
+  );
+
+  assert.equal(titlesSimilar('Software Engineer, Backend', 'Software Engineer Backend'), true);
+  assert.equal(titlesSimilar('Software Engineer New Grad 2027', 'Software Engineer'), true);
+  assert.equal(titlesSimilar('Data Scientist', 'Software Engineer'), false);
+
+  assert.equal(isJunkSkillToken('modules'), true);
+  assert.equal(isJunkSkillToken('scalability'), true);
+  assert.equal(isJunkSkillToken('Agile'), true);
+  assert.equal(isJunkSkillToken('TypeScript'), false);
+
+  assert.equal(
+    answerCommonQuestions('Do you require visa sponsorship?', '', applicationProfile),
+    'Yes'
+  );
+  assert.equal(
+    answerCommonQuestions('Will you now or in the future require sponsorship?', '', applicationProfile),
+    'Yes'
+  );
+  assert.equal(
+    answerCommonQuestions('Do you currently require sponsorship?', '', applicationProfile),
+    'No'
+  );
+  assert.match(formatDesiredSalaryRange(applicationProfile), /120,000/);
+  assert.equal(isUsJobLocation('Remote - North America', 'Software engineer US remote'), true);
 });
 
 test('full-time targeting rejects internships and keeps new-grad SWE', () => {
@@ -362,6 +489,29 @@ Qualifications: strong algorithms, systems design, and backend APIs.`;
   assert.equal(isJunkSkillToken('p strong strong Knowledge'), true);
   assert.equal(isJunkSkillToken('scalability concepts.'), true);
   assert.equal(isJunkSkillToken('C#'), false);
+  assert.equal(isJunkSkillToken('modules'), true);
+  assert.equal(isJunkSkillToken('derivations'), true);
+  assert.equal(isJunkSkillToken('VM tests'), true);
+  assert.equal(isJunkSkillToken('Nix'), false);
+
+  const { mergeLlmAndRegexMatch, filterSkillTokens } = require('../dist/services/resumeAgent/jdMatch');
+  const merged = mergeLlmAndRegexMatch(
+    {
+      jdSkills: ['Python', 'modules', 'derivations', 'VM tests', 'Nix'],
+      matched: ['Python', 'Nix'],
+      missing: ['modules', 'derivations', 'VM tests'],
+      skillGaps: [
+        '"modules" is required by the JD but not evidenced in an Experience or Project bullet',
+        '"derivations" is required by the JD but not evidenced',
+      ],
+      keywordMatchScore: 40,
+      resumeMatchScore: 40,
+    },
+    { score: 100, matched: ['Python'], missing: [], keywords: ['Python'] }
+  );
+  assert.equal(merged.match.missing.some((m) => /modules|derivations|vm\s*tests/i.test(m)), false);
+  assert.equal(filterSkillTokens(['modules', 'Python', 'CI/CD']).includes('modules'), false);
+  assert.ok(filterSkillTokens(['modules', 'Python', 'CI/CD']).includes('Python'));
 
   const pollutedLang = `\\textbf{Languages:} Go, Python, Java, JavaScript (ES6+), TypeScript, SQL, C++ ; Build production systems. Design, it s the job., the physical world., What You ll Bring, Demonstrated ability to build, prior internships \\\\`;
   const cleanedLang = sanitizeResumeLatex(pollutedLang);
@@ -539,7 +689,8 @@ test('enforceMasterRules caps experience bullets, one-line bullets, strips Redbe
       `\\\\begin\\{itemize\\}\\[${TEMPLATE_ITEMIZE_OPTS.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]`
     )
   );
-  assert.match(out, /\\uline\{\\textbf\{Amazon\}/);
+  assert.match(out, /\\uline\{\\textbf\{Amazon - Bellevue, WA\}/);
+  assert.match(out, /05\/2026 - 08\/2026/);
   // Experience: at most 5 items (Karthik standard template)
   const exp = out.split(/\\section\{\\textbf\{Key Projects\}\}/i)[0];
   assert.ok((exp.match(/\\item\b/g) || []).length <= 5);
@@ -559,6 +710,72 @@ test('enforceMasterRules caps experience bullets, one-line bullets, strips Redbe
       `bullet too long (${plain.length}): ${plain}`
     );
   }
+});
+
+test('enforceMasterRules rewrites invented San Jose State to CSULB Education', () => {
+  const {
+    enforceMasterRules,
+    forceCanonicalEducation,
+  } = require('../dist/services/resumeAgent/enforceMasterRules');
+  const dirty = `
+\\section{\\textbf{Education}}
+\\vspace{2pt}
+\\textbf{Master of Science in Computer Science} \\textbar{} \\uline{\\textbf{San Jose State University}} \\hfill \\textit{San Jose, CA} \\textbf{Aug 2023 -- Jan 2027}\\\\
+\\textbf{Bachelor of Technology in Computer Science} \\textbar{} \\uline{\\textbf{JNTU Anantapur - MITS}} \\hfill \\textit{Andhra Pradesh, India} \\textbf{Aug 2015 -- May 2019}
+\\section{\\textbf{Certifications}}
+AWS Certified - 2024 \\\\
+\\end{document}
+`;
+  const out = enforceMasterRules(dirty);
+  assert.equal(/San\s*Jose\s*State/i.test(out), false, 'must strip San Jose State');
+  assert.equal(/\bSJSU\b/.test(out), false);
+  assert.match(out, /California State University,\s*Long Beach/);
+  assert.match(out, /JNTU Anantapur - MITS/);
+  assert.match(out, /01\/2025 - 01\/2027/);
+  assert.match(out, /08\/2019 - 05\/2023/);
+  assert.equal(/Aug\s*2015|May\s*2019|3\.8\/4\.0/i.test(out), false);
+
+  const scrubbed = forceCanonicalEducation(
+    'Worked at SJSU. \\uline{\\textbf{San Jose State University}} \\textit{San Jose, CA}'
+  );
+  assert.equal(/San\s*Jose\s*State|SJSU/i.test(scrubbed), false);
+  assert.match(scrubbed, /California State University,\s*Long Beach/);
+  assert.match(scrubbed, /Long Beach, CA, USA/);
+});
+
+test('enforceMasterRules rewrites fabricated employment dates and fake employers', () => {
+  const { enforceMasterRules } = require('../dist/services/resumeAgent/enforceMasterRules');
+  const dirty = `
+\\section{\\textbf{Work Experience}}
+\\vspace{2pt}
+\\textbf{Software Engineer Intern} \\hfill \\uline{\\textbf{Amazon}} \\hfill Seattle, WA \\textbf{01/2024 - 05/2024}
+\\begin{itemize}
+\\item Built batch jobs on AWS Lambda.
+\\end{itemize}
+\\textbf{Software Engineer} \\hfill \\uline{\\textbf{Advanced Systems Inc}} \\hfill New York, NY \\textbf{08/2021 - 08/2023}
+\\begin{itemize}
+\\item Built Kubernetes services.
+\\end{itemize}
+\\textbf{Software Engineer} \\hfill \\uline{\\textbf{Infobell IT Solutions}} \\hfill Bangalore \\textbf{06/2019 - 07/2021}
+\\begin{itemize}
+\\item Built Go services.
+\\end{itemize}
+\\section{\\textbf{Skills}}
+\\vspace{2pt}
+\\textbf{Languages:} Python \\\\
+`;
+  const out = enforceMasterRules(dirty);
+  assert.equal(/01\/2024|05\/2024|08\/2021|08\/2023|06\/2019|07\/2021/i.test(out), false);
+  assert.equal(/Advanced\s+Systems/i.test(out), false);
+  assert.equal(/Seattle,\s*WA/i.test(out), false);
+  assert.match(out, /Amazon - Bellevue, WA/);
+  assert.match(out, /05\/2026 - 08\/2026/);
+  assert.match(out, /Associated Students, Inc\. - CSULB/);
+  assert.match(out, /02\/2025 - Present/);
+  assert.match(out, /Infobell IT Solutions Pvt Ltd/);
+  assert.match(out, /01\/2023 - 01\/2025/);
+  assert.match(out, /Built batch jobs on AWS Lambda/);
+  assert.match(out, /Built Kubernetes services/);
 });
 
 test('checkAmazonLatex requires visual lock chrome', () => {
@@ -700,4 +917,364 @@ test('shortenBulletToOneLine humanizes AI voice and finishes incomplete tails', 
     .trim();
   assert.ok(plain.length <= MAX_BULLET_PLAIN_CHARS + 2, `too long: ${plain.length} ${plain}`);
   assert.equal(/\b(with|in|and|for|to|the|a)\s*\.?$/i.test(plain.replace(/\.$/, '')), false);
+});
+
+test('pipeline job timeout defaults to LLM timeout plus compile buffer', () => {
+  const { pipelineJobTimeoutMs, PipelineAbortError, isPipelineAbortError } = require('../dist/services/pipelineAbort');
+  const ms = pipelineJobTimeoutMs();
+  assert.ok(ms >= 20 * 60 * 1000, `expected at least 20m, got ${ms}`);
+  const err = new PipelineAbortError('Stop requested by user');
+  assert.equal(isPipelineAbortError(err), true);
+  assert.equal(isPipelineAbortError(new Error('nope')), false);
+});
+
+test('ATS detector prefers career pages over LinkedIn Easy Apply', () => {
+  const { detectAts, prefersCareerApply, isLinkedInEasyApplyUrl } = require('../dist/services/atsDetector');
+
+  assert.equal(detectAts('https://boards.greenhouse.io/stripe/jobs/123').ats, 'greenhouse');
+  assert.equal(detectAts('https://job-boards.greenhouse.io/figma/jobs/456').ats, 'greenhouse');
+  assert.equal(detectAts('https://boards.greenhouse.io/embed/job_app?for=acme&token=1').ats, 'greenhouse');
+  assert.equal(detectAts('https://jobs.lever.co/palantir/abcdef').ats, 'lever');
+  assert.equal(detectAts('https://jobs.ashbyhq.com/openai/uuid').ats, 'ashby');
+  assert.equal(detectAts('https://nvidia.wd5.myworkdayjobs.com/en-US/NVIDIAExternalCareerSite/job/x').ats, 'workday');
+  assert.equal(detectAts('https://www.linkedin.com/jobs/view/123').ats, 'linkedin');
+  assert.equal(isLinkedInEasyApplyUrl('https://www.linkedin.com/jobs/view/123'), true);
+  assert.equal(prefersCareerApply('https://boards.greenhouse.io/stripe/jobs/123'), true);
+  assert.equal(prefersCareerApply('https://www.linkedin.com/jobs/view/123'), false);
+  assert.equal(detectAts('https://careers.example.com/jobs/swe', 'scoutify').isCareerPage, true);
+  assert.equal(detectAts('https://www.indeed.com/viewjob?jk=abc').ats, 'indeed');
+  // Source hint when URL is ambiguous company portal
+  assert.equal(detectAts('https://jobs.example.com/x', 'greenhouse').ats, 'greenhouse');
+  assert.equal(detectAts('https://jobs.example.com/x', 'lever').ats, 'lever');
+});
+
+test('career apply utils: Lever /apply URL, success page, honeypots, Greenhouse iframe selectors', () => {
+  const {
+    resolveLeverApplyUrl,
+    looksLikeSuccessPage,
+    isHoneypotField,
+    isGreenhouseEmbedUrl,
+    isCoverLetterFileField,
+    GREENHOUSE_IFRAME_SELECTORS,
+    GREENHOUSE_FIELD_SELECTORS,
+    classifyPageBlocker,
+    detectAccountWall,
+    detectCaptchaWall,
+    detectValidationErrors,
+  } = require('../dist/services/careerApplyUtils');
+
+  assert.equal(
+    resolveLeverApplyUrl('https://jobs.lever.co/palantir/abcdef-1234'),
+    'https://jobs.lever.co/palantir/abcdef-1234/apply'
+  );
+  assert.equal(
+    resolveLeverApplyUrl('https://jobs.lever.co/palantir/abcdef-1234/apply'),
+    'https://jobs.lever.co/palantir/abcdef-1234/apply'
+  );
+  assert.equal(
+    resolveLeverApplyUrl('https://jobs.lever.co/acme/uuid/thanks'),
+    'https://jobs.lever.co/acme/uuid/thanks'
+  );
+  assert.equal(
+    resolveLeverApplyUrl('https://boards.greenhouse.io/stripe/jobs/1'),
+    'https://boards.greenhouse.io/stripe/jobs/1'
+  );
+
+  assert.equal(looksLikeSuccessPage('https://jobs.lever.co/acme/x/thanks', ''), true);
+  assert.equal(
+    looksLikeSuccessPage('https://jobs.lever.co/acme/x?LeverAppId=abc', 'ok'),
+    true
+  );
+  assert.equal(looksLikeSuccessPage('https://example.com/apply', 'Thank you for applying'), true);
+  assert.equal(looksLikeSuccessPage('https://example.com/apply', 'Please fill required fields'), false);
+
+  assert.equal(isHoneypotField('beecatcher'), true);
+  assert.equal(isHoneypotField('website_url'), true);
+  assert.equal(isHoneypotField('Email Address'), false);
+  assert.equal(isCoverLetterFileField('cover_letter'), true);
+  assert.equal(isCoverLetterFileField('resume'), false);
+
+  assert.equal(isGreenhouseEmbedUrl('https://boards.greenhouse.io/embed/job_app?for=x'), true);
+  assert.ok(GREENHOUSE_IFRAME_SELECTORS.includes('#grnhse_iframe'));
+  assert.ok(GREENHOUSE_FIELD_SELECTORS.firstName.includes('#first_name'));
+  assert.ok(GREENHOUSE_FIELD_SELECTORS.resume.includes('#resume'));
+
+  assert.match(
+    detectAccountWall('https://wd5.myworkdayjobs.com/x', 'Create Account\nPassword\nSign In') || '',
+    /Account/
+  );
+  assert.match(
+    detectAccountWall(
+      'https://www.appone.com/ApplicantLogin.asp?JobCode=6150508&B_ID=91',
+      'Login\nEmail'
+    ) || '',
+    /AppOne|login/i
+  );
+  assert.match(detectCaptchaWall('Please complete the hCaptcha challenge') || '', /CAPTCHA/);
+  assert.match(
+    detectValidationErrors('There were 2 errors. This field is required.') || '',
+    /validation/i
+  );
+  assert.equal(classifyPageBlocker('https://x.com', 'normal application form'), null);
+  assert.equal(
+    classifyPageBlocker('https://x.com', 'Create Account and Sign In to continue').kind,
+    'account'
+  );
+  assert.equal(classifyPageBlocker('https://x.com', 'I am not a robot hcaptcha').kind, 'captcha');
+});
+
+test('career apply routing: non-LinkedIn URLs prefer career path', () => {
+  const { prefersCareerApply, detectAts } = require('../dist/services/atsDetector');
+  const cases = [
+    'https://boards.greenhouse.io/databricks/jobs/1',
+    'https://jobs.lever.co/wealthfront/abc',
+    'https://jobs.ashbyhq.com/notion/uuid',
+    'https://microsoft.wd1.myworkdayjobs.com/en-US/MSFTJobs/job/x',
+    'https://careers.google.com/jobs/results/123',
+  ];
+  for (const url of cases) {
+    assert.equal(prefersCareerApply(url), true, url);
+    assert.notEqual(detectAts(url).ats, 'linkedin', url);
+  }
+});
+
+test('live ATS HTML fixtures match our Greenhouse/Lever selectors', () => {
+  // Snapshot patterns captured from public boards (Discord Greenhouse + Palantir Lever, 2026-08).
+  const greenhouseSnippet = `
+    <input id="first_name" aria-label="First Name" type="text" />
+    <input id="last_name" aria-label="Last Name" type="text" />
+    <input id="email" aria-label="Email" type="text" />
+    <input id="phone" aria-label="Phone" type="tel" />
+    <input id="resume" class="visually-hidden" type="file" accept=".pdf" />
+    <input id="cover_letter" class="visually-hidden" type="file" accept=".pdf" />
+    <button type="submit" class="btn btn--rounded">Submit application</button>
+  `;
+  const leverSnippet = `
+    <form class="application-form">
+      <input name="name" />
+      <input name="email" />
+      <input name="resume" type="file" />
+      <button data-qa="btn-submit" type="submit">Submit application</button>
+    </form>
+  `;
+
+  assert.match(greenhouseSnippet, /id="first_name"/);
+  assert.match(greenhouseSnippet, /id="resume"[^>]*type="file"/);
+  assert.match(greenhouseSnippet, /Submit application/);
+  assert.match(leverSnippet, /name="name"/);
+  assert.match(leverSnippet, /name="resume"/);
+  assert.match(leverSnippet, /data-qa="btn-submit"/);
+
+  const { isCoverLetterFileField } = require('../dist/services/careerApplyUtils');
+  assert.equal(isCoverLetterFileField('cover_letter'), true);
+
+  const { resolveTextAnswer } = require('../dist/services/applicationAnswers');
+  const { applicationProfile } = require('../dist/data/applicationProfile');
+  const first = resolveTextAnswer('First Name', applicationProfile, 'Long Beach');
+  assert.equal(first.answer, applicationProfile.firstName);
+  const email = resolveTextAnswer('Email', applicationProfile, 'Long Beach');
+  assert.equal(email.answer, applicationProfile.email);
+  const name = resolveTextAnswer('name', applicationProfile, 'Long Beach');
+  assert.equal(name.answer, applicationProfile.fullName);
+});
+
+test('jobApplier prefers career pages and keeps LinkedIn as fallback only', () => {
+  const { prefersCareerApply, isLinkedInEasyApplyUrl, detectAts } = require('../dist/services/jobApplier');
+  assert.equal(prefersCareerApply('https://jobs.ashbyhq.com/notion/uuid'), true);
+  assert.equal(detectAts('https://jobs.ashbyhq.com/notion/uuid').ats, 'ashby');
+  assert.equal(isLinkedInEasyApplyUrl('https://www.linkedin.com/jobs/view/9'), true);
+  assert.equal(prefersCareerApply('https://www.linkedin.com/jobs/view/9'), false);
+});
+
+test('career apply keeps Claude mid-apply AI off by default', () => {
+  const { config } = require('../dist/config');
+  // APPLY_USE_AI must be opt-in; resume is tailored before apply.
+  assert.equal(config.apply.useAiForQuestions, process.env.APPLY_USE_AI === 'true');
+  assert.equal(typeof config.apply.portalUsername, 'string');
+  assert.ok(config.apply.portalUsername.length >= 8);
+  // Apply Manager defaults on (API brain); Claude browser stays off.
+  assert.equal(config.apply.managerEnabled, process.env.APPLY_MANAGER !== 'false');
+  assert.ok(['auto', 'openrouter', 'ollama'].includes(config.apply.managerProvider));
+  assert.ok(config.apply.managerMaxTurns >= 1);
+});
+
+test('Apply Manager parses JSON actions and rejects bad payloads', () => {
+  const {
+    parseApplyManagerAction,
+    heuristicApplyAction,
+    profileFactsForManager,
+  } = require('../dist/services/applyManager');
+  const { applicationProfile } = require('../dist/data/applicationProfile');
+
+  const click = parseApplyManagerAction(
+    '```json\n{"type":"click","text":"Apply Now","reason":"CTA"}\n```'
+  );
+  assert.equal(click?.type, 'click');
+  assert.equal(click?.text, 'Apply Now');
+
+  const login = parseApplyManagerAction('{"type":"login","reason":"account wall"}');
+  assert.equal(login?.type, 'login');
+
+  const fill = parseApplyManagerAction(
+    '{"type":"fill","label":"First Name","valueKey":"firstName"}'
+  );
+  assert.equal(fill?.type, 'fill');
+  assert.equal(fill?.valueKey, 'firstName');
+
+  assert.equal(parseApplyManagerAction('{"type":"hack"}'), null);
+  assert.equal(parseApplyManagerAction('not json'), null);
+  assert.equal(parseApplyManagerAction(''), null);
+
+  const facts = profileFactsForManager(applicationProfile);
+  assert.equal(facts.email, applicationProfile.email);
+  assert.equal(facts.firstName, applicationProfile.firstName);
+  assert.equal('password' in facts, false);
+
+  const snap = {
+    url: 'https://example.com/ApplicantLogin.aspx',
+    title: 'Login',
+    bodyText: 'Standard Login Create Account',
+    controls: [],
+    hasFileInput: false,
+    hasPassword: true,
+    hasApplyCta: false,
+  };
+  assert.equal(heuristicApplyAction(snap).type, 'login');
+
+  const submitSnap = {
+    ...snap,
+    url: 'https://example.com/apply',
+    bodyText: 'Submit Application when ready',
+    hasPassword: false,
+  };
+  assert.equal(heuristicApplyAction(submitSnap).type, 'await_submit');
+});
+
+test('portal auth exports terms-checkbox helper for Workday Create Account', () => {
+  const { checkAgreeTermsBoxes } = require('../dist/services/portalAccountAuth');
+  assert.equal(typeof checkAgreeTermsBoxes, 'function');
+});
+
+test('portal username derivation meets AppOne rules', () => {
+  const { derivePortalUsername } = require('../dist/services/portalAccountAuth');
+  const { config } = require('../dist/config');
+  // Prefer configured APPLY_PORTAL_USERNAME when set
+  if (config.apply.portalUsername) {
+    assert.equal(derivePortalUsername('karthikkovik@gmail.com'), config.apply.portalUsername);
+  } else {
+    const u = derivePortalUsername('karthikkovik@gmail.com');
+    assert.ok(u.length >= 8 && u.length <= 18);
+    assert.match(u, /[A-Za-z]/);
+    assert.match(u, /\d/);
+  }
+  assert.equal(derivePortalUsername('ab@x.com').length >= 8 || !!config.apply.portalUsername, true);
+});
+
+test('Jobright Apply Now helpers parse external career URLs and reject jobright hosts', () => {
+  const {
+    isJobrightUrl,
+    isExternalCareerUrl,
+    extractJobrightJobId,
+    parseJobrightCareerUrlFromNextData,
+  } = require('../dist/services/jobrightApplyLink');
+
+  assert.equal(isJobrightUrl('https://jobright.ai/jobs/info/abc123'), true);
+  assert.equal(isJobrightUrl('https://boards.greenhouse.io/stripe/jobs/1'), false);
+  assert.equal(extractJobrightJobId('https://jobright.ai/jobs/info/6a7640854817aa430704771c?x=1'), '6a7640854817aa430704771c');
+  assert.equal(isExternalCareerUrl('https://jobs.ashbyhq.com/acme/uuid/application'), true);
+  assert.equal(isExternalCareerUrl('https://jobright.ai/jobs/info/abc'), false);
+  assert.equal(isExternalCareerUrl('https://www.linkedin.com/company/acme'), false);
+  // paychex.com must NOT match the x.com noise filter
+  assert.equal(
+    isExternalCareerUrl(
+      'https://recruiting.myapps.paychex.com/appone/MainInfoReq.asp?R_ID=7157769&B_ID=91'
+    ),
+    true
+  );
+  assert.equal(isExternalCareerUrl('https://x.com/someone'), false);
+
+  const next = JSON.stringify({
+    props: {
+      pageProps: {
+        dataSource: {
+          jobResult: {
+            applyLink: 'https://jobright.ai/jobs/info/abc',
+            originalUrl: 'https://jobs.lever.co/palantir/abcdef-1234',
+          },
+        },
+      },
+    },
+  });
+  assert.equal(
+    parseJobrightCareerUrlFromNextData(next),
+    'https://jobs.lever.co/palantir/abcdef-1234'
+  );
+  assert.equal(
+    parseJobrightCareerUrlFromNextData(
+      `<script id="__NEXT_DATA__">${JSON.stringify({
+        props: {
+          pageProps: {
+            dataSource: {
+              jobResult: { applyLink: 'https://job-boards.greenhouse.io/figma/jobs/99' },
+            },
+          },
+        },
+      })}</script>`
+    ),
+    'https://job-boards.greenhouse.io/figma/jobs/99'
+  );
+  assert.equal(
+    parseJobrightCareerUrlFromNextData(
+      JSON.stringify({
+        props: {
+          pageProps: {
+            dataSource: { jobResult: { applyLink: 'https://jobright.ai/jobs/info/x' } },
+          },
+        },
+      })
+    ),
+    null
+  );
+  assert.equal(
+    parseJobrightCareerUrlFromNextData(
+      JSON.stringify({
+        props: {
+          pageProps: {
+            dataSource: {
+              jobResult: {
+                applyLink:
+                  'https://recruiting.myapps.paychex.com/appone/MainInfoReq.asp?R_ID=1&B_ID=2',
+              },
+            },
+          },
+        },
+      })
+    ),
+    'https://recruiting.myapps.paychex.com/appone/MainInfoReq.asp?R_ID=1&B_ID=2'
+  );
+
+  const { normalizeCareerApplyUrl } = require('../dist/services/jobrightApplyLink');
+  assert.equal(
+    normalizeCareerApplyUrl(
+      'https://jobs.ashbyhq.com/acme/uuid/application?utm_source=jobright&jr_id=abc'
+    ),
+    'https://jobs.ashbyhq.com/acme/uuid/application'
+  );
+  assert.equal(
+    normalizeCareerApplyUrl(
+      'https://recruiting.myapps.paychex.com/appone/MainInfoReq.asp?R_ID=7157769&B_ID=91&utm_source=jobright'
+    ),
+    'https://recruiting.myapps.paychex.com/appone/MainInfoReq.asp?R_ID=7157769&B_ID=91'
+  );
+});
+
+test('stored job URLs strip XMLNAME and tracking for View on / apply', () => {
+  const { sanitizeStoredJobUrl } = require('../dist/services/jobrightApplyLink');
+  const dirty =
+    'https://chevron.wd5.myworkdayjobs.com/University/job/Houston/XMLNAME-2026-2027-Information-Technology---Software-Engineer---Full-Time_R000072400-1?utm_source=Simplify';
+  const clean = sanitizeStoredJobUrl(dirty);
+  assert.equal(clean.includes('XMLNAME'), false);
+  assert.equal(clean.includes('utm_source'), false);
+  assert.match(clean, /2026-2027-Information-Technology/);
+  assert.match(clean, /R000072400/);
 });

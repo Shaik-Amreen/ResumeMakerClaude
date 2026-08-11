@@ -183,3 +183,83 @@ export async function resetAllJobsToScraped(): Promise<number> {
 
   return result.modifiedCount;
 }
+
+/** Allowed Job.source values for clear/generate filters. */
+export const JOB_SOURCE_FILTERS = [
+  'jobright',
+  'linkedin',
+  'indeed',
+  'career_portal',
+  'greenhouse',
+  'lever',
+  'github',
+  'simplify',
+  'scoutify',
+  'company_portal',
+  'other',
+] as const;
+
+export type JobSourceFilter = (typeof JOB_SOURCE_FILTERS)[number];
+
+export function normalizeJobSourceFilter(raw?: string | null): JobSourceFilter | undefined {
+  const s = String(raw || '')
+    .trim()
+    .toLowerCase();
+  if (!s || s === 'all') return undefined;
+  return (JOB_SOURCE_FILTERS as readonly string[]).includes(s)
+    ? (s as JobSourceFilter)
+    : undefined;
+}
+
+/**
+ * Clear generated LaTeX/PDF for jobs (keep the job rows).
+ * Optional source filter (e.g. scoutify). Skips applied/interview/accepted/assessment.
+ */
+export async function clearGeneratedResumes(options?: {
+  source?: string;
+}): Promise<{ cleared: number; filesRemoved: number; source?: string }> {
+  const source = normalizeJobSourceFilter(options?.source);
+  const filter: Record<string, unknown> = {
+    status: { $nin: ['applied', 'assessment', 'interview', 'accepted'] },
+    $or: [
+      { latexResume: { $exists: true, $nin: [null, ''] } },
+      { pdfPath: { $exists: true, $nin: [null, ''] } },
+    ],
+  };
+  if (source) filter.source = source;
+
+  const jobs = await Job.find(filter).select({ pdfPath: 1 });
+  let filesRemoved = 0;
+  for (const job of jobs) {
+    filesRemoved += removeJobResumeFiles(job.id, job.pdfPath);
+  }
+
+  const note = source
+    ? `Resume cleared (${source}) — ready to regenerate.`
+    : 'Resume cleared — ready to regenerate.';
+
+  const result = await Job.updateMany(filter, {
+    $set: {
+      status: 'scraped',
+      pendingAction: null,
+      approvalNote: note,
+      resumePhase: 'idle',
+    },
+    $unset: {
+      latexResume: 1,
+      pdfPath: 1,
+      matchScore: 1,
+      keywordMatchScore: 1,
+      matchedKeywords: 1,
+      missingKeywords: 1,
+      skillGaps: 1,
+      errorMessage: 1,
+    },
+  });
+
+  return {
+    cleared: result.modifiedCount ?? 0,
+    filesRemoved,
+    source,
+  };
+}

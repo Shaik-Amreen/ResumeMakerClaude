@@ -17,9 +17,16 @@ backend/.green_chrome_automation/
 # Uploaded resumes
 backend/uploads/
 
+# Ad-hoc probe scripts
+backend/scratch-test-*.ts
+
 # Logs & OS
 *.log
 .DS_Store
+~/
+
+# Local agent settings
+.claude/settings.local.json
 
 # IDE
 .idea/
@@ -28,3 +35,6 @@ backend/uploads/
 
 # Nested clone — track files in parent repo, not separate git history
 Auto_job_applier_linkedIn/.git/
+
+# Local runtime answer bank / scraper data
+backend/data/

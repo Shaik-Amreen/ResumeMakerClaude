@@ -5,11 +5,8 @@ import {
   Upload,
   CheckCircle2,
   AlertCircle,
-  Loader2,
-  MessageSquare,
-  Send,
   AlertTriangle,
-  Copy,
+  Loader2,
   Users,
   Clock,
   Globe,
@@ -19,11 +16,27 @@ import {
   Pencil,
   Save,
   Download,
+  Copy,
 } from 'lucide-react';
 import type { Job, JobStatus, ResumePhase } from '../types';
 import { api, UPLOADS_BASE } from '../api';
 import { jobApplicants, formatPostedOnPlatform, formatScrapedOn, platformLabel } from '../utils/jobFilters';
 import { useConfirm } from './ConfirmProvider';
+import { ApplyWorkflowBanner } from './ApplyWorkflowBanner';
+import { detectAtsUi, ATS_BADGE_CLASS } from '../utils/atsUi';
+import { statusLabel } from '../utils/statusUi';
+
+function isLinkedInJobUrl(url: string): boolean {
+  return /linkedin\.com\/(jobs|job)/i.test(url);
+}
+
+function canCareerApply(job: Job): boolean {
+  return (
+    job.priority !== 'faang' &&
+    Boolean(job.pdfPath) &&
+    !isLinkedInJobUrl(job.url)
+  );
+}
 
 /** Safe download name: Karthik-{title} with {company}.pdf */
 function resumeDownloadFilename(title: string, company: string): string {
@@ -37,23 +50,6 @@ function resumeDownloadFilename(title: string, company: string): string {
   const c = clean(company) || 'Company';
   return `Karthik-${t} with ${c}.pdf`;
 }
-const STATUS_LABELS: Record<string, string> = {
-  scraped: 'Scraped',
-  resume_generating: 'Generating Resume',
-  resume_generated: 'Resume Generated',
-  pending_resume_approval: 'Review PDF',
-  pdf_uploaded: 'PDF Uploaded',
-  applying: 'Applying',
-  pending_message_approval: 'Approve Message',
-  pending_submit_approval: 'Approve Submit',
-  applied: 'Applied',
-  assessment: 'Assessment',
-  interview: 'Interview',
-  confused_hold: 'Confused - Hold',
-  invalid_job: 'Invalid job',
-  accepted: 'Accepted',
-  failed: 'Failed',
-};
 
 const RESUME_STEPS: { id: ResumePhase; label: string }[] = [
   { id: 'saving_jd', label: 'Saving JD' },
@@ -87,13 +83,20 @@ interface Props {
   job: Job;
   onUpdated: () => void;
   onDeleted?: () => void;
+  /** Called after a human gate is cleared so the parent can jump to the next queue item. */
+  onGateComplete?: (jobId: string) => void;
 }
 
-export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
+export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Props) {
   const confirm = useConfirm();
   const [current, setCurrent] = useState(job);
   const [messageDraft, setMessageDraft] = useState(job.recruiterMessageDraft || '');
   const [coverLetterDraft, setCoverLetterDraft] = useState(job.coverLetterDraft || '');
+  const [notesDraft, setNotesDraft] = useState(job.notes || '');
+  const [interest, setInterest] = useState(job.interest || 0);
+  const [followUpAt, setFollowUpAt] = useState(
+    job.followUpAt ? job.followUpAt.slice(0, 10) : ''
+  );
   const [latexDraft, setLatexDraft] = useState(job.latexResume || '');
   const [latexDirty, setLatexDirty] = useState(false);
   const [jdDraft, setJdDraft] = useState(job.jobDescription || '');
@@ -108,6 +111,9 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
     setCurrent(job);
     setMessageDraft(job.recruiterMessageDraft || '');
     setCoverLetterDraft(job.coverLetterDraft || '');
+    setNotesDraft(job.notes || '');
+    setInterest(job.interest || 0);
+    setFollowUpAt(job.followUpAt ? job.followUpAt.slice(0, 10) : '');
     // Don't clobber in-progress editor edits on poll refresh.
     if (!latexDirty) {
       setLatexDraft(job.latexResume || '');
@@ -165,7 +171,11 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- poll only while this job is generating
   }, [current._id, current.status, current.resumePhase, latexDirty]);
 
-  const run = async (fn: () => Promise<unknown>, successMsg: string) => {
+  const run = async (
+    fn: () => Promise<unknown>,
+    successMsg: string,
+    opts?: { advance?: boolean }
+  ) => {
     setBusy(true);
     setToast('');
     try {
@@ -173,8 +183,12 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
       setToast(successMsg);
       reactToast.success(successMsg);
       onUpdated();
-      const refreshed = await api.getJob(current._id);
-      setCurrent(refreshed);
+      if (opts?.advance) {
+        onGateComplete?.(current._id);
+      } else {
+        const refreshed = await api.getJob(current._id);
+        setCurrent(refreshed);
+      }
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : 'Action failed';
       setToast(errMsg);
@@ -339,34 +353,100 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="px-3 py-4 border-b border-slate-200 bg-gradient-to-r from-teal-50/90 via-white to-sky-50/70 shrink-0">
-        <p className="text-xs uppercase tracking-widest text-primary-500 mb-1 font-medium">
-          {current.jobType} · {STATUS_LABELS[current.status] || current.status}
-          {resumeMatch != null ? ` · Resume ${resumeMatch}%` : ''}
-          {keywordMatch != null ? ` · Keywords ${keywordMatch}%` : ''}
-        </p>
-        <h2 className="text-2xl font-bold text-ink">{current.title}</h2>
-        <p className="text-ink-muted mt-1">
+      <ApplyWorkflowBanner
+        job={current}
+        busy={busy}
+        onApproveResume={() =>
+          run(() => api.approveResume(current._id), 'Resume approved — next in queue', {
+            advance: true,
+          })
+        }
+        onApproveAndApply={() =>
+          run(
+            () => api.approveResumeAndApply(current._id).then((r) => r.message),
+            canCareerApply(current)
+              ? 'Career apply started — approve Submit when ready'
+              : 'Easy Apply started — approve before Submit'
+          )
+        }
+        onApply={() =>
+          run(
+            () => api.apply(current._id),
+            canCareerApply(current) ? 'Career-page apply started' : 'LinkedIn Easy Apply started'
+          )
+        }
+        onRetry={() => run(() => api.apply(current._id), 'Retrying career-page apply')}
+        onApproveMessage={() =>
+          run(() => api.approveMessage(current._id, messageDraft), 'Message approved — next', {
+            advance: true,
+          })
+        }
+        onApproveSubmit={() =>
+          run(() => api.approveSubmit(current._id), 'Submit approved — next in queue', {
+            advance: true,
+          })
+        }
+        onOpenLink={() => {
+          if (current.status === 'pending_submit_approval' || current.status === 'confused_hold') {
+            run(
+              async () => {
+                const r = await api.showInChrome(current._id);
+                return r.job;
+              },
+              'Opened job in orange Chrome — check that window'
+            );
+            return;
+          }
+          window.open(current.url, '_blank', 'noopener,noreferrer');
+        }}
+      />
+
+      <div className="px-4 py-5 border-b border-paper-line/80 bg-gradient-to-b from-cedar-soft/45 to-transparent shrink-0">
+        <div className="flex flex-wrap items-center gap-2 mb-1.5">
+          <p className="section-label text-cedar">
+            {current.jobType} · {statusLabel(current.status)}
+          </p>
+          {(() => {
+            const ats = detectAtsUi(current.url, current.source, current.atsType);
+            return (
+              <span
+                className={`inline-flex px-2.5 py-0.5 rounded-full text-[9px] font-bold border ${ATS_BADGE_CLASS[ats.kind]}`}
+              >
+                {ats.label}
+              </span>
+            );
+          })()}
+          {resumeMatch != null && (
+            <span className="text-[11px] font-semibold text-ink-muted">Resume {resumeMatch}%</span>
+          )}
+          {keywordMatch != null && (
+            <span className="text-[11px] font-semibold text-ink-muted">Keywords {keywordMatch}%</span>
+          )}
+        </div>
+        <h2 className="text-[1.65rem] font-bold font-display text-ink tracking-tight leading-tight">
+          {current.title}
+        </h2>
+        <p className="text-ink-muted mt-1.5 text-sm">
           {current.company}
           {current.location ? ` · ${current.location}` : ''}
         </p>
         <div className="flex flex-wrap gap-x-5 gap-y-2 mt-3 text-sm text-ink-muted">
           {postedLabel && (
             <span className="inline-flex items-center gap-1.5">
-              <Clock size={15} className="text-primary-500" />
+              <Clock size={15} className="text-cedar" />
               <span className="text-ink">{postedLabel}</span>
             </span>
           )}
           <span className="inline-flex items-center gap-1.5">
-            <Globe size={15} className="text-sky-500" />
+            <Globe size={15} className="text-cedar/70" />
             <span className="text-ink">
-              <span className="text-ink-faint">Scraped date: </span>
+              <span className="text-ink-faint">Scraped: </span>
               {scrapedLabel.replace(/^Scraped on\s+/i, '')}
             </span>
           </span>
           {applicants && (
             <span className="inline-flex items-center gap-1.5">
-              <Users size={15} className="text-amber-500" />
+              <Users size={15} className="text-amber-600" />
               {applicants}
             </span>
           )}
@@ -386,7 +466,7 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
                 'Status updated'
               )
             }
-            className="rounded-xl bg-white border border-slate-200 px-3 py-2 text-sm text-ink shadow-sm focus:outline-none focus:border-primary-400"
+            className="rounded-xl bg-white border border-paper-line px-3 py-2 text-sm text-ink shadow-sm focus:outline-none focus:border-cedar focus:ring-2 focus:ring-cedar/15"
           >
             {MANUAL_STATUSES.map((s) => (
               <option key={s.value} value={s.value}>
@@ -399,7 +479,7 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
             href={current.url}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 text-sm text-ink"
+            className="btn-secondary inline-flex items-center gap-2"
           >
             <ExternalLink size={15} /> View on {platform}
           </a>
@@ -407,7 +487,7 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
           <button
             type="button"
             onClick={copyJd}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-teal-50 border border-teal-200 hover:bg-teal-100 text-sm text-teal-800"
+            className="btn-secondary inline-flex items-center gap-2"
           >
             <Copy size={15} /> Copy JD
           </button>
@@ -421,12 +501,12 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
                 `Resume generation started: check LaTeX/PDF in 1–3 minutes`
               )
             }
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-violet-50 border border-violet-200 hover:bg-violet-100 text-sm text-violet-800 disabled:opacity-40"
+            className="btn-secondary inline-flex items-center gap-2 disabled:opacity-40"
           >
             Generate Resume
           </button>
 
-          <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-sky-50 border border-sky-200 hover:bg-sky-100 text-sm text-sky-800 cursor-pointer">
+          <label className="btn-secondary inline-flex items-center gap-2 cursor-pointer">
             <Upload size={15} /> Upload PDF
             <input
               type="file"
@@ -444,7 +524,7 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
             <button
               type="button"
               onClick={() => void downloadResume()}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-sm text-emerald-800"
+              className="btn-secondary inline-flex items-center gap-2 !border-emerald-300 !bg-emerald-50 !text-emerald-900"
             >
               <Download size={15} /> Download Resume
             </button>
@@ -458,8 +538,8 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
                 title: 'Delete this job?',
                 message: (
                   <div className="space-y-2">
-                    <p className="font-semibold text-slate-800">{current.title} @ {current.company}</p>
-                    <p className="text-xs text-slate-500">This removes the listing and any resume PDF/TeX files.</p>
+                    <p className="font-semibold text-ink">{current.title} @ {current.company}</p>
+                    <p className="text-xs text-ink-muted">This removes the listing and any resume PDF/TeX files.</p>
                   </div>
                 ),
                 confirmText: 'Delete Job',
@@ -487,81 +567,21 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
           >
             <Trash2 size={15} /> Delete
           </button>
-
-          {current.status === 'pending_resume_approval' && current.pdfPath && (
-            <>
-              <button
-                disabled={busy}
-                onClick={() => run(() => api.approveResume(current._id), 'Resume approved')}
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-sm text-emerald-800"
-              >
-                <CheckCircle2 size={15} /> Approve Resume
-              </button>
-              {current.priority !== 'faang' &&
-                /linkedin\.com\/(jobs|job)/i.test(current.url) && (
-                <button
-                  disabled={busy}
-                  onClick={() =>
-                    run(
-                      () => api.approveResumeAndApply(current._id).then((r) => r.message),
-                      'Approved: LinkedIn Easy Apply started (please approve before Submit)'
-                    )
-                  }
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-sm text-indigo-800"
-                >
-                  <Send size={15} /> Approve & Easy Apply
-                </button>
-              )}
-            </>
-          )}
-
-          {current.status === 'pdf_uploaded' &&
-            current.pdfPath &&
-            current.priority !== 'faang' &&
-            /linkedin\.com\/(jobs|job)/i.test(current.url) && (
-            <button
-              disabled={busy}
-              onClick={() => run(() => api.apply(current._id), 'LinkedIn Easy Apply started')}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-sm text-indigo-800"
-            >
-              <Send size={15} /> Easy Apply
-            </button>
-          )}
-
-          {current.status === 'pending_message_approval' && (
-            <button
-              disabled={busy}
-              onClick={() =>
-                run(() => api.approveMessage(current._id, messageDraft), 'Message approved')
-              }
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 hover:bg-amber-100 text-sm text-amber-900"
-            >
-              <MessageSquare size={15} /> Approve Message
-            </button>
-          )}
-
-          {current.status === 'pending_submit_approval' && (
-            <button
-              disabled={busy}
-              onClick={() => run(() => api.approveSubmit(current._id), 'Submit approved')}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-sm text-emerald-800"
-            >
-              <CheckCircle2 size={15} /> Approve Submit
-            </button>
-          )}
         </div>
-
-        {current.priority === 'faang' && (
-          <p className="mt-3 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-            FAANG/MANGO: Apply manually on company site. Auto-apply is disabled for these roles.
-          </p>
-        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-4 bg-white">
+      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-4 bg-paper-card">
         {current.approvalNote && (
-          <div className="border border-teal-200 bg-teal-50 rounded-xl px-3 py-3 text-sm text-teal-900">
+          <div className="border border-cedar/25 bg-cedar-soft/80 rounded-xl px-3 py-3 text-sm text-cedar-ink">
             {current.approvalNote.replace(/\s*—\s*/g, ' • ').replace(/—/g, ' - ')}
+            {current.applyPhase &&
+              current.applyPhase !== 'idle' &&
+              current.applyPhase !== 'done' && (
+                <span className="ml-2 text-xs font-semibold uppercase tracking-wide text-cedar">
+                  [{current.applyPhase.replace(/_/g, ' ')}
+                  {current.atsType ? ` · ${current.atsType}` : ''}]
+                </span>
+              )}
           </div>
         )}
 
@@ -1015,20 +1035,201 @@ export function JobDetailPanel({ job, onUpdated, onDeleted }: Props) {
               rows={4}
               className="w-full bg-white border border-slate-200 rounded-xl px-3 py-3 text-sm text-ink focus:outline-none focus:border-primary-400"
             />
+            <button
+              type="button"
+              disabled={busy}
+              className="btn-secondary mt-2 inline-flex items-center gap-1.5"
+              onClick={() =>
+                run(
+                  () =>
+                    api.updateWorkspace(current._id, { recruiterMessageDraft: messageDraft }).then(
+                      (j) => {
+                        setCurrent(j);
+                      }
+                    ),
+                  'Message draft saved'
+                )
+              }
+            >
+              <Save size={13} /> Save message
+            </button>
           </div>
         )}
 
-        {current.coverLetterDraft && (
+        <div className="rounded-2xl border border-paper-line bg-white/80 p-3.5 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-xs font-bold font-display text-ink">Workspace</h3>
+            <button
+              type="button"
+              disabled={busy}
+              className="btn-secondary inline-flex items-center gap-1.5 !py-1.5"
+              onClick={() =>
+                run(
+                  () =>
+                    api
+                      .generateOutreach(current._id)
+                      .then((r) => {
+                        setCurrent(r.job);
+                        setCoverLetterDraft(r.job.coverLetterDraft || '');
+                        setMessageDraft(r.job.recruiterMessageDraft || '');
+                        return r;
+                      }),
+                  'Cover letter & outreach ready'
+                )
+              }
+            >
+              <FileText size={13} /> Generate cover letter
+            </button>
+          </div>
+
           <div>
-            <label className="text-sm text-ink-muted mb-2 block">Cover letter draft</label>
+            <p className="text-[11px] font-semibold text-ink-muted mb-1">Interest</p>
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    const next = interest === n ? 0 : n;
+                    setInterest(next);
+                    void run(
+                      () =>
+                        api
+                          .updateWorkspace(current._id, { interest: next || null })
+                          .then(setCurrent),
+                      next ? `Interest set to ${next}★` : 'Interest cleared'
+                    );
+                  }}
+                  className={`h-8 w-8 rounded-full text-sm transition-all ${
+                    interest >= n
+                      ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                      : 'bg-mist text-ink-faint border border-paper-line'
+                  }`}
+                >
+                  ★
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-semibold text-ink-muted mb-1 block">
+              Follow-up date
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <input
+                type="date"
+                value={followUpAt}
+                onChange={(e) => setFollowUpAt(e.target.value)}
+                className="rounded-full border border-paper-line px-3 py-1.5 text-sm"
+              />
+              <button
+                type="button"
+                disabled={busy}
+                className="btn-secondary !py-1.5"
+                onClick={() =>
+                  run(
+                    () =>
+                      api
+                        .updateWorkspace(current._id, {
+                          followUpAt: followUpAt ? new Date(followUpAt).toISOString() : null,
+                        })
+                        .then(setCurrent),
+                    followUpAt ? 'Follow-up saved' : 'Follow-up cleared'
+                  )
+                }
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                className="chip !py-1.5"
+                onClick={() => {
+                  const d = new Date();
+                  d.setDate(d.getDate() + 7);
+                  const iso = d.toISOString().slice(0, 10);
+                  setFollowUpAt(iso);
+                  void run(
+                    () =>
+                      api
+                        .updateWorkspace(current._id, { followUpAt: d.toISOString() })
+                        .then(setCurrent),
+                    'Follow-up in 7 days'
+                  );
+                }}
+              >
+                +7 days
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-semibold text-ink-muted mb-1 block">Notes</label>
+            <textarea
+              value={notesDraft}
+              onChange={(e) => setNotesDraft(e.target.value)}
+              rows={3}
+              placeholder="Recruiter name, referral, interview notes…"
+              className="w-full rounded-2xl border border-paper-line px-3 py-2 text-sm"
+            />
+            <button
+              type="button"
+              disabled={busy}
+              className="btn-secondary mt-2 inline-flex items-center gap-1.5 !py-1.5"
+              onClick={() =>
+                run(
+                  () => api.updateWorkspace(current._id, { notes: notesDraft }).then(setCurrent),
+                  'Notes saved'
+                )
+              }
+            >
+              <Save size={13} /> Save notes
+            </button>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <label className="text-[11px] font-semibold text-ink-muted">Cover letter</label>
+              {coverLetterDraft && (
+                <button
+                  type="button"
+                  className="text-[11px] font-semibold text-cedar inline-flex items-center gap-1"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(coverLetterDraft);
+                    reactToast.success('Cover letter copied');
+                  }}
+                >
+                  <Copy size={12} /> Copy
+                </button>
+              )}
+            </div>
             <textarea
               value={coverLetterDraft}
               onChange={(e) => setCoverLetterDraft(e.target.value)}
-              rows={8}
-              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-3 text-sm text-ink focus:outline-none focus:border-primary-400"
+              rows={7}
+              placeholder="Generate a tailored cover letter, then copy into the application."
+              className="w-full bg-white border border-paper-line rounded-2xl px-3 py-3 text-sm text-ink focus:outline-none focus:border-cedar"
             />
+            <button
+              type="button"
+              disabled={busy || !coverLetterDraft.trim()}
+              className="btn-secondary mt-2 inline-flex items-center gap-1.5 !py-1.5"
+              onClick={() =>
+                run(
+                  () =>
+                    api
+                      .updateWorkspace(current._id, { coverLetterDraft })
+                      .then(setCurrent),
+                  'Cover letter saved'
+                )
+              }
+            >
+              <Save size={13} /> Save cover letter
+            </button>
           </div>
-        )}
+        </div>
       </div>
 
       {toast && (

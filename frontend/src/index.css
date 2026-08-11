@@ -2,91 +2,328 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer utilities {
+/*
+  Apple Design skill → web:
+  - Critically damped response (no bounce by default)
+  - Instant press feedback
+  - Translucent materials + vibrancy
+  - Size-specific tracking / leading
+  - Reduced motion / transparency / contrast
+*/
+
+:root {
+  --cedar: #1a7a62;
+  --cedar-ink: #0f3d32;
+  --paper: #f2f4f3;
+  --ink: #0f1a16;
+  --ink-muted: #5b6b64;
+  --ink-faint: #8a9a92;
+  --line: rgba(15, 26, 22, 0.08);
+  --material: rgba(255, 255, 255, 0.62);
+  --material-heavy: rgba(255, 255, 255, 0.78);
+  --material-edge: rgba(255, 255, 255, 0.55);
+  /* critically damped ≈ Apple response 0.35–0.4 */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
+  --press: 100ms ease-out;
+  --settle: 380ms var(--ease-out);
+  font: 100%/1.47 -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
+    'Segoe UI', system-ui, sans-serif;
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+@layer components {
+  /* Structural material — heavier blur for larger surfaces */
+  .surface {
+    background: var(--material-heavy);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    border: 1px solid var(--material-edge);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.65) inset,
+      0 8px 28px rgba(15, 26, 22, 0.06);
+    border-radius: 1.15rem;
+  }
+
   .glass {
-    @apply bg-white/90 backdrop-blur-md border border-slate-200/80 shadow-sm;
+    background: var(--material);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--material-edge);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.5) inset,
+      0 4px 18px rgba(15, 26, 22, 0.05);
   }
 
   .glass-card {
-    @apply glass rounded-2xl p-6 transition-all duration-300 hover:shadow-md hover:border-teal-200/80;
+    @apply glass rounded-[1.15rem] p-5;
+    transition: transform var(--settle), box-shadow var(--settle), border-color var(--settle);
+  }
+
+  .glass-card:hover {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.7) inset,
+      0 14px 36px rgba(26, 122, 98, 0.12);
+    border-color: rgba(26, 122, 98, 0.22);
+    transform: translateY(-1px);
+  }
+
+  /* Toolbar / floating chrome — light material */
+  .toolbar {
+    background: rgba(255, 255, 255, 0.58);
+    backdrop-filter: blur(22px) saturate(180%);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.55) inset,
+      0 6px 20px rgba(15, 26, 22, 0.05);
+  }
+
+  /* Scroll-edge mask instead of hard divider under sticky chrome */
+  .edge-fade {
+    mask-image: linear-gradient(to bottom, #000 72%, transparent);
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .btn-warn,
+  .chip,
+  .chip-emphasis,
+  .chip-danger {
+    /* Instant press feedback — skill §1 */
+    transition:
+      transform var(--press),
+      background-color var(--settle),
+      border-color var(--settle),
+      box-shadow var(--settle),
+      color var(--settle),
+      opacity var(--settle);
+  }
+
+  .btn-primary:active,
+  .btn-secondary:active,
+  .btn-warn:active,
+  .chip:active,
+  .chip-emphasis:active,
+  .chip-danger:active {
+    transform: scale(0.97);
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-white
+      bg-cedar border border-transparent shadow-soft
+      hover:bg-cedar-hover disabled:opacity-40 disabled:pointer-events-none;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-cedar-ink
+      bg-white/85 border border-paper-line
+      hover:bg-cedar-soft hover:border-cedar/20 disabled:opacity-40 disabled:pointer-events-none;
+  }
+
+  .btn-warn {
+    @apply inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-amber-950
+      bg-amber-50 border border-amber-200/80
+      hover:bg-amber-100 disabled:opacity-40 disabled:pointer-events-none;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold
+      bg-white/85 text-ink border border-paper-line shadow-soft
+      hover:bg-cedar-soft hover:border-cedar/20 hover:text-cedar-ink
+      disabled:opacity-40 disabled:pointer-events-none;
+  }
+
+  .chip-emphasis {
+    @apply chip bg-cedar-soft text-cedar-ink border-cedar/20;
+  }
+
+  .chip-danger {
+    @apply chip text-red-800 bg-red-50 border-red-200/80 hover:bg-red-100 hover:border-red-300 hover:text-red-900;
+  }
+
+  /* Vibrancy: heavier weight + slight tracking on translucent surfaces */
+  .section-label {
+    @apply text-[10px] font-semibold uppercase text-ink-faint;
+    letter-spacing: 0.08em;
+    font-family: inherit;
+  }
+
+  .display-title {
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.022em;
+    font-optical-sizing: auto;
+  }
+
+  .progress-track {
+    @apply h-1.5 rounded-full bg-mist/90 overflow-hidden;
+  }
+
+  .progress-fill {
+    @apply h-full rounded-full bg-gradient-to-r from-cedar to-primary-400;
+    transition: width 500ms var(--ease-out);
   }
 }
 
 body {
   margin: 0;
-  background-color: #f1f5f9;
-  color: #0f172a;
-  font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  background-color: var(--paper);
+  color: var(--ink);
   overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: rgba(26, 122, 98, 0.18);
 }
 
 .bloom-bg {
   background:
-    radial-gradient(ellipse 80% 60% at 10% 0%, rgba(20, 145, 155, 0.14), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 95% 15%, rgba(14, 165, 233, 0.12), transparent 50%),
-    radial-gradient(ellipse 60% 45% at 70% 100%, rgba(245, 158, 11, 0.1), transparent 50%),
-    linear-gradient(165deg, #f4fafb 0%, #eef5f6 40%, #f7f9fc 100%);
+    radial-gradient(ellipse 70% 50% at 10% -8%, rgba(26, 122, 98, 0.12), transparent 55%),
+    radial-gradient(ellipse 55% 40% at 90% 6%, rgba(80, 140, 160, 0.09), transparent 50%),
+    radial-gradient(ellipse 50% 35% at 50% 110%, rgba(26, 122, 98, 0.05), transparent 50%),
+    linear-gradient(168deg, #f7faf8 0%, #eef3f1 50%, #f5f6f8 100%);
 }
 
 .bloom-petal {
   position: absolute;
   border-radius: 60% 40% 55% 45%;
-  filter: blur(48px);
-  opacity: 0.55;
-  animation: background-drift 16s ease-in-out infinite alternate;
-}
-
-.background-orb {
-  position: absolute;
-  width: 28rem;
-  height: 28rem;
-  border-radius: 9999px;
-  filter: blur(90px);
-  opacity: 0.35;
-  animation: background-drift 14s ease-in-out infinite alternate;
-}
-
-.background-orb-one {
-  top: 6%;
-  left: 12%;
-  background: #5eead4;
-}
-
-.background-orb-two {
-  right: 4%;
-  bottom: 8%;
-  background: #7dd3fc;
-  animation-delay: -7s;
+  filter: blur(56px);
+  opacity: 0.34;
+  animation: background-drift 24s var(--ease-in-out) infinite alternate;
+  will-change: transform;
 }
 
 @keyframes background-drift {
   from {
-    transform: translate3d(-3%, -2%, 0) scale(0.92);
+    transform: translate3d(-1.5%, -1%, 0) scale(0.97);
   }
   to {
-    transform: translate3d(5%, 4%, 0) scale(1.08);
+    transform: translate3d(2.5%, 1.5%, 0) scale(1.03);
   }
 }
 
+/* Materialize enter — blur + scale together (skill §12) */
+@keyframes materialize {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(8px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes fade-cross {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-up,
+.animate-scale-in {
+  animation: materialize 0.42s var(--ease-out) both;
+}
+
+.animate-fade-in,
+.animate-slide-down {
+  animation: fade-cross 0.28s ease-out both;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2.8s ease-in-out infinite;
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.78;
+  }
+}
+
+.stagger-1 {
+  animation-delay: 40ms;
+}
+.stagger-2 {
+  animation-delay: 80ms;
+}
+.stagger-3 {
+  animation-delay: 120ms;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .background-orb,
-  .bloom-petal {
-    animation: none;
+  .bloom-petal,
+  .animate-pulse-soft,
+  .animate-fade-up,
+  .animate-scale-in,
+  .animate-fade-in,
+  .animate-slide-down {
+    animation: none !important;
+  }
+
+  .glass-card:hover,
+  .btn-primary:active,
+  .btn-secondary:active,
+  .chip:active {
+    transform: none !important;
+  }
+
+  .progress-fill {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .surface,
+  .glass,
+  .glass-card,
+  .toolbar {
+    background: #ffffff;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .surface,
+  .glass,
+  .toolbar {
+    background: #ffffff;
+    border-color: rgba(15, 26, 22, 0.28);
+  }
+
+  .chip,
+  .btn-secondary {
+    border-color: rgba(15, 26, 22, 0.28);
   }
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: #e8eef0;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #b6c5cb;
-  border-radius: 4px;
+  background: rgba(154, 176, 166, 0.5);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #8aa3ad;
+  background: rgba(122, 149, 138, 0.7);
+  background-clip: padding-box;
+  border: 2px solid transparent;
 }
