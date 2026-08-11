@@ -18,12 +18,12 @@ interface Props {
   onApply: () => void;
   onRetry: () => void;
   onApproveMessage: () => void;
-  onApproveSubmit: () => void;
+  onMarkApplied: () => void;
   onOpenLink: () => void;
 }
 
 /**
- * Sticky apply rail — primary career-page actions stay visible while reviewing PDF/JD.
+ * Sticky apply rail — primary actions stay visible while reviewing PDF/JD.
  */
 export function ApplyWorkflowBanner({
   job,
@@ -33,7 +33,7 @@ export function ApplyWorkflowBanner({
   onApply,
   onRetry,
   onApproveMessage,
-  onApproveSubmit,
+  onMarkApplied,
   onOpenLink,
 }: Props) {
   const ats = detectAtsUi(job.url, job.source, job.atsType);
@@ -55,8 +55,17 @@ export function ApplyWorkflowBanner({
     Boolean(job.pdfPath) &&
     (job.status === 'confused_hold' || job.status === 'failed');
   const showMessage = job.status === 'pending_message_approval';
-  const showSubmit = job.status === 'pending_submit_approval';
+  const awaitingSubmit = job.status === 'pending_submit_approval';
   const applying = job.status === 'applying' || phase === 'filling' || phase === 'uploading';
+  const alreadyApplied = ['applied', 'assessment', 'interview', 'accepted'].includes(job.status);
+  const showMarkApplied =
+    !alreadyApplied &&
+    (awaitingSubmit ||
+      showRetry ||
+      job.status === 'confused_hold' ||
+      job.status === 'failed' ||
+      Boolean(job.pdfPath) ||
+      job.priority === 'faang');
 
   if (
     !showApproveResume &&
@@ -64,8 +73,9 @@ export function ApplyWorkflowBanner({
     !showLinkedIn &&
     !showRetry &&
     !showMessage &&
-    !showSubmit &&
+    !awaitingSubmit &&
     !applying &&
+    !showMarkApplied &&
     job.priority !== 'faang'
   ) {
     return null;
@@ -100,37 +110,25 @@ export function ApplyWorkflowBanner({
           </button>
         </div>
 
-        {showSubmit && (
-          <div className="rounded-2xl border border-emerald-200/90 bg-emerald-50/90 px-3.5 py-3 flex flex-wrap items-center justify-between gap-2 animate-pulse-soft shadow-soft">
+        {(awaitingSubmit || job.status === 'confused_hold') && (
+          <div className="rounded-2xl border border-emerald-200/90 bg-emerald-50/90 px-3.5 py-3 flex flex-wrap items-center justify-between gap-2 shadow-soft">
             <div className="min-w-0 flex-1">
               <p className="text-xs font-bold text-emerald-950 font-display">
-                Final step — review Chrome, then submit
+                Already submitted on the company site?
               </p>
               <p className="text-[11px] text-emerald-900/80 mt-0.5 leading-relaxed">
-                Look at the <span className="font-semibold">automation Chrome</span> window (port 9333), not your
-                normal browser. If you only see Jobright/blank, click Show form in Chrome.
+                Click Mark applied to sync the tracker. No automation Submit — status only.
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={onOpenLink}
-                className="btn-secondary inline-flex items-center gap-1.5 !text-emerald-900"
-              >
-                <ExternalLink size={13} />
-                Show form in Chrome
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={onApproveSubmit}
-                className="btn-primary inline-flex items-center gap-2 !bg-emerald-700 hover:!bg-emerald-800"
-              >
-                {busy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                Approve Submit
-              </button>
-            </div>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onMarkApplied}
+              className="btn-primary inline-flex items-center gap-2 !bg-emerald-700 hover:!bg-emerald-800"
+            >
+              {busy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+              Mark applied
+            </button>
           </div>
         )}
 
@@ -150,49 +148,76 @@ export function ApplyWorkflowBanner({
           </div>
         )}
 
-        {applying && !showSubmit && (
+        {applying && !awaitingSubmit && (
           <div className="rounded-2xl border border-cedar/20 bg-cedar-soft/80 px-3.5 py-2.5 flex items-center gap-2.5 text-xs text-cedar-ink shadow-soft animate-slide-down">
             <Loader2 size={14} className="animate-spin text-cedar" />
             Filling career form in Chrome — leave the window open.
           </div>
         )}
 
-        {(showApproveResume || showCareerApply || showLinkedIn || showRetry) && !showSubmit && (
+        {(showApproveResume || showCareerApply || showLinkedIn || showRetry || showMarkApplied) &&
+          job.status !== 'confused_hold' &&
+          !awaitingSubmit && (
+            <div className="flex flex-wrap gap-2">
+              {showApproveResume && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={onApproveResume}
+                  className="btn-secondary inline-flex items-center gap-2"
+                >
+                  <CheckCircle2 size={14} /> Approve Resume
+                </button>
+              )}
+              {showCareerApply && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={job.status === 'pending_resume_approval' ? onApproveAndApply : onApply}
+                  className="btn-primary inline-flex items-center gap-2"
+                >
+                  {busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                  {job.status === 'pending_resume_approval'
+                    ? 'Approve & Apply (Career)'
+                    : 'Apply on Career Page'}
+                </button>
+              )}
+              {showLinkedIn && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={job.status === 'pending_resume_approval' ? onApproveAndApply : onApply}
+                  className="btn-secondary inline-flex items-center gap-2"
+                >
+                  <Send size={14} />
+                  {job.status === 'pending_resume_approval' ? 'Approve & Easy Apply' : 'Easy Apply'}
+                </button>
+              )}
+              {showRetry && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={onRetry}
+                  className="btn-warn inline-flex items-center gap-2"
+                >
+                  <Send size={14} /> Retry Career Apply
+                </button>
+              )}
+              {showMarkApplied && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={onMarkApplied}
+                  className="btn-secondary inline-flex items-center gap-2"
+                >
+                  <CheckCircle2 size={14} /> Mark applied
+                </button>
+              )}
+            </div>
+          )}
+
+        {job.status === 'confused_hold' && (
           <div className="flex flex-wrap gap-2">
-            {showApproveResume && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={onApproveResume}
-                className="btn-secondary inline-flex items-center gap-2"
-              >
-                <CheckCircle2 size={14} /> Approve Resume
-              </button>
-            )}
-            {showCareerApply && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={job.status === 'pending_resume_approval' ? onApproveAndApply : onApply}
-                className="btn-primary inline-flex items-center gap-2"
-              >
-                {busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                {job.status === 'pending_resume_approval'
-                  ? 'Approve & Apply (Career)'
-                  : 'Apply on Career Page'}
-              </button>
-            )}
-            {showLinkedIn && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={job.status === 'pending_resume_approval' ? onApproveAndApply : onApply}
-                className="btn-secondary inline-flex items-center gap-2"
-              >
-                <Send size={14} />
-                {job.status === 'pending_resume_approval' ? 'Approve & Easy Apply' : 'Easy Apply'}
-              </button>
-            )}
             {showRetry && (
               <button
                 type="button"
@@ -206,16 +231,19 @@ export function ApplyWorkflowBanner({
           </div>
         )}
 
-        {!showSubmit && job.priority !== 'faang' && (showCareerApply || showLinkedIn || showApproveResume) && (
-          <p className="text-[10px] text-ink-faint leading-relaxed">
-            Two apply paths: <span className="font-semibold text-ink-muted">Apply on Career Page</span>{' '}
-            uses automation Chrome (port 9333). Or open the job in your normal browser → Simplify fill
-            → extension <span className="font-semibold text-ink-muted">Attach resume</span> → you Submit.
-          </p>
-        )}
+        {!awaitingSubmit &&
+          job.status !== 'confused_hold' &&
+          job.priority !== 'faang' &&
+          (showCareerApply || showLinkedIn || showApproveResume) && (
+            <p className="text-[10px] text-ink-faint leading-relaxed">
+              Preferred: open job → Simplify fill → extension Attach resume → you Submit → Mark
+              applied.
+            </p>
+          )}
         {job.priority === 'faang' && (
           <p className="text-[11px] text-amber-900/90">
-            FAANG/MANGO roles stay manual — open the company site with your tailored PDF.
+            FAANG/MANGO roles stay manual — open the company site with your tailored PDF, then Mark
+            applied.
           </p>
         )}
       </div>

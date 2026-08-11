@@ -286,7 +286,7 @@ export const STATUS_OPTIONS: {
   { value: 'resume_generated', label: 'Resume generated' },
   { value: 'pdf_uploaded', label: 'PDF uploaded / ready' },
   { value: 'applying', label: 'Applying' },
-  { value: 'pending_submit_approval', label: 'Approve submit' },
+  { value: 'pending_submit_approval', label: 'Mark applied' },
   { value: 'applied', label: 'Applied' },
   { value: 'assessment', label: 'Assessment' },
   { value: 'interview', label: 'Interview' },

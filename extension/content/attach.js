@@ -4,7 +4,7 @@
  * Single-upload: never assign+drop both (Workday duplicates resumes).
  */
 (function () {
-  const VERSION = 17;
+  const VERSION = 18;
 
   function sleep(ms) {
     return new Promise((r) => setTimeout(r, ms));
@@ -31,10 +31,6 @@
     const out = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
     return out;
-  }
-
-  function isGreenhouseHost() {
-    return /greenhouse\.io/i.test(location.hostname);
   }
 
   function isWorkdayHost() {
@@ -113,18 +109,20 @@
         const meta = inputMeta(el);
         const cover = isCoverLetterInput(el);
         const resume = isResumeInput(el);
-        if (kind === 'resume' && cover) return null;
         if (kind === 'cover_letter' && !cover) return null;
-        if (kind === 'resume' && !resume) {
-          // Workday unlabeled file inputs only
-          if (!(isWorkdayHost() && !cover)) return null;
-        }
-        let score = 10;
+        if (kind === 'resume' && cover) return null;
+
+        // Prefer labeled resume/CV inputs; allow unlabeled as fallback
+        // (Greenhouse/Lever/Ashby/Workday often hide a bare <input type="file">).
+        let score = resume ? 10 : 22;
         if (kind === 'resume' && /resume|cv|curriculum|job_application\[resume\]/.test(meta)) {
           score -= 8;
         }
         if (kind === 'cover_letter' && /cover.?letter|coverletter/.test(meta)) score -= 8;
         if ((el.accept || '').includes('pdf') || /pdf/.test(meta)) score -= 2;
+        if (/application\/pdf|\.pdf|application\/msword|officedocument/.test(el.accept || '')) {
+          score -= 1;
+        }
         // Prefer empty inputs so we don't stack a second upload
         if (el.files && el.files.length) score += 5;
         return { el, score };
@@ -134,49 +132,31 @@
     return dedupeInputs(scored.map((s) => s.el));
   }
 
-  /** Click one Attach control — never spam (Workday doubles uploads). */
-  async function revealUploader(kind) {
-    const wantCover = kind === 'cover_letter';
-    const candidates = Array.from(
-      document.querySelectorAll('button, a, [role="button"], label')
-    ).filter((el) => {
-      const t = (el.innerText || el.textContent || el.getAttribute('aria-label') || '')
-        .replace(/\s+/g, ' ')
-        .trim();
-      if (!t || t.length > 48) return false;
-      if (/^attach$/i.test(t) || /^attach\s*(resume|cv|file|cover)?$/i.test(t)) return true;
-      if (/select file|upload resume|choose file|drag your resume|drop files/i.test(t)) return true;
-      return false;
-    });
-
-    const ranked = candidates
-      .map((el) => {
-        const block = el.closest(
-          'div, section, fieldset, li, [class*="resume"], [class*="Resume"], [class*="cover"], [data-testid], [data-automation-id]'
-        );
-        const context = `${block?.innerText || ''} ${fieldLabel(el)}`.toLowerCase();
-        let score = 5;
-        const hasResume = /resume|cv|curriculum/.test(context);
-        const hasCover = /cover.?letter|coverletter/.test(context);
-        if (wantCover) {
-          if (hasCover) score -= 4;
-          if (hasResume && !hasCover) score += 6;
-        } else {
-          if (hasResume) score -= 4;
-          if (hasCover && !hasResume) score += 6;
-        }
-        return { el, score };
-      })
-      .sort((a, b) => a.score - b.score);
-
-    const best = ranked[0];
-    if (!best) return;
-    try {
-      best.el.click();
-    } catch {
-      /* */
+  /**
+   * Prepare existing file inputs without opening the native file picker.
+   * Never click Attach / Choose file / labels — Chrome throws
+   * "File chooser dialog can only be shown with a user activation"
+   * when scripts trigger <input type="file"> without a real user gesture.
+   */
+  async function prepareFileInputs(kind) {
+    const inputs = Array.from(document.querySelectorAll('input[type="file"]')).filter(
+      (el) => !el.disabled
+    );
+    for (const el of inputs) {
+      const cover = isCoverLetterInput(el);
+      if (kind === 'cover_letter' && !cover) continue;
+      if (kind === 'resume' && cover) continue;
+      try {
+        // Keep hidden for UX but ensure the element is reachable for DataTransfer assign
+        if (el.hasAttribute('hidden')) el.removeAttribute('hidden');
+        if (el.style.display === 'none') el.style.setProperty('display', 'block', 'important');
+        if (el.style.visibility === 'hidden') el.style.visibility = 'visible';
+        el.style.opacity = el.style.opacity === '0' ? '0.01' : el.style.opacity;
+      } catch {
+        /* */
+      }
     }
-    await sleep(250);
+    await sleep(50);
   }
 
   function assignFileToInput(input, file) {
@@ -223,12 +203,7 @@
   async function assignNamedPdf(file, kind) {
     let inputs = findFileInputs(kind);
     if (!inputs.length) {
-      await revealUploader(kind);
-      await sleep(250);
-      inputs = findFileInputs(kind);
-    } else if (isGreenhouseHost() && kind === 'resume' && !inputs.some((el) => isResumeInput(el))) {
-      await revealUploader(kind);
-      await sleep(250);
+      await prepareFileInputs(kind);
       inputs = findFileInputs(kind);
     }
 
@@ -479,7 +454,7 @@
       return {
         ok: false,
         error:
-          'No resume file input — click Attach under Resume/CV on the page, then Attach resume again',
+          'No resume file input on the page yet. Click Attach / Choose file once yourself (browser blocks scripts from opening the file picker), cancel the dialog if it opens, then press Attach resume again.',
         engine: VERSION,
         cover: coverResult,
       };

@@ -88,6 +88,7 @@ interface Props {
 }
 
 export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Props) {
+  const [statusSelectKey, setStatusSelectKey] = useState(0);
   const confirm = useConfirm();
   const [current, setCurrent] = useState(job);
   const [messageDraft, setMessageDraft] = useState(job.recruiterMessageDraft || '');
@@ -197,6 +198,33 @@ export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Pr
       setBusy(false);
     }
   };
+
+  const markAppliedConfirmed = async (): Promise<boolean> => {
+    const ok = await confirm({
+      title: 'Mark as applied?',
+      message: (
+        <div className="space-y-2">
+          <p className="font-semibold text-ink">
+            {current.title} @ {current.company}
+          </p>
+          <p className="text-xs text-ink-muted">
+            Only do this after you submitted on the company site. This updates tracker status only —
+            it does not click Submit for you.
+          </p>
+        </div>
+      ),
+      confirmText: 'Mark applied',
+      cancelText: 'Cancel',
+      variant: 'primary',
+    });
+    if (!ok) return false;
+    await run(() => api.updateStatus(current._id, 'applied'), 'Marked applied', {
+      advance: true,
+    });
+    return true;
+  };
+
+  const statusInManualList = MANUAL_STATUSES.some((s) => s.value === current.status);
 
   const copyJd = async () => {
     try {
@@ -381,22 +409,8 @@ export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Pr
             advance: true,
           })
         }
-        onApproveSubmit={() =>
-          run(() => api.approveSubmit(current._id), 'Submit approved — next in queue', {
-            advance: true,
-          })
-        }
+        onMarkApplied={() => void markAppliedConfirmed()}
         onOpenLink={() => {
-          if (current.status === 'pending_submit_approval' || current.status === 'confused_hold') {
-            run(
-              async () => {
-                const r = await api.showInChrome(current._id);
-                return r.job;
-              },
-              'Opened job in orange Chrome — check that window'
-            );
-            return;
-          }
           window.open(current.url, '_blank', 'noopener,noreferrer');
         }}
       />
@@ -454,26 +468,63 @@ export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Pr
 
         <div className="flex flex-wrap items-center gap-2 mt-4">
           <select
-            value={
-              MANUAL_STATUSES.some((s) => s.value === current.status)
-                ? current.status
-                : 'scraped'
-            }
+            key={statusSelectKey}
+            value={current.status}
             disabled={busy}
-            onChange={(e) =>
-              run(
-                () => api.updateStatus(current._id, e.target.value as JobStatus),
-                'Status updated'
-              )
-            }
+            onChange={async (e) => {
+              const next = e.target.value as JobStatus;
+              if (next === current.status) return;
+
+              if (next === 'applied') {
+                await markAppliedConfirmed();
+                setStatusSelectKey((k) => k + 1);
+                return;
+              }
+
+              const destructive = next === 'failed' || next === 'invalid_job';
+              if (destructive) {
+                const ok = await confirm({
+                  title: `Set status to ${MANUAL_STATUSES.find((s) => s.value === next)?.label ?? next}?`,
+                  message: (
+                    <p className="text-xs text-ink-muted">
+                      {current.title} @ {current.company}
+                    </p>
+                  ),
+                  confirmText: 'Update status',
+                  cancelText: 'Cancel',
+                  variant: next === 'failed' ? 'danger' : 'warning',
+                });
+                if (!ok) {
+                  setStatusSelectKey((k) => k + 1);
+                  return;
+                }
+              }
+
+              await run(() => api.updateStatus(current._id, next), 'Status updated');
+              setStatusSelectKey((k) => k + 1);
+            }}
             className="rounded-xl bg-white border border-paper-line px-3 py-2 text-sm text-ink shadow-sm focus:outline-none focus:border-cedar focus:ring-2 focus:ring-cedar/15"
           >
+            {!statusInManualList && (
+              <option value={current.status}>{statusLabel(current.status)}</option>
+            )}
             {MANUAL_STATUSES.map((s) => (
               <option key={s.value} value={s.value}>
                 {s.label}
               </option>
             ))}
           </select>
+
+          {!['applied', 'assessment', 'interview', 'accepted'].includes(current.status) && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void markAppliedConfirmed()}
+              className="btn-primary inline-flex items-center gap-2"
+            >
+              <CheckCircle2 size={15} /> Mark applied
+            </button>
+          )}
 
           <a
             href={current.url}

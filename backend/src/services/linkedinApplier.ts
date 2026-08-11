@@ -168,6 +168,10 @@ export async function applyLinkedInJob(jobId: string) {
 
       if (submitButtons.length) {
         await requestSubmitApproval(job, jobId, 'LinkedIn');
+        const afterApproval = await Job.findById(jobId);
+        if (afterApproval?.status === 'applied') {
+          return;
+        }
         await submitButtons[0].click();
         await markApplySuccess(job, 'LinkedIn');
         return;

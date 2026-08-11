@@ -522,6 +522,11 @@ export async function applyCareerPageJob(jobId: string) {
     const goAwaitSubmit = async (submitBtn: WebElement) => {
       await setApplyPhase(job, 'awaiting_submit');
       await requestSubmitApproval(job, jobId, label);
+      const afterApproval = await Job.findById(jobId);
+      if (afterApproval?.status === 'applied') {
+        // User marked applied manually (extension / tracker) — do not click Submit
+        return;
+      }
       await setApplyPhase(job, 'submitting', `Submitting on ${label}…`);
       await safeClick(driver!, submitBtn);
       await driver!.sleep(2800);

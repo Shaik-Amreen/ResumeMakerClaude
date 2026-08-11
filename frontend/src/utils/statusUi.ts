@@ -26,7 +26,7 @@ export function statusLabel(status: string): string {
     interview: 'Interview',
     accepted: 'Accepted',
     pending_resume_approval: 'Review resume',
-    pending_submit_approval: 'Approve submit',
+    pending_submit_approval: 'Ready to mark',
     pending_message_approval: 'Approve message',
     resume_generating: 'Generating…',
     resume_generated: 'Resume ready',

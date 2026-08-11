@@ -8,7 +8,7 @@ Local companion for ResumeMakerClaude.
 
 1. Backend on `http://127.0.0.1:5002`
 2. `chrome://extensions` → Load unpacked → this folder
-3. Reload after updates (current: **0.8.7**)
+3. Reload after updates (current: **0.8.8** / attach engine v18)
 
 ## Workflow
 

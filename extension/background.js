@@ -2,7 +2,7 @@
  * Background — Resume Attach companion (Simplify fills forms; we attach tracker PDF).
  */
 
-const ENGINE_VERSION = 17;
+const ENGINE_VERSION = 18;
 const API_BASE = 'http://127.0.0.1:5002';
 /** Attach-only — do not inject content/ats/* (those files were removed). */
 const CONTENT_FILES = ['content/attach.js'];
