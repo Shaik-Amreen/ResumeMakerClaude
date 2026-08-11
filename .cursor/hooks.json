@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterShellExecution": [
+      {
+        "command": ".cursor/hooks/strip-coauthor-after-commit.sh",
+        "matcher": "git commit"
+      }
+    ]
+  }
+}

@@ -1,0 +1,4 @@
+#!/bin/sh
+# Strip Cursor co-author trailers injected by IDE tooling.
+sed -i '' '/^Co-authored-by: Cursor <cursoragent@cursor.com>$/d' "$1" 2>/dev/null \
+  || sed -i '/^Co-authored-by: Cursor <cursoragent@cursor.com>$/d' "$1"
