@@ -8,7 +8,7 @@ import {
   reviseResumeLatex,
   resumeAgentLabel,
 } from './resumeAgent';
-import { enforceMasterRules } from './resumeAgent/enforceMasterRules';
+import { enforceMasterRules, compressLatexForOnePage } from './resumeAgent/enforceMasterRules';
 import {
   isFullJdMatch,
   scoreResumeAgainstJd,
@@ -24,7 +24,7 @@ import type { JobType } from '../models/Job';
 import { makeTraceId, traceError, traceLog } from './debugTrace';
 import { isPipelineAbortError, throwIfAborted } from './pipelineAbort';
 
-const MAX_PAGE_REPAIRS = 2;
+const MAX_PAGE_REPAIRS = 3;
 const MIN_LINKED_PROJECTS = 3;
 
 /** Returns elapsed time string like "1m 23s" or "4.2s" */
@@ -66,8 +66,8 @@ function pageRepairInstruction(pageCount: number): string {
       `COMPILED PDF HAS ${pageCount} PAGES — it MUST be EXACTLY 1 page (match amazonResumeTemplate.tex).`,
       'Output ONLY sections from \\section{\\textbf{Work Experience}} through Certifications (no preamble).',
       'TRIM hard without changing margins/itemsep/titlespacing/bold scheme:',
-      '- Drop weakest Key Projects until ≤4 remain (≥3 LINKED).',
-      '- Cap each job at 3–4 complete bullets (110–130 plain chars, filling 90%–100% of line width).',
+      '- Drop weakest Key Projects until ≤3–4 remain (≥3 LINKED when possible).',
+      '- Cap each job at 3–4 bullets. EACH bullet MUST be ONE printed line only (80–95 plain chars, hard max 95) — no orphan word wrapping to a second line.',
       '- Shorten Skills lines; remove filler words from bullets.',
       'Keep Amazon → ASI → Infobell. Name Karthik Kovi (header locked). Visual lock unchanged.',
     ].join(' ');
@@ -140,6 +140,26 @@ async function compileAndFitOnePage(
       `Got ${pageCount} page(s) — auto-trimming to exactly 1 page (attempt ${attempt + 1}/${MAX_PAGE_REPAIRS})…`
     );
     const repairStart = Date.now();
+
+    // Mechanical squeeze first (shorten wrapped bullets / drop extras) — faster & more reliable than LLM.
+    const level: 1 | 2 = attempt === 0 ? 1 : 2;
+    latex = compressLatexForOnePage(latex, level);
+    try {
+      const recompressed = compileWithJdHeader(latex, jobId, ctx);
+      latex = recompressed.latex;
+      pdfPath = recompressed.pdfPath;
+      pageCount = recompressed.pageCount;
+      console.log(
+        `  ⏱️ Mechanical compress L${level}: ${elapsed(repairStart)} → ${pageCount} page(s)`
+      );
+      if (pageCount === 1) break;
+    } catch (mechErr) {
+      console.warn(
+        `  ⏱️ Mechanical compress failed:`,
+        mechErr instanceof Error ? mechErr.message : mechErr
+      );
+    }
+
     latex = enforceMasterRules(
       await reviseResumeLatex(ctx, latex, pageRepairInstruction(pageCount))
     );

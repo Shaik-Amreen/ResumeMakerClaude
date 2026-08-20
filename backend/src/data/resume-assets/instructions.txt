@@ -174,7 +174,7 @@ HUMAN VOICE — NO AI TRACES
 ================================================================================
 PIPELINE AUTO-FIXES (applied automatically after model output)
 ================================================================================
-- Auto-trim overlong bullets to ≤135 plain chars without cutting mid-phrase; finish incomplete tails.
+- Auto-trim overlong bullets to ≤95 plain chars (one printed line) without cutting mid-phrase; finish incomplete tails.
 - Strip Redbee. Humanize banned buzzwords. Force template itemize options / \vspace{2pt} / section chrome.
 - Lock preamble + header. Compile to exactly 1 page (trim projects/bullets if needed).
 
@@ -195,7 +195,7 @@ RULE 2: LaTeX Times letterpaper; EXACTLY 1 page; design lock
 RULE 3: Header wrapped in EXACTLY 3 lines (Name / Title+Contact / Links); prune low-priority details (Relocate, Location, Portfolio) on overflow
 RULE 4: Section order Work Experience → Skills → Key Projects → Education → Certifications
 RULE 5: Experience layout \textbf + \uline + template itemize
-RULE 6: Complete bullets 110–130 chars (filling 90-100% of line width), period, no mid-phrase cuts or half-line stubs
+RULE 6: Complete bullets 80–95 chars (ONE printed line only — no wrap), period, no mid-phrase cuts or orphan second lines
 RULE 6b: Human voice / no AI traces
 RULE 7: Skills six categories
 RULE 8: Key Projects \textbar pattern; ≥3 linked when possible

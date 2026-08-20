@@ -17,16 +17,16 @@ function fallbackRecruiterMessage(title: string, company: string, recruiterName?
 }
 
 function fallbackCoverLetter(title: string, company: string): string {
-  return `Dear Hiring Team at ${company},
+  return `Dear Hiring Team,
 
-I am writing to express my interest in the ${title} position. I am pursuing an MS in Computer Science at California State University, Long Beach (graduating January 2027) and am seeking a full-time Software Engineer role where I can contribute full-stack and backend skills on production systems.
+I am applying for the ${title} role at ${company}. I am an M.S. Computer Science student at California State University, Long Beach (CSULB), graduating in January 2027, and I am seeking a full-time Software Engineer position where I can contribute strong full-stack and systems skills on production software.
 
-Through professional experience at Associated Students, Inc. at CSULB and Infobell IT Solutions, I have built production web and mobile applications serving thousands of users while improving accessibility, performance, and deployment automation. I am excited about ${company}'s work and would welcome the opportunity to discuss how I can add value to your team.
+As a Software Engineer Intern at Amazon, I built batch data remediation on AWS Lambda, DynamoDB, and SQS, automated infrastructure with AWS CDK and CI/CD, and shipped an AI assistant skill for operational workflows. At Associated Students, Inc. at CSULB and Infobell IT Solutions, I delivered accessible web and mobile products used by thousands of users while improving performance and deployment reliability.
 
-Thank you for your time and consideration.
+I am excited about ${company}'s work and would welcome the chance to discuss how I can contribute. Thank you for your time and consideration.
 
-Best regards,
-${CANDIDATE.name}`;
+Sincerely,
+Karthik Kovi`;
 }
 
 function fallbackContacts(company: string, title: string): ContactSuggestion[] {
@@ -118,18 +118,42 @@ export async function generateOutreachArtifacts(jobId: string): Promise<void> {
   try {
     const coverLetter = await callOllamaForText(
       system,
-      `Write a tailored cover letter (3 short paragraphs, under 250 words) for:
+      `Write a tailored cover letter using a popular ATS-friendly template (Harvard/Indeed style).
+
+STRICT FORMAT — output ONLY this structure, nothing before the salutation:
+Dear Hiring Team,
+
+[Paragraph 1: state the exact role + company, who you are — M.S. CS at California State University, Long Beach (CSULB), graduating January 2027 — and why you are applying. 2–4 sentences.]
+
+[Paragraph 2: 1–2 concrete accomplishments from Amazon internship, ASI at CSULB, and/or Infobell that match the JD. No fake employers or invented credentials. 3–5 sentences.]
+
+[Paragraph 3: why this company/team + polite close asking to discuss. 2–3 sentences.]
+
+Sincerely,
+Karthik Kovi
+
+Rules:
+- Start with exactly "Dear Hiring Team," — never "Dear Hiring Manager", never a contact header, never a recipient address block, never the job title as a header line.
+- Under 280 words. Plain text only. No markdown.
+- Mention CSULB (or California State University, Long Beach) once.
+
 Role: ${job.title}
 Company: ${job.company}
 Job description excerpt:
-${jd.slice(0, 4000)}
-
-Output only the cover letter text, no markdown fences.`
+${jd.slice(0, 4000)}`
     );
-    job.coverLetterDraft = coverLetter || fallbackCoverLetter(job.title, job.company);
+    const { normalizeCoverLetterBody } = await import('./coverLetterPdf');
+    job.coverLetterDraft = normalizeCoverLetterBody(
+      coverLetter || fallbackCoverLetter(job.title, job.company),
+      { title: job.title, company: job.company }
+    );
   } catch (err) {
     console.warn('  Cover letter fallback:', err instanceof Error ? err.message : err);
-    job.coverLetterDraft = fallbackCoverLetter(job.title, job.company);
+    const { normalizeCoverLetterBody } = await import('./coverLetterPdf');
+    job.coverLetterDraft = normalizeCoverLetterBody(fallbackCoverLetter(job.title, job.company), {
+      title: job.title,
+      company: job.company,
+    });
   }
 
   try {

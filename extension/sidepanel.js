@@ -6,7 +6,10 @@ import {
   markApplied,
   saveJob,
   resumePdfUrl,
+  coverLetterPdfUrl,
   attachDocumentFilename,
+  askApplicationQuestion,
+  saveApplicationAnswer,
 } from './lib/api.js';
 
 const el = {
@@ -14,13 +17,24 @@ const el = {
   pageHost: document.getElementById('pageHost'),
   jobMatch: document.getElementById('jobMatch'),
   resumeStatus: document.getElementById('resumeStatus'),
+  coverStatus: document.getElementById('coverStatus'),
   log: document.getElementById('log'),
   btnRefresh: document.getElementById('btnRefresh'),
   btnResume: document.getElementById('btnResume'),
   btnApplied: document.getElementById('btnApplied'),
   btnAttachApplied: document.getElementById('btnAttachApplied'),
+  btnDlResume: document.getElementById('btnDlResume'),
+  btnDlCover: document.getElementById('btnDlCover'),
   btnTracker: document.getElementById('btnTracker'),
   btnSave: document.getElementById('btnSave'),
+  btnScanQuestions: document.getElementById('btnScanQuestions'),
+  qaPick: document.getElementById('qaPick'),
+  qaQuestion: document.getElementById('qaQuestion'),
+  qaAnswer: document.getElementById('qaAnswer'),
+  btnAskAi: document.getElementById('btnAskAi'),
+  btnCopyAnswer: document.getElementById('btnCopyAnswer'),
+  btnFillAnswer: document.getElementById('btnFillAnswer'),
+  btnSaveAnswer: document.getElementById('btnSaveAnswer'),
 };
 
 let state = {
@@ -31,6 +45,9 @@ let state = {
   tabId: null,
   backendOk: false,
   lastAttachedJobId: null,
+  qaQuestions: [],
+  qaSelectedKey: '',
+  qaGenerating: false,
 };
 
 let refreshTimer = null;
@@ -47,6 +64,8 @@ function setBackend(ok, text) {
 
 function resumeSource() {
   if (state.resolve?.resumeReady) return { ...state.resolve, fallback: false };
+  // Never attach another company's PDF when this page matched a tracker job (even if PDF missing).
+  if (state.resolve?.matched) return null;
   if (state.latestResume?.resumeReady) return { ...state.latestResume, fallback: true };
   return null;
 }
@@ -55,11 +74,57 @@ function markAppliedJobId() {
   return state.resolve?.jobId || state.lastAttachedJobId || null;
 }
 
+function coverLetterSource() {
+  const profile = String(state.profile?.coverLetter || '').trim();
+  // Cover letter always follows the matched tracker job — never a fallback resume's company.
+  if (state.resolve?.matched && state.resolve?.jobId) {
+    const draft = String(state.resolve.coverLetterDraft || '').trim();
+    if (draft) {
+      return {
+        jobId: state.resolve.jobId,
+        text: draft,
+        fromDraft: true,
+        company: state.resolve.company || '',
+      };
+    }
+    if (profile) {
+      return {
+        jobId: state.resolve.jobId,
+        text: profile,
+        fromDraft: false,
+        generic: true,
+        company: state.resolve.company || '',
+      };
+    }
+    return null;
+  }
+  // Unmatched page: generic profile text only — do not pull another job's cover PDF.
+  if (profile) {
+    return { jobId: null, text: profile, fromDraft: false, generic: true, company: '' };
+  }
+  return null;
+}
+
+function updateQaButtons() {
+  const hasQuestion = Boolean(el.qaQuestion?.value?.trim());
+  const hasAnswer = Boolean(el.qaAnswer?.value?.trim());
+  const canQa = Boolean(state.backendOk && state.tabId);
+  if (el.btnScanQuestions) el.btnScanQuestions.disabled = !canQa;
+  if (el.qaPick) el.qaPick.disabled = !canQa || !state.qaQuestions.length;
+  if (el.btnAskAi) el.btnAskAi.disabled = !canQa || !hasQuestion || state.qaGenerating;
+  if (el.btnCopyAnswer) el.btnCopyAnswer.disabled = !hasAnswer;
+  if (el.btnFillAnswer) el.btnFillAnswer.disabled = !canQa || !hasAnswer;
+  if (el.btnSaveAnswer) el.btnSaveAnswer.disabled = !canQa || !hasQuestion || !hasAnswer;
+}
+
 function updateButtons() {
   const src = resumeSource();
+  const cover = coverLetterSource();
   const canAttach = Boolean(state.backendOk && src?.jobId);
   el.btnResume.disabled = !canAttach;
   if (el.btnAttachApplied) el.btnAttachApplied.disabled = !canAttach;
+  if (el.btnDlResume) el.btnDlResume.disabled = !canAttach;
+  if (el.btnDlCover) el.btnDlCover.disabled = !(state.backendOk && cover?.jobId);
   el.btnTracker.disabled = !state.resolve?.trackerUrl;
   el.btnApplied.disabled = !(state.backendOk && (markAppliedJobId() || state.resolve?.matched));
   el.btnSave.disabled =
@@ -74,6 +139,22 @@ function updateButtons() {
     el.resumeStatus.textContent = 'No PDF — approve resume in tracker';
     el.resumeStatus.className = 'truncate';
   }
+
+  if (el.coverStatus) {
+    if (cover?.fromDraft) {
+      el.coverStatus.textContent = `Ready · ${cover.company || 'draft'}`;
+      el.coverStatus.className = 'truncate';
+    } else if (cover?.generic) {
+      el.coverStatus.textContent = state.resolve?.matched
+        ? `Generic template · generate in tracker for ${cover.company || 'this job'}`
+        : 'Generic template (page not matched — generate in tracker)';
+      el.coverStatus.className = 'truncate warn';
+    } else {
+      el.coverStatus.textContent = 'No cover letter — generate in tracker';
+      el.coverStatus.className = 'truncate';
+    }
+  }
+  updateQaButtons();
 }
 
 async function getActiveTab() {
@@ -152,7 +233,15 @@ async function refresh() {
       return;
     }
 
-    state.resolve = await resolvePageUrl(state.tabUrl);
+    try {
+      state.resolve = await resolvePageUrl(state.tabUrl);
+    } catch (e) {
+      state.resolve = null;
+      updateButtons();
+      log(`Could not match this page:\n${e.message}\n\nBackend is up — try Refresh again, or Save page to tracker.`);
+      return;
+    }
+
     state.latestResume = null;
     try {
       state.profile = await fetchProfile();
@@ -190,7 +279,6 @@ async function refresh() {
       ].join('\n')
     );
   } catch (e) {
-    setBackend(false, 'Error');
     updateButtons();
     log(`Refresh crashed: ${e?.message || e}`);
   }
@@ -199,12 +287,16 @@ async function refresh() {
 async function attachResume({ markAfter = false } = {}) {
   const src = resumeSource();
   if (!src?.jobId) {
-    log('No resume PDF. Approve one in the tracker first.');
+    if (state.resolve?.matched && !state.resolve?.resumeReady) {
+      log(`Matched ${state.resolve.company} but no resume PDF yet — approve/generate in tracker first.`);
+    } else {
+      log('No resume PDF. Approve one in the tracker first.');
+    }
     return;
   }
   if (src.fallback) {
     const ok = window.confirm(
-      `No tracker match for this page.\n\nAttach latest ready PDF for ${src.company || 'unknown'}?\n\nCancel if this is the wrong company.`
+      `No tracker match for this page.\n\nAttach latest ready PDF for ${src.company || 'unknown'}?\n\nThis is NOT tailored to the company on this page. Cancel and use Save page to tracker first.`
     );
     if (!ok) {
       log('Attach cancelled — open the matched job page, or Save page to tracker first.');
@@ -212,18 +304,31 @@ async function attachResume({ markAfter = false } = {}) {
     }
   }
   if (!state.tabId) await refresh();
-  const coverLetterText = String(
-    state.resolve?.coverLetterDraft || state.profile?.coverLetter || ''
-  ).trim();
-  log(`Attaching ${src.company || 'resume'} PDF (once)${coverLetterText ? '; cover letter only if field exists' : ''}…`);
+  // Re-resolve so attach uses the latest coverLetterDraft / pdfPath from tracker.
+  if (state.resolve?.matched && state.tabUrl) {
+    try {
+      const fresh = await resolvePageUrl(state.tabUrl);
+      if (fresh?.matched) state.resolve = fresh;
+    } catch {
+      /* keep cached resolve */
+    }
+  }
+  const cover = coverLetterSource();
+  const coverLetterText = cover?.text || '';
+  const coverPdfUrl =
+    cover?.jobId && cover.fromDraft ? coverLetterPdfUrl(cover.jobId) : null;
+  log(
+    `Attaching ${src.company || 'resume'} PDF (once)${coverLetterText ? cover?.fromDraft ? '; tailored cover letter' : '; generic cover template' : ''}…`
+  );
   try {
     const res = await runOnTab('RM_ATTACH_RESUME', {
       pdfUrl: resumePdfUrl(src.jobId),
       filename: attachDocumentFilename('resume'),
       coverLetterFilename: attachDocumentFilename('cover_letter'),
-      // Cover letter only fills a real cover field — never a second Resume/CV upload
       alsoCoverLetter: Boolean(coverLetterText),
       coverLetterText,
+      coverLetterPdfUrl: coverPdfUrl,
+      preferCoverPdf: Boolean(coverPdfUrl),
     });
     const r = res.result || {};
     if (r.ok) state.lastAttachedJobId = src.jobId;
@@ -309,8 +414,183 @@ async function saveToTracker() {
   }
 }
 
+async function downloadPdf(url, filename) {
+  const res = await fetch(url);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Download failed (${res.status})`);
+  }
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+  }
+}
+
+async function downloadResumePdf() {
+  const src = resumeSource();
+  if (!src?.jobId) {
+    log('No resume PDF available. Approve a resume in the tracker first.');
+    return;
+  }
+  const name = attachDocumentFilename('resume');
+  log(`Downloading resume: ${name}…`);
+  try {
+    await downloadPdf(resumePdfUrl(src.jobId), name);
+    log(`Downloaded resume: ${name}${src.fallback ? ' (fallback / latest ready)' : ''}`);
+  } catch (e) {
+    log(`Resume download failed: ${e.message}`);
+  }
+}
+
+async function downloadCoverLetterPdf() {
+  const cover = coverLetterSource();
+  if (!cover?.jobId) {
+    log('No cover letter yet. Generate one in the tracker (Workspace → Generate cover letter).');
+    return;
+  }
+  const name = attachDocumentFilename('cover_letter');
+  log(`Downloading cover letter: ${name}…`);
+  try {
+    await downloadPdf(coverLetterPdfUrl(cover.jobId), name);
+    log(
+      `Downloaded cover letter: ${name}\n` +
+        (cover.fromDraft
+          ? 'Use Additional Attachments / Cover Letter upload on the form if Attach skipped it.'
+          : 'Using profile default — generate a tailored letter in the tracker when you can.')
+    );
+  } catch (e) {
+    log(`Cover letter download failed: ${e.message}`);
+  }
+}
+
 function openTracker() {
   if (state.resolve?.trackerUrl) chrome.tabs.create({ url: state.resolve.trackerUrl });
+}
+
+function applicationJobId() {
+  return state.resolve?.jobId || null;
+}
+
+function renderQaPick() {
+  if (!el.qaPick) return;
+  const prev = el.qaPick.value;
+  el.qaPick.innerHTML = '<option value="">Pick from page…</option>';
+  for (const q of state.qaQuestions) {
+    const opt = document.createElement('option');
+    opt.value = q.key;
+    const prefix = q.empty ? '' : '✓ ';
+    opt.textContent = `${prefix}${q.label.slice(0, 72)}${q.label.length > 72 ? '…' : ''}`;
+    el.qaPick.appendChild(opt);
+  }
+  if (prev && state.qaQuestions.some((q) => q.key === prev)) el.qaPick.value = prev;
+}
+
+async function scanQuestionsFromPage() {
+  if (!state.tabId) await refresh();
+  log('Scanning page for custom questions…');
+  try {
+    const res = await runOnTab('RM_SCAN_APPLICATION_QUESTIONS', {});
+    const questions = res.result?.questions || [];
+    state.qaQuestions = questions;
+    renderQaPick();
+    updateQaButtons();
+    if (!questions.length) {
+      log('No custom text questions found.\nPaste the prompt manually, or scroll the form and scan again.');
+      return;
+    }
+    log(`Found ${questions.length} custom question(s). Pick one or paste your own, then Generate answer.`);
+    const firstEmpty = questions.find((q) => q.empty) || questions[0];
+    if (firstEmpty && !el.qaQuestion.value.trim()) {
+      el.qaQuestion.value = firstEmpty.label;
+      state.qaSelectedKey = firstEmpty.key;
+      el.qaPick.value = firstEmpty.key;
+    }
+  } catch (e) {
+    log(`Scan failed: ${e.message}`);
+  }
+}
+
+async function generateQaAnswer() {
+  const question = el.qaQuestion.value.trim();
+  if (!question) {
+    log('Enter or pick a question first.');
+    return;
+  }
+  state.qaGenerating = true;
+  updateQaButtons();
+  log(`Generating answer${state.resolve?.company ? ` for ${state.resolve.company}` : ''}…`);
+  try {
+    const res = await askApplicationQuestion({
+      question,
+      jobId: applicationJobId(),
+      url: state.tabUrl,
+    });
+    el.qaAnswer.value = res.answer || '';
+    const src =
+      res.source === 'bank'
+        ? `from answer bank (${Math.round((res.bankScore || 1) * 100)}% match)`
+        : `AI${res.company ? ` · ${res.company}` : ''}`;
+    log(`Answer ready (${src}). Review, edit, then Fill field or Copy.`);
+  } catch (e) {
+    log(`Generate failed: ${e.message}`);
+  } finally {
+    state.qaGenerating = false;
+    updateQaButtons();
+  }
+}
+
+async function copyQaAnswer() {
+  const text = el.qaAnswer.value.trim();
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    log('Answer copied to clipboard.');
+  } catch {
+    log('Copy failed — select the answer text manually.');
+  }
+}
+
+async function fillQaAnswer() {
+  const answer = el.qaAnswer.value.trim();
+  if (!answer) return;
+  const key = state.qaSelectedKey || el.qaPick?.value || '';
+  const question = el.qaQuestion.value.trim();
+  log('Filling answer into the form field…');
+  try {
+    const res = await runOnTab('RM_FILL_APPLICATION_ANSWER', {
+      answer,
+      key: key || undefined,
+      label: question || undefined,
+    });
+    const r = res.result || {};
+    if (!r.ok) {
+      log(`Could not fill: ${r.error || 'unknown error'}\nTry Copy and paste manually.`);
+      return;
+    }
+    log(`Filled: ${r.target || 'field'}\nVerify on the page before Submit.`);
+  } catch (e) {
+    log(`Fill failed: ${e.message}`);
+  }
+}
+
+async function saveQaToBank() {
+  const question = el.qaQuestion.value.trim();
+  const answer = el.qaAnswer.value.trim();
+  if (!question || !answer) return;
+  try {
+    await saveApplicationAnswer(question, answer);
+    log('Saved to answer bank — reuse from tracker Answer bank or on similar questions.');
+  } catch (e) {
+    log(`Save failed: ${e.message}`);
+  }
 }
 
 el.btnRefresh.addEventListener('click', () => refresh());
@@ -319,8 +599,27 @@ el.btnApplied.addEventListener('click', () => markJobApplied());
 if (el.btnAttachApplied) {
   el.btnAttachApplied.addEventListener('click', () => attachResume({ markAfter: true }));
 }
+if (el.btnDlResume) el.btnDlResume.addEventListener('click', () => downloadResumePdf());
+if (el.btnDlCover) el.btnDlCover.addEventListener('click', () => downloadCoverLetterPdf());
 el.btnTracker.addEventListener('click', () => openTracker());
 el.btnSave.addEventListener('click', () => saveToTracker());
+if (el.btnScanQuestions) el.btnScanQuestions.addEventListener('click', () => scanQuestionsFromPage());
+if (el.btnAskAi) el.btnAskAi.addEventListener('click', () => generateQaAnswer());
+if (el.btnCopyAnswer) el.btnCopyAnswer.addEventListener('click', () => copyQaAnswer());
+if (el.btnFillAnswer) el.btnFillAnswer.addEventListener('click', () => fillQaAnswer());
+if (el.btnSaveAnswer) el.btnSaveAnswer.addEventListener('click', () => saveQaToBank());
+if (el.qaPick) {
+  el.qaPick.addEventListener('change', () => {
+    const key = el.qaPick.value;
+    state.qaSelectedKey = key;
+    const row = state.qaQuestions.find((q) => q.key === key);
+    if (row) el.qaQuestion.value = row.label;
+    updateQaButtons();
+  });
+}
+for (const input of [el.qaQuestion, el.qaAnswer]) {
+  input?.addEventListener('input', () => updateQaButtons());
+}
 
 chrome.tabs.onActivated.addListener(() => scheduleRefresh());
 chrome.tabs.onUpdated.addListener((tabId, info) => {

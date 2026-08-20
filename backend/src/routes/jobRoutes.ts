@@ -456,6 +456,10 @@ router.patch('/:id/status', async (req: Request, res: Response) => {
     job.status = status;
     job.pendingAction = null;
     job.errorMessage = undefined;
+    job.applyPhase = status === 'confused_hold' ? 'confused_hold' : 'idle';
+    if (status === 'scraped') {
+      job.resumePhase = 'idle';
+    }
     if (status === 'applied') {
       if (!job.appliedAt) job.appliedAt = new Date();
       if (!job.followUpAt) {
@@ -518,7 +522,11 @@ router.patch('/:id/workspace', async (req: Request, res: Response) => {
       job.followUpAt = d;
     }
     if (typeof req.body?.coverLetterDraft === 'string') {
-      job.coverLetterDraft = req.body.coverLetterDraft.slice(0, 12000);
+      const { normalizeCoverLetterBody } = await import('../services/coverLetterPdf');
+      job.coverLetterDraft = normalizeCoverLetterBody(req.body.coverLetterDraft.slice(0, 12000), {
+        title: job.title,
+        company: job.company,
+      });
     }
     if (typeof req.body?.recruiterMessageDraft === 'string') {
       job.recruiterMessageDraft = req.body.recruiterMessageDraft.slice(0, 4000);
@@ -546,6 +554,39 @@ router.post('/:id/generate-outreach', async (req: Request, res: Response) => {
     res.status(500).json({
       message: error instanceof Error ? error.message : 'Outreach generation failed',
       error: String(error),
+    });
+  }
+});
+
+/** Download cover letter as a PDF file (for ATS Additional Attachments uploads). */
+router.get('/:id/cover-letter.pdf', async (req: Request, res: Response) => {
+  try {
+    const job = await Job.findById(req.params.id).lean();
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+
+    const { applicationProfile } = await import('../data/applicationProfile');
+    const { writeCoverLetterPdf } = await import('../services/coverLetterPdf');
+    const text = String(job.coverLetterDraft || applicationProfile.coverLetter || '').trim();
+    if (!text) {
+      return res.status(404).json({
+        message: 'No cover letter yet — click Generate cover letter first.',
+      });
+    }
+
+    const { buffer, filename } = writeCoverLetterPdf({
+      jobId: String(job._id),
+      text,
+      company: job.company,
+      title: job.title,
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename.replace(/"/g, '')}"`);
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.send(buffer);
+  } catch (error) {
+    console.error('cover-letter.pdf:', error);
+    return res.status(500).json({
+      message: error instanceof Error ? error.message : 'Failed to build cover letter PDF',
     });
   }
 });

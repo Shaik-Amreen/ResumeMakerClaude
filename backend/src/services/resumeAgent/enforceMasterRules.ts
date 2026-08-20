@@ -9,10 +9,11 @@ import { sanitizeResumeLatex } from './sanitizeLatex';
 export const TEMPLATE_ITEMIZE_OPTS =
   'itemsep=2pt, topsep=2pt, parsep=0pt, partopsep=0pt, leftmargin=10pt';
 
-/** ~one Times 11pt line on letter paper with template margins (plain text). */
-export const MAX_BULLET_PLAIN_CHARS = 135;
-/** Prefer bullets that fill most of the line (90-100% width) so the 1-page resume looks complete. */
-export const TARGET_BULLET_PLAIN_CHARS = 120;
+/** ~one Times New Roman 11pt line on letter paper with template margins (plain text).
+ * 135 was wrapping orphan words onto a 2nd line and blowing resumes to 2 pages. */
+export const MAX_BULLET_PLAIN_CHARS = 95;
+/** Prefer bullets that fill most of a single printed line without wrapping. */
+export const TARGET_BULLET_PLAIN_CHARS = 88;
 
 /** Trailing fluff / low-priority clauses safe to drop when compressing to one line. */
 const LOW_PRIORITY_TRAILING =
@@ -222,12 +223,12 @@ function beginItemize(): string {
   return `\\begin{itemize}[${TEMPLATE_ITEMIZE_OPTS}]`;
 }
 
-function enforceSingleLineBullets(latex: string): string {
+function enforceSingleLineBullets(latex: string, maxPlain = MAX_BULLET_PLAIN_CHARS): string {
   return latex.replace(
     /\\begin\{itemize\}(?:\[[^\]]*\])?([\s\S]*?)\\end\{itemize\}/gi,
     (_full, inner: string) => {
       const items = [...inner.matchAll(/\\item\b[\s\S]*?(?=\\item\b|$)/gi)].map((m) =>
-        shortenBulletToOneLine(m[0].trim())
+        shortenBulletToOneLine(m[0].trim(), maxPlain)
       );
       return `${beginItemize()}\n  ${items.join('\n  ')}\n\\end{itemize}`;
     }
@@ -309,8 +310,8 @@ export function normalizeKarthikTemplateLayout(latex: string): string {
   return out;
 }
 
-/** Cap Work Experience bullets at 5 (Karthik standard template). */
-function enforceBulletCaps(latex: string): string {
+/** Cap Work Experience bullets at 4 (keeps 1 page when bullets are full-width). */
+function enforceBulletCaps(latex: string, maxPerJob = 4): string {
   const parts = latex.split(/(\\section\{\\textbf\{[^}]+\}\})/i);
   let out = '';
   let mode: 'exp' | 'other' = 'other';
@@ -329,7 +330,7 @@ function enforceBulletCaps(latex: string): string {
       out += part;
       continue;
     }
-    out += mode === 'exp' ? trimItemizeBlocks(part, 5) : part;
+    out += mode === 'exp' ? trimItemizeBlocks(part, maxPerJob) : part;
   }
   return out;
 }
@@ -505,13 +506,31 @@ export function enforceMasterRules(latex: string): string {
   out = forceCanonicalExperienceHeaders(out);
   out = forceCanonicalEducation(out);
   out = normalizeKarthikTemplateLayout(out);
-  out = enforceBulletCaps(out);
+  out = enforceBulletCaps(out, 4);
   out = capKeyProjects(out, 5);
-  out = enforceSingleLineBullets(out);
+  out = enforceSingleLineBullets(out, MAX_BULLET_PLAIN_CHARS);
   out = normalizeKarthikTemplateLayout(out); // re-apply itemize opts after bullet rewrite
   out = enforceCppSoleBackend(out);
   out = forceCanonicalExperienceHeaders(out);
   out = forceCanonicalEducation(out); // re-lock after layout/bullet rewrites
   out = sanitizeResumeLatex(out);
   return out;
+}
+
+/**
+ * Mechanical 1-page squeeze used when compile still yields 2+ pages.
+ * level 1: shorter bullets + 4 projects; level 2: tighter bullets + 3 bullets/job + 3 projects.
+ */
+export function compressLatexForOnePage(latex: string, level: 1 | 2 = 1): string {
+  let out = enforceMasterRules(latex);
+  const maxPlain = level >= 2 ? 85 : TARGET_BULLET_PLAIN_CHARS;
+  const maxBullets = level >= 2 ? 3 : 4;
+  const maxProjects = level >= 2 ? 3 : 4;
+  out = enforceBulletCaps(out, maxBullets);
+  out = capKeyProjects(out, maxProjects);
+  out = enforceSingleLineBullets(out, maxPlain);
+  out = normalizeKarthikTemplateLayout(out);
+  out = forceCanonicalExperienceHeaders(out);
+  out = forceCanonicalEducation(out);
+  return sanitizeResumeLatex(out);
 }

@@ -179,3 +179,70 @@ button.accent:hover:not(:disabled) {
   overflow: auto;
   color: #2b2b2b;
 }
+
+.qa-card .qa-hint {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.qa-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 8px 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.qa-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.qa-scan {
+  flex-shrink: 0;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+}
+
+.qa-pick {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  font: inherit;
+  font-size: 0.82rem;
+  background: #fff;
+}
+
+.qa-card textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  resize: vertical;
+  background: #fff;
+}
+
+.qa-actions {
+  margin-top: 8px;
+}
+
+.qa-actions-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+
+.qa-actions-row button {
+  padding: 8px 6px;
+  font-size: 0.82rem;
+}

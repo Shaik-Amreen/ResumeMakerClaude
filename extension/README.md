@@ -8,16 +8,27 @@ Local companion for ResumeMakerClaude.
 
 1. Backend on `http://127.0.0.1:5002`
 2. `chrome://extensions` → Load unpacked → this folder
-3. Reload after updates (current: **0.8.8** / attach engine v18)
+3. Reload after updates (current: **0.9.2** / attach engine v21)
 
 ## Workflow
 
 1. Fill form with **Simplify**
 2. Open this side panel (auto-refreshes when you change tabs)
-3. **Attach resume** (confirms if using a fallback PDF)
-4. Verify filename on the page
-5. **You** click Submit
-6. **Attach + mark applied** (or Mark applied) to sync the tracker
+3. **Application Q&A** — scan custom questions, generate AI answer, fill or copy
+4. **Attach resume** (confirms if using a fallback PDF)
+5. Verify filename on the page
+6. **You** click Submit
+7. **Attach + mark applied** (or Mark applied) to sync the tracker
+
+## Application Q&A
+
+For prompts Simplify cannot answer (e.g. *What makes you excited about Koah?*):
+
+1. **Scan page** — finds custom textareas (skips name, visa, LinkedIn, etc.)
+2. Pick a question or paste your own
+3. **Generate answer** — uses matched job JD + your profile (same LLM as cover letters)
+4. Edit the draft, then **Fill field** or **Copy**
+5. **Save to bank** — reuse in tracker Answer bank on similar questions
 
 ## Buttons
 

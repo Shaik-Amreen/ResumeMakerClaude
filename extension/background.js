@@ -2,7 +2,7 @@
  * Background — Resume Attach companion (Simplify fills forms; we attach tracker PDF).
  */
 
-const ENGINE_VERSION = 18;
+const ENGINE_VERSION = 21;
 const API_BASE = 'http://127.0.0.1:5002';
 /** Attach-only — do not inject content/ats/* (those files were removed). */
 const CONTENT_FILES = ['content/attach.js'];
@@ -82,6 +82,20 @@ async function runInAllFrames(tabId, message) {
     const fail = payloads.find((p) => p && p.ok === false);
     if (fail) return fail;
     return { ok: false, error: 'No frame accepted the resume file' };
+  }
+  if (message.type === 'RM_SCAN_APPLICATION_QUESTIONS') {
+    let best = { ok: true, questions: [] };
+    for (const p of payloads) {
+      if (p?.questions?.length > best.questions.length) best = p;
+    }
+    return best;
+  }
+  if (message.type === 'RM_FILL_APPLICATION_ANSWER') {
+    const ok = payloads.find((p) => p && p.ok);
+    if (ok) return ok;
+    const fail = payloads.find((p) => p && p.ok === false);
+    if (fail) return fail;
+    return { ok: false, error: 'Could not fill answer in any frame' };
   }
   // Prefer main-frame-ish first result with url/title
   return payloads.find((p) => p && (p.url || p.title || p.h1)) || payloads[0] || { ok: false, error: 'No response' };

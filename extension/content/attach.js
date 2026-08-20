@@ -4,7 +4,7 @@
  * Single-upload: never assign+drop both (Workday duplicates resumes).
  */
 (function () {
-  const VERSION = 18;
+  const VERSION = 21;
 
   function sleep(ms) {
     return new Promise((r) => setTimeout(r, ms));
@@ -58,6 +58,7 @@
     const wrap = el.closest(
       '[data-automation-id], .ant-upload, [class*="upload"], [class*="Upload"], [class*="resume"], [class*="Resume"], [class*="cover"], [data-provides="fileinput"], form, fieldset, li, section, div'
     );
+    const section = el.closest('section, fieldset, [role="group"], form, li') || wrap;
     return [
       fieldLabel(el),
       el.accept || '',
@@ -69,14 +70,19 @@
       wrap?.getAttribute?.('aria-label') || '',
       wrap?.getAttribute?.('data-automation-id') || '',
       (wrap?.querySelector?.('label, h2, h3, legend, [class*="label"]')?.innerText || '').slice(0, 80),
-      (wrap?.innerText || '').slice(0, 120),
+      (wrap?.innerText || '').slice(0, 160),
+      (section?.innerText || '').slice(0, 220),
     ]
       .join(' ')
       .toLowerCase();
   }
 
   function isCoverLetterInput(el) {
-    return /cover.?letter|coverletter|cover_letter/.test(inputMeta(el));
+    const meta = inputMeta(el);
+    if (/cover.?letter|coverletter|cover_letter/.test(meta)) return true;
+    // Ashby/Workday shared "Additional Attachments" that lists Cover Letter among types
+    if (/additional\s*attach/.test(meta) && /cover/.test(meta)) return true;
+    return false;
   }
 
   function isResumeInput(el) {
@@ -352,20 +358,157 @@
     return out;
   }
 
-  async function attachCoverLetter({ coverLetterText, coverLetterFilename }) {
+  function questionLabelFor(el) {
+    const wrap = el.closest(
+      '[data-testid*="field"], [class*="field"], fieldset, li, section, div[class*="question"], form'
+    );
+    const bits = [];
+    if (wrap) {
+      const heading = wrap.querySelector('label, legend, h2, h3, h4, p, span[class*="label"]');
+      if (heading && heading !== el) bits.push((heading.innerText || heading.textContent || '').trim());
+    }
+    bits.push(fieldLabel(el));
+    const aria = el.getAttribute('aria-labelledby');
+    if (aria) {
+      for (const id of aria.split(/\s+/)) {
+        const node = document.getElementById(id);
+        if (node) bits.push((node.innerText || node.textContent || '').trim());
+      }
+    }
+    return bits
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .replace(/\*+\s*$/, '')
+      .trim()
+      .slice(0, 320);
+  }
+
+  function isStandardApplicationLabel(label) {
+    const meta = String(label || '').toLowerCase();
+    if (!meta || meta.length < 4) return true;
+    if (/resume|curriculum vitae|\bcv\b|cover.?letter.*upload|attach.*file|type="file"/.test(meta)) {
+      return true;
+    }
+    if (
+      /first.?name|last.?name|full.?name|legal.?name|preferred.?name|middle.?name/.test(meta)
+    ) {
+      return true;
+    }
+    if (/e.?mail|phone|mobile|linkedin|github|portfolio|website|personal.?site/.test(meta)) {
+      return true;
+    }
+    if (/street|address|city|state|province|zip|postal|country|location/.test(meta)) {
+      return true;
+    }
+    if (/school|university|college|degree|graduation|gpa|education/.test(meta)) {
+      return true;
+    }
+    if (/sponsor|visa|h-?1b|authorized to work|work authorization|legally authorized/.test(meta)) {
+      return true;
+    }
+    if (/salary|compensation|pay|ctc|notice period|start date|available to start/.test(meta)) {
+      return true;
+    }
+    if (/gender|ethnic|race|veteran|disability|demographic/.test(meta)) {
+      return true;
+    }
+    if (/how did you hear|referral source|employee referral/.test(meta)) return true;
+    return false;
+  }
+
+  function fieldHasValue(el) {
+    const v = String(el.value || '').trim();
+    return v.length > 0;
+  }
+
+  function scanApplicationQuestions() {
+    const fields = [];
+    const candidates = Array.from(
+      document.querySelectorAll('textarea, input[type="text"]:not([type="hidden"])')
+    ).filter((el) => !el.disabled && !el.readOnly && el.offsetParent !== null);
+
+    let idx = 0;
+    for (const el of candidates) {
+      const label = questionLabelFor(el);
+      if (!label || isStandardApplicationLabel(label)) continue;
+      const key = `q${idx++}`;
+      el.setAttribute('data-rm-qkey', key);
+      fields.push({
+        key,
+        label,
+        empty: !fieldHasValue(el),
+        tag: el.tagName.toLowerCase(),
+      });
+    }
+    return { ok: true, questions: fields.slice(0, 12) };
+  }
+
+  function fillApplicationAnswer({ answer, key, label }) {
+    const text = String(answer || '').trim();
+    if (!text) return { ok: false, error: 'No answer text' };
+
+    let el = null;
+    if (key) el = document.querySelector(`[data-rm-qkey="${CSS.escape(key)}"]`);
+    if (!el && label) {
+      const want = String(label).toLowerCase().slice(0, 80);
+      for (const candidate of document.querySelectorAll('textarea, input[type="text"]')) {
+        const lab = questionLabelFor(candidate).toLowerCase();
+        if (lab.includes(want) || want.includes(lab.slice(0, 40))) {
+          el = candidate;
+          break;
+        }
+      }
+    }
+    if (!el) return { ok: false, error: 'Could not find the question field on this page' };
+
+    setNativeValue(el, text);
+    el.dispatchEvent(new Event('blur', { bubbles: true }));
+    return {
+      ok: String(el.value || '').trim().length > 10,
+      target: questionLabelFor(el) || key,
+      mode: el.tagName.toLowerCase(),
+    };
+  }
+
+  async function attachCoverLetter({
+    coverLetterText,
+    coverLetterFilename,
+    coverLetterPdfUrl,
+    preferCoverPdf = false,
+  }) {
     const text = String(coverLetterText || '').trim();
-    if (!text) {
+    if (!text && !coverLetterPdfUrl) {
       return { ok: false, mode: null, error: 'No cover letter text from tracker/profile' };
     }
 
-    // 1) Prefer textarea / Enter manually — never touches Resume/CV
+    const coverName = coverLetterFilename || 'Karthik_Kovi_Cover_Letter.pdf';
+    let coverFile = null;
+    if (coverLetterPdfUrl) {
+      try {
+        const res = await fetch(coverLetterPdfUrl);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        coverFile = new File([await res.arrayBuffer()], coverName, { type: 'application/pdf' });
+      } catch {
+        coverFile = null;
+      }
+    }
+
+    // When tracker has a tailored PDF, prefer the same file upload the Download button uses.
+    if (preferCoverPdf && coverFile && hasCoverLetterFileField()) {
+      const fileResult = await assignNamedPdf(coverFile, 'cover_letter');
+      if (fileResult.ok) {
+        return { ok: true, mode: 'file', filename: coverName, target: fileResult.target };
+      }
+    }
+
+    // Textarea / Enter manually — never touches Resume/CV
     await revealCoverLetterManualEntry();
     let areas = findCoverLetterTextAreas();
     if (!areas.length) {
       await sleep(150);
       areas = findCoverLetterTextAreas();
     }
-    if (areas.length) {
+    if (areas.length && text && !preferCoverPdf) {
       setNativeValue(areas[0], text);
       await sleep(100);
       if (String(areas[0].value || '').trim().length > 20) {
@@ -378,13 +521,29 @@
       }
     }
 
-    // 2) File upload ONLY if a dedicated cover-letter input exists
+    // File upload: dedicated cover field OR Additional Attachments listing Cover Letter
     if (!hasCoverLetterFileField()) {
+      if (areas.length && text) {
+        setNativeValue(areas[0], text);
+        await sleep(100);
+        if (String(areas[0].value || '').trim().length > 20) {
+          return {
+            ok: true,
+            mode: 'text',
+            filename: null,
+            target: fieldLabel(areas[0]) || 'cover letter text',
+          };
+        }
+      }
       return { ok: false, mode: null, error: 'No separate cover letter field (skipped — resume only)' };
     }
 
-    const coverName = coverLetterFilename || 'Karthik_Kovi_Cover_Letter.pdf';
-    const coverFile = new File([simplePdfFromText(text)], coverName, { type: 'application/pdf' });
+    if (!coverFile) {
+      if (!text) {
+        return { ok: false, mode: null, error: 'No cover letter PDF/text available' };
+      }
+      coverFile = new File([simplePdfFromText(text)], coverName, { type: 'application/pdf' });
+    }
     const fileResult = await assignNamedPdf(coverFile, 'cover_letter');
     if (fileResult.ok) {
       return { ok: true, mode: 'file', filename: coverName, target: fileResult.target };
@@ -398,6 +557,8 @@
     coverLetterFilename,
     alsoCoverLetter,
     coverLetterText,
+    coverLetterPdfUrl,
+    preferCoverPdf,
     bytesBase64,
   }) {
     let bytes;
@@ -425,7 +586,12 @@
       if (alreadyOurs) {
         let coverResult = null;
         if (alsoCoverLetter) {
-          coverResult = await attachCoverLetter({ coverLetterText, coverLetterFilename });
+          coverResult = await attachCoverLetter({
+            coverLetterText,
+            coverLetterFilename,
+            coverLetterPdfUrl,
+            preferCoverPdf,
+          });
         }
         return {
           ok: true,
@@ -447,7 +613,12 @@
 
     let coverResult = null;
     if (alsoCoverLetter) {
-      coverResult = await attachCoverLetter({ coverLetterText, coverLetterFilename });
+      coverResult = await attachCoverLetter({
+        coverLetterText,
+        coverLetterFilename,
+        coverLetterPdfUrl,
+        preferCoverPdf,
+      });
     }
 
     if (!resumeResult.ok) {
@@ -491,6 +662,12 @@
         url: location.href,
         h1: (document.querySelector('h1')?.innerText || '').trim().slice(0, 160),
       };
+    }
+    if (message?.type === 'RM_SCAN_APPLICATION_QUESTIONS') {
+      return scanApplicationQuestions();
+    }
+    if (message?.type === 'RM_FILL_APPLICATION_ANSWER') {
+      return fillApplicationAnswer(message.payload || {});
     }
     if (message?.type === 'RM_VERSION') {
       return { version: VERSION };

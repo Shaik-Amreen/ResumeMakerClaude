@@ -1068,7 +1068,7 @@ test('live ATS HTML fixtures match our Greenhouse/Lever selectors', () => {
   const { isCoverLetterFileField } = require('../dist/services/careerApplyUtils');
   assert.equal(isCoverLetterFileField('cover_letter'), true);
 
-  const { resolveTextAnswer } = require('../dist/services/applicationAnswers');
+  const { resolveTextAnswer, resolveSelectAnswer } = require('../dist/services/applicationAnswers');
   const { applicationProfile } = require('../dist/data/applicationProfile');
   const first = resolveTextAnswer('First Name', applicationProfile, 'Long Beach');
   assert.equal(first.answer, applicationProfile.firstName);
@@ -1076,6 +1076,13 @@ test('live ATS HTML fixtures match our Greenhouse/Lever selectors', () => {
   assert.equal(email.answer, applicationProfile.email);
   const name = resolveTextAnswer('name', applicationProfile, 'Long Beach');
   assert.equal(name.answer, applicationProfile.fullName);
+  const school = resolveTextAnswer('University / School name', applicationProfile, 'Long Beach');
+  assert.equal(school.answer, 'California State University, Long Beach');
+  assert.equal(school.needsAutocomplete, true);
+  assert.equal(
+    resolveSelectAnswer('School', applicationProfile, 'Long Beach'),
+    'California State University, Long Beach'
+  );
 });
 
 test('jobApplier prefers career pages and keeps LinkedIn as fallback only', () => {
@@ -1277,4 +1284,39 @@ test('stored job URLs strip XMLNAME and tracking for View on / apply', () => {
   assert.equal(clean.includes('utm_source'), false);
   assert.match(clean, /2026-2027-Information-Technology/);
   assert.match(clean, /R000072400/);
+});
+
+test('extension resolve matches Greenhouse job-boards URL to boards tracker URL', () => {
+  const { normalizeForMatch, scoreJobAgainstUrl } = require('../dist/routes/extensionRoutes');
+  const page = normalizeForMatch('https://job-boards.greenhouse.io/robinhood/jobs/8120094');
+  const stored = normalizeForMatch(
+    'https://boards.greenhouse.io/robinhood/jobs/8120094?t=gh_src=&gh_jid=8120094'
+  );
+  assert.ok(page);
+  assert.ok(stored);
+  assert.equal(
+    scoreJobAgainstUrl(
+      'https://boards.greenhouse.io/robinhood/jobs/8120094?t=gh_src=&gh_jid=8120094',
+      page,
+      'Robinhood'
+    ),
+    100
+  );
+  assert.ok(
+    scoreJobAgainstUrl('https://job-boards.greenhouse.io/reddit/jobs/8139781', page, 'Reddit') < 70
+  );
+});
+
+test('application Q&A uses answer bank on exact match', async () => {
+  const { generateApplicationAnswer } = require('../dist/services/applicationQaService');
+  const { upsertAnswer, writeAnswerBank } = require('../dist/services/answerBankService');
+  writeAnswerBank([]);
+  upsertAnswer('What is your favorite color?', 'Blue');
+  const result = await generateApplicationAnswer({
+    question: 'What is your favorite color?',
+    job: null,
+    skipBank: false,
+  });
+  assert.equal(result.source, 'bank');
+  assert.equal(result.answer, 'Blue');
 });

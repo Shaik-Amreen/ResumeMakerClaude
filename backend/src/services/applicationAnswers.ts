@@ -87,6 +87,18 @@ export function resolveTextAnswer(
     answer = ten.length === 10 ? `${ten.slice(0, 3)}-${ten.slice(3, 6)}-${ten.slice(6)}` : profile.phone;
   } else if (lower.includes('zip') || lower.includes('postal')) {
     answer = profile.zipcode || '';
+  } else if (
+    lower.includes('school') ||
+    lower.includes('university') ||
+    lower.includes('college') ||
+    lower.includes('institution') ||
+    lower.includes('campus') ||
+    lower.includes('alma mater')
+  ) {
+    // Primary school for forms/autocomplete — CSULB (not undergrad JNTU).
+    // Must run before the generic "name" branch ("School name", "University name").
+    answer = 'California State University, Long Beach';
+    needsAutocomplete = true;
   } else if (lower.includes('street') || lower === 'address' || lower === 'address2' || lower === 'addressline2') {
     answer = profile.street || '';
   } else if (lower.includes('city') || lower.includes('location')) {
@@ -158,6 +170,15 @@ export function resolveSelectAnswer(
   if (lower.includes('gender') || lower.includes('sex')) return profile.gender;
   if (lower.includes('disability')) return profile.disabilityStatus;
   if (lower.includes('proficiency')) return 'Professional';
+  if (
+    lower.includes('school') ||
+    lower.includes('university') ||
+    lower.includes('college') ||
+    lower.includes('institution') ||
+    lower.includes('campus')
+  ) {
+    return 'California State University, Long Beach';
+  }
   if (lower.includes('country')) return profile.country;
   if (lower.includes('state')) return profile.state;
   if (lower.includes('city')) return profile.currentCity || workLocation;

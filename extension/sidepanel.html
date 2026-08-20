@@ -29,6 +29,10 @@
         <span class="label">Resume</span>
         <span id="resumeStatus" class="truncate">—</span>
       </div>
+      <div class="row">
+        <span class="label">Cover</span>
+        <span id="coverStatus" class="truncate">—</span>
+      </div>
     </section>
 
     <section class="actions single">
@@ -36,12 +40,38 @@
       <button type="button" id="btnResume" class="primary" disabled>Attach resume</button>
       <button type="button" id="btnAttachApplied" class="accent" disabled>Attach + mark applied</button>
       <button type="button" id="btnApplied" disabled>Mark applied</button>
+      <button type="button" id="btnDlResume" disabled>Download resume</button>
+      <button type="button" id="btnDlCover" disabled>Download cover letter</button>
       <button type="button" id="btnTracker" disabled>Open in tracker</button>
       <button type="button" id="btnSave" disabled>Save page to tracker</button>
     </section>
 
+    <section class="card qa-card">
+      <h2>Application Q&amp;A</h2>
+      <p class="qa-hint">Custom prompts (e.g. “What makes you excited about…?”) — generate, review, then fill or copy.</p>
+      <div class="qa-row">
+        <button type="button" id="btnScanQuestions" class="qa-scan" disabled>Scan page</button>
+        <select id="qaPick" class="qa-pick" disabled aria-label="Pick question from page">
+          <option value="">Pick from page…</option>
+        </select>
+      </div>
+      <label class="qa-label" for="qaQuestion">Question</label>
+      <textarea id="qaQuestion" rows="2" placeholder="Paste or pick a question from the application form"></textarea>
+      <div class="qa-actions">
+        <button type="button" id="btnAskAi" class="primary" disabled>Generate answer</button>
+      </div>
+      <label class="qa-label" for="qaAnswer">Answer</label>
+      <textarea id="qaAnswer" rows="5" placeholder="AI draft appears here — edit before filling the form"></textarea>
+      <div class="qa-actions qa-actions-row">
+        <button type="button" id="btnCopyAnswer" disabled>Copy</button>
+        <button type="button" id="btnFillAnswer" disabled>Fill field</button>
+        <button type="button" id="btnSaveAnswer" disabled>Save to bank</button>
+      </div>
+    </section>
+
     <p class="notice">
       Use Simplify for field fill. <strong>Attach resume</strong> swaps in the tailored PDF.
+      <strong>Download resume / cover letter</strong> saves PDFs for manual upload (e.g. Additional Attachments).
       After you Submit, use <strong>Attach + mark applied</strong> (or Mark applied) to sync the tracker.
       Never auto-submits.
     </p>

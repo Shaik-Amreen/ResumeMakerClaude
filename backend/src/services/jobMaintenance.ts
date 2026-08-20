@@ -244,6 +244,7 @@ export async function clearGeneratedResumes(options?: {
       pendingAction: null,
       approvalNote: note,
       resumePhase: 'idle',
+      applyPhase: 'idle',
     },
     $unset: {
       latexResume: 1,

@@ -1,5 +1,7 @@
 /** Status chips + labels used across list + detail. */
 
+import type { ApplyPhase, JobStatus } from '../types';
+
 export const STATUS_STYLES: Record<string, string> = {
   scraped: 'bg-slate-100 text-slate-700 border border-slate-200',
   resume_generating: 'bg-cedar-soft text-cedar-ink border border-cedar/20',
@@ -47,4 +49,61 @@ export function needsUserAttention(status: string, pendingAction?: string | null
     status === 'confused_hold' ||
     Boolean(pendingAction)
   );
+}
+
+/** Statuses the user can set from the job detail dropdown. */
+export const MANUAL_STATUS_OPTIONS: { value: JobStatus; label: string }[] = [
+  { value: 'scraped', label: 'Scraped' },
+  { value: 'resume_generated', label: 'Resume generated' },
+  { value: 'pdf_uploaded', label: 'PDF uploaded' },
+  { value: 'applied', label: 'Applied' },
+  { value: 'assessment', label: 'Assessment' },
+  { value: 'interview', label: 'Interview' },
+  { value: 'confused_hold', label: 'Confused - Hold' },
+  { value: 'invalid_job', label: 'Invalid job' },
+  { value: 'accepted', label: 'Accepted' },
+  { value: 'failed', label: 'Failed / Skipped' },
+];
+
+/** Pipeline-owned statuses (shown as current only, not direct set targets). */
+export const PIPELINE_ONLY_STATUSES: JobStatus[] = [
+  'resume_generating',
+  'pending_resume_approval',
+  'applying',
+  'pending_message_approval',
+  'pending_submit_approval',
+];
+
+export function isManualStatus(status: string): boolean {
+  return MANUAL_STATUS_OPTIONS.some((s) => s.value === status);
+}
+
+export function statusDropdownOptions(currentStatus: JobStatus): { value: JobStatus; label: string }[] {
+  const options: { value: JobStatus; label: string }[] = [];
+  if (PIPELINE_ONLY_STATUSES.includes(currentStatus)) {
+    options.push({
+      value: currentStatus,
+      label: `${statusLabel(currentStatus)} (current)`,
+    });
+  }
+  options.push(...MANUAL_STATUS_OPTIONS);
+  return options;
+}
+
+/** Hide stale applyPhase tags (e.g. confused_hold after resume clear → scraped). */
+export function shouldShowApplyPhaseBanner(job: {
+  status: JobStatus;
+  applyPhase?: ApplyPhase | null;
+}): boolean {
+  const phase = job.applyPhase;
+  if (!phase || phase === 'idle' || phase === 'done') return false;
+  if (phase === 'confused_hold') return job.status === 'confused_hold';
+  if (
+    job.status === 'applying' ||
+    job.status === 'pending_submit_approval' ||
+    job.status === 'pending_message_approval'
+  ) {
+    return true;
+  }
+  return false;
 }

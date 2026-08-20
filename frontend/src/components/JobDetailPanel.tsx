@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast as reactToast } from 'react-toastify';
 import {
-  ExternalLink,
   Upload,
   CheckCircle2,
   AlertCircle,
@@ -20,11 +19,11 @@ import {
 } from 'lucide-react';
 import type { Job, JobStatus, ResumePhase } from '../types';
 import { api, UPLOADS_BASE } from '../api';
-import { jobApplicants, formatPostedOnPlatform, formatScrapedOn, platformLabel } from '../utils/jobFilters';
+import { jobApplicants, formatPostedOnPlatform, formatScrapedOn } from '../utils/jobFilters';
 import { useConfirm } from './ConfirmProvider';
 import { ApplyWorkflowBanner } from './ApplyWorkflowBanner';
 import { detectAtsUi, ATS_BADGE_CLASS } from '../utils/atsUi';
-import { statusLabel } from '../utils/statusUi';
+import { statusLabel, MANUAL_STATUS_OPTIONS, statusDropdownOptions, shouldShowApplyPhaseBanner } from '../utils/statusUi';
 
 function isLinkedInJobUrl(url: string): boolean {
   return /linkedin\.com\/(jobs|job)/i.test(url);
@@ -51,6 +50,23 @@ function resumeDownloadFilename(title: string, company: string): string {
   return `Karthik-${t} with ${c}.pdf`;
 }
 
+function coverLetterDownloadFilename(company: string): string {
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const now = new Date();
+  const mon = MONTHS[now.getMonth()] || 'Jan';
+  const yy = String(now.getFullYear()).slice(-2);
+  const clean = (s: string) =>
+    (s || '')
+      .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '')
+      .replace(/\s+/g, '_')
+      .trim()
+      .slice(0, 40);
+  const c = clean(company);
+  return c
+    ? `Karthik_Kovi_Cover_Letter_${c}_${mon}${yy}.pdf`
+    : `Karthik_Kovi_Cover_Letter_${mon}${yy}.pdf`;
+}
+
 const RESUME_STEPS: { id: ResumePhase; label: string }[] = [
   { id: 'saving_jd', label: 'Saving JD' },
   { id: 'generating', label: 'Generating resume' },
@@ -66,18 +82,6 @@ function stepIndex(phase?: ResumePhase | null): number {
   return RESUME_STEPS.findIndex((s) => s.id === phase);
 }
 
-const MANUAL_STATUSES: { value: JobStatus; label: string }[] = [
-  { value: 'scraped', label: 'Scraped' },
-  { value: 'resume_generated', label: 'Resume Generated' },
-  { value: 'pdf_uploaded', label: 'PDF Uploaded' },
-  { value: 'applied', label: 'Applied' },
-  { value: 'assessment', label: 'Assessment' },
-  { value: 'interview', label: 'Interview' },
-  { value: 'confused_hold', label: 'Confused - Hold' },
-  { value: 'invalid_job', label: 'Invalid job' },
-  { value: 'accepted', label: 'Accepted' },
-  { value: 'failed', label: 'Failed / Skipped' },
-];
 
 interface Props {
   job: Job;
@@ -107,6 +111,10 @@ export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Pr
   const [recompiling, setRecompiling] = useState(false);
   const [toast, setToast] = useState('');
   const [pdfNonce, setPdfNonce] = useState(0);
+
+  useEffect(() => {
+    setStatusSelectKey((k) => k + 1);
+  }, [job._id, job.status]);
 
   useEffect(() => {
     setCurrent(job);
@@ -175,20 +183,24 @@ export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Pr
   const run = async (
     fn: () => Promise<unknown>,
     successMsg: string,
-    opts?: { advance?: boolean }
+    opts?: { advance?: boolean; pickJob?: (result: unknown) => Job | null | undefined }
   ) => {
     setBusy(true);
     setToast('');
     try {
-      await fn();
+      const result = await fn();
+      const picked = opts?.pickJob?.(result);
+      if (picked) {
+        setCurrent(picked);
+      } else if (!opts?.advance) {
+        const refreshed = await api.getJob(current._id);
+        setCurrent(refreshed);
+      }
       setToast(successMsg);
       reactToast.success(successMsg);
       onUpdated();
       if (opts?.advance) {
         onGateComplete?.(current._id);
-      } else {
-        const refreshed = await api.getJob(current._id);
-        setCurrent(refreshed);
       }
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : 'Action failed';
@@ -220,11 +232,12 @@ export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Pr
     if (!ok) return false;
     await run(() => api.updateStatus(current._id, 'applied'), 'Marked applied', {
       advance: true,
+      pickJob: (r) => r as Job,
     });
     return true;
   };
 
-  const statusInManualList = MANUAL_STATUSES.some((s) => s.value === current.status);
+  const statusOptions = statusDropdownOptions(current.status);
 
   const copyJd = async () => {
     try {
@@ -232,6 +245,21 @@ export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Pr
       setToast('Job description copied to clipboard');
     } catch {
       reactToast.error('Could not copy: select text manually');
+    }
+  };
+
+  const copyApplicationLink = async () => {
+    const url = String(current.url || '').trim();
+    if (!url) {
+      reactToast.error('No application link for this job');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      reactToast.success('Application link copied');
+      setToast('Application link copied');
+    } catch {
+      reactToast.error('Could not copy link');
     }
   };
 
@@ -301,7 +329,6 @@ export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Pr
   const applicants = jobApplicants(current);
   const postedLabel = formatPostedOnPlatform(current);
   const scrapedLabel = formatScrapedOn(current);
-  const platform = platformLabel(current.platform || current.source);
   const pdfPreviewUrl = current.pdfUrl
     ? `${UPLOADS_BASE}${current.pdfUrl}?v=${encodeURIComponent(current.updatedAt || '')}-${pdfNonce}`
     : null;
@@ -322,6 +349,40 @@ export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Pr
       URL.revokeObjectURL(objectUrl);
     } catch (e) {
       setToast(e instanceof Error ? e.message : 'Download failed');
+    }
+  };
+
+  const downloadCoverLetter = async () => {
+    const text = coverLetterDraft.trim();
+    if (!text) {
+      reactToast.info('Generate or paste a cover letter first');
+      return;
+    }
+    try {
+      // Persist draft so PDF matches what you see
+      if (text !== (current.coverLetterDraft || '').trim()) {
+        const saved = await api.updateWorkspace(current._id, { coverLetterDraft: text });
+        setCurrent(saved);
+      }
+      const res = await fetch(`${UPLOADS_BASE}/api/jobs/${current._id}/cover-letter.pdf`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Could not build cover letter PDF');
+      }
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = coverLetterDownloadFilename(current.company);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
+      reactToast.success('Cover letter PDF downloaded');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Download failed';
+      setToast(msg);
+      reactToast.error(msg);
     }
   };
 
@@ -476,15 +537,15 @@ export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Pr
               if (next === current.status) return;
 
               if (next === 'applied') {
-                await markAppliedConfirmed();
-                setStatusSelectKey((k) => k + 1);
+                const ok = await markAppliedConfirmed();
+                if (!ok) setStatusSelectKey((k) => k + 1);
                 return;
               }
 
               const destructive = next === 'failed' || next === 'invalid_job';
               if (destructive) {
                 const ok = await confirm({
-                  title: `Set status to ${MANUAL_STATUSES.find((s) => s.value === next)?.label ?? next}?`,
+                  title: `Set status to ${MANUAL_STATUS_OPTIONS.find((s) => s.value === next)?.label ?? next}?`,
                   message: (
                     <p className="text-xs text-ink-muted">
                       {current.title} @ {current.company}
@@ -500,15 +561,14 @@ export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Pr
                 }
               }
 
-              await run(() => api.updateStatus(current._id, next), 'Status updated');
-              setStatusSelectKey((k) => k + 1);
+              await run(() => api.updateStatus(current._id, next), 'Status updated', {
+                pickJob: (r) => r as Job,
+              });
             }}
             className="rounded-xl bg-white border border-paper-line px-3 py-2 text-sm text-ink shadow-sm focus:outline-none focus:border-cedar focus:ring-2 focus:ring-cedar/15"
+            aria-label="Job status"
           >
-            {!statusInManualList && (
-              <option value={current.status}>{statusLabel(current.status)}</option>
-            )}
-            {MANUAL_STATUSES.map((s) => (
+            {statusOptions.map((s) => (
               <option key={s.value} value={s.value}>
                 {s.label}
               </option>
@@ -526,14 +586,14 @@ export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Pr
             </button>
           )}
 
-          <a
-            href={current.url}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
+            onClick={() => void copyApplicationLink()}
             className="btn-secondary inline-flex items-center gap-2"
+            title={current.url || 'No application link'}
           >
-            <ExternalLink size={15} /> View on {platform}
-          </a>
+            <Copy size={15} /> Copy application link
+          </button>
 
           <button
             type="button"
@@ -583,6 +643,20 @@ export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Pr
 
           <button
             type="button"
+            disabled={busy || !coverLetterDraft.trim()}
+            onClick={() => void downloadCoverLetter()}
+            className="btn-secondary inline-flex items-center gap-2 !border-sky-300 !bg-sky-50 !text-sky-950 disabled:opacity-40"
+            title={
+              coverLetterDraft.trim()
+                ? 'Download cover letter PDF for Additional Attachments'
+                : 'Generate cover letter first'
+            }
+          >
+            <Download size={15} /> Download Cover Letter
+          </button>
+
+          <button
+            type="button"
             disabled={busy}
             onClick={async () => {
               const ok = await confirm({
@@ -625,14 +699,12 @@ export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Pr
         {current.approvalNote && (
           <div className="border border-cedar/25 bg-cedar-soft/80 rounded-xl px-3 py-3 text-sm text-cedar-ink">
             {current.approvalNote.replace(/\s*—\s*/g, ' • ').replace(/—/g, ' - ')}
-            {current.applyPhase &&
-              current.applyPhase !== 'idle' &&
-              current.applyPhase !== 'done' && (
-                <span className="ml-2 text-xs font-semibold uppercase tracking-wide text-cedar">
-                  [{current.applyPhase.replace(/_/g, ' ')}
-                  {current.atsType ? ` · ${current.atsType}` : ''}]
-                </span>
-              )}
+            {shouldShowApplyPhaseBanner(current) && (
+              <span className="ml-2 text-xs font-semibold uppercase tracking-wide text-cedar">
+                [{current.applyPhase!.replace(/_/g, ' ')}
+                {current.atsType ? ` · ${current.atsType}` : ''}]
+              </span>
+            )}
           </div>
         )}
 
@@ -1243,24 +1315,34 @@ export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Pr
           <div>
             <div className="flex items-center justify-between gap-2 mb-1">
               <label className="text-[11px] font-semibold text-ink-muted">Cover letter</label>
-              {coverLetterDraft && (
+              <div className="flex items-center gap-2">
+                {coverLetterDraft && (
+                  <button
+                    type="button"
+                    className="text-[11px] font-semibold text-cedar inline-flex items-center gap-1"
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(coverLetterDraft);
+                      reactToast.success('Cover letter copied');
+                    }}
+                  >
+                    <Copy size={12} /> Copy
+                  </button>
+                )}
                 <button
                   type="button"
-                  className="text-[11px] font-semibold text-cedar inline-flex items-center gap-1"
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(coverLetterDraft);
-                    reactToast.success('Cover letter copied');
-                  }}
+                  disabled={!coverLetterDraft.trim()}
+                  className="text-[11px] font-semibold text-sky-800 inline-flex items-center gap-1 disabled:opacity-40"
+                  onClick={() => void downloadCoverLetter()}
                 >
-                  <Copy size={12} /> Copy
+                  <Download size={12} /> Download PDF
                 </button>
-              )}
+              </div>
             </div>
             <textarea
               value={coverLetterDraft}
               onChange={(e) => setCoverLetterDraft(e.target.value)}
               rows={7}
-              placeholder="Generate a tailored cover letter, then copy into the application."
+              placeholder="Generate a tailored cover letter, then download PDF for Additional Attachments or copy into the form."
               className="w-full bg-white border border-paper-line rounded-2xl px-3 py-3 text-sm text-ink focus:outline-none focus:border-cedar"
             />
             <button

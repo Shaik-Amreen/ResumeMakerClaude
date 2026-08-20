@@ -76,7 +76,7 @@ export function buildResumeSystemPrompt(ctx: ResumeJobContext): string {
     'Prune low-priority details on overflow: drop Open to Relocate first, California, USA second, karthikkovi.com third.',
     'After every \\section{\\textbf{...}}: \\vspace{2pt}. Between Key Projects: \\vspace{2pt}.',
     'Experience itemize: [itemsep=2pt, topsep=2pt, parsep=0pt, partopsep=0pt, leftmargin=10pt] (never bare itemize).',
-    'EACH \\item = ONE complete printed line (target 110–130 plain chars, filling 90%–100% of line width). Ends with period — never mid-phrase cut or half-line stub.',
+    'EACH \\item = ONE complete printed line (target 80–95 plain chars, hard max 95). Ends with period — never mid-phrase cut, never an orphan word wrapped to a second line.',
     'FILL THE PAGE FULLY: The resume MUST span 100% of the page height without leaving empty white space at the bottom. Use 4 rich bullets for Amazon, 4 for ASI, 4 for Infobell, and 4–5 detailed Key Projects to ensure a dense, highly professional, recruiter-ready 1-page layout.',
     'VOICE: human template style (built/wrote/shipped/used…). NO AI traces (leveraged/utilized/spearheaded/cutting-edge/seamless/…).',
     'ADAPTABLE & EVIDENCE (RULE 1): Required JD skills you CAN evidence (Java/AWS/Python/React/Node/Spring/REST/TS/JS/CI-CD/DBs/OS/architecture/networking when coursework-backed) MUST appear in Experience or ≤2 Key Project bullets — Skills-only does not count for those.',
