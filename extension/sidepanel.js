@@ -10,6 +10,7 @@ import {
   attachDocumentFilename,
   askApplicationQuestion,
   saveApplicationAnswer,
+  generateCoverLetter,
 } from './lib/api.js';
 
 const el = {
@@ -24,6 +25,7 @@ const el = {
   btnApplied: document.getElementById('btnApplied'),
   btnAttachApplied: document.getElementById('btnAttachApplied'),
   btnDlResume: document.getElementById('btnDlResume'),
+  btnGenerateCover: document.getElementById('btnGenerateCover'),
   btnDlCover: document.getElementById('btnDlCover'),
   btnTracker: document.getElementById('btnTracker'),
   btnSave: document.getElementById('btnSave'),
@@ -48,6 +50,7 @@ let state = {
   qaQuestions: [],
   qaSelectedKey: '',
   qaGenerating: false,
+  coverGenerating: false,
 };
 
 let refreshTimer = null;
@@ -124,6 +127,10 @@ function updateButtons() {
   el.btnResume.disabled = !canAttach;
   if (el.btnAttachApplied) el.btnAttachApplied.disabled = !canAttach;
   if (el.btnDlResume) el.btnDlResume.disabled = !canAttach;
+  const coverJobId = applicationJobId();
+  if (el.btnGenerateCover) {
+    el.btnGenerateCover.disabled = !(state.backendOk && coverJobId && state.resolve?.matched) || state.coverGenerating;
+  }
   if (el.btnDlCover) el.btnDlCover.disabled = !(state.backendOk && cover?.jobId);
   el.btnTracker.disabled = !state.resolve?.trackerUrl;
   el.btnApplied.disabled = !(state.backendOk && (markAppliedJobId() || state.resolve?.matched));
@@ -141,16 +148,21 @@ function updateButtons() {
   }
 
   if (el.coverStatus) {
-    if (cover?.fromDraft) {
+    if (state.coverGenerating) {
+      el.coverStatus.textContent = 'Generating cover letter…';
+      el.coverStatus.className = 'truncate';
+    } else if (cover?.fromDraft) {
       el.coverStatus.textContent = `Ready · ${cover.company || 'draft'}`;
       el.coverStatus.className = 'truncate';
     } else if (cover?.generic) {
       el.coverStatus.textContent = state.resolve?.matched
-        ? `Generic template · generate in tracker for ${cover.company || 'this job'}`
-        : 'Generic template (page not matched — generate in tracker)';
+        ? `Generic template · Generate cover letter for ${cover.company || 'this job'}`
+        : 'Generic template (page not matched — match job first)';
       el.coverStatus.className = 'truncate warn';
     } else {
-      el.coverStatus.textContent = 'No cover letter — generate in tracker';
+      el.coverStatus.textContent = state.resolve?.matched
+        ? 'No cover — Generate cover letter'
+        : 'No cover letter — match or save job first';
       el.coverStatus.className = 'truncate';
     }
   }
@@ -453,7 +465,7 @@ async function downloadResumePdf() {
 async function downloadCoverLetterPdf() {
   const cover = coverLetterSource();
   if (!cover?.jobId) {
-    log('No cover letter yet. Generate one in the tracker (Workspace → Generate cover letter).');
+    log('No cover letter yet. Click Generate cover letter first.');
     return;
   }
   const name = attachDocumentFilename('cover_letter');
@@ -468,6 +480,41 @@ async function downloadCoverLetterPdf() {
     );
   } catch (e) {
     log(`Cover letter download failed: ${e.message}`);
+  }
+}
+
+async function generateCoverLetterForJob() {
+  const jobId = applicationJobId();
+  if (!jobId || !state.resolve?.matched) {
+    log('Match this page to a tracker job first (Refresh, or Save page to tracker).');
+    return;
+  }
+  state.coverGenerating = true;
+  updateButtons();
+  log(`Generating tailored cover letter for ${state.resolve.company || 'this job'}…`);
+  try {
+    const res = await generateCoverLetter(jobId);
+    state.resolve = {
+      ...state.resolve,
+      coverLetterDraft: res.coverLetterDraft || state.resolve.coverLetterDraft,
+    };
+    updateButtons();
+    const preview = String(res.coverLetterDraft || '').slice(0, 120);
+    log(
+      [
+        `Cover letter ready · ${res.company || state.resolve.company}`,
+        preview ? `${preview}${res.coverLetterDraft.length > 120 ? '…' : ''}` : '',
+        '',
+        'Use Attach resume (includes cover when field exists), Download cover letter, or open tracker to edit.',
+      ]
+        .filter(Boolean)
+        .join('\n')
+    );
+  } catch (e) {
+    log(`Generate cover letter failed: ${e.message}`);
+  } finally {
+    state.coverGenerating = false;
+    updateButtons();
   }
 }
 
@@ -600,6 +647,7 @@ if (el.btnAttachApplied) {
   el.btnAttachApplied.addEventListener('click', () => attachResume({ markAfter: true }));
 }
 if (el.btnDlResume) el.btnDlResume.addEventListener('click', () => downloadResumePdf());
+if (el.btnGenerateCover) el.btnGenerateCover.addEventListener('click', () => generateCoverLetterForJob());
 if (el.btnDlCover) el.btnDlCover.addEventListener('click', () => downloadCoverLetterPdf());
 el.btnTracker.addEventListener('click', () => openTracker());
 el.btnSave.addEventListener('click', () => saveToTracker());

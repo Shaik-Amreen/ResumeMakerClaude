@@ -465,6 +465,17 @@ function App() {
                           </p>
                           <p className="text-[11px] text-ink-muted font-medium mt-0.5 truncate">
                             {job.company}
+                            {job.companyRating ? (
+                              <span
+                                className="ml-1.5 text-[9px] text-amber-700 font-bold tracking-tight"
+                                title={
+                                  job.companyRatingReason ||
+                                  `H1B / company quality: ${job.companyRating}/5`
+                                }
+                              >
+                                {'★'.repeat(job.companyRating)}
+                              </span>
+                            ) : null}
                           </p>
 
                           <div className="flex flex-wrap items-center gap-1.5 mt-2.5">

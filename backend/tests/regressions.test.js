@@ -1320,3 +1320,34 @@ test('application Q&A uses answer bank on exact match', async () => {
   assert.equal(result.source, 'bank');
   assert.equal(result.answer, 'Blue');
 });
+
+test('H1B company ratings: alias, consulting, JD no-sponsor', () => {
+  const {
+    resolveCompanyRating,
+    h1bSeedCompanyCount,
+  } = require('../dist/data/h1bCompanyRatings');
+
+  assert.ok(h1bSeedCompanyCount() >= 50);
+
+  const meta = resolveCompanyRating('Meta Platforms, Inc.');
+  assert.equal(meta.rating, 5);
+  assert.equal(meta.source, 'seed');
+
+  const consulting = resolveCompanyRating('Infosys Limited');
+  assert.equal(consulting.rating, 2);
+  assert.equal(consulting.source, 'consulting');
+
+  const noSponsor = resolveCompanyRating('Acme Corp', 'No visa sponsorship available for this role.');
+  assert.equal(noSponsor.rating, 1);
+  assert.equal(noSponsor.source, 'jd');
+
+  const unknown = resolveCompanyRating('Some Random Startup LLC');
+  assert.equal(unknown.rating, 2);
+  assert.equal(unknown.source, 'default');
+
+  const bumped = resolveCompanyRating(
+    'Some Random Startup LLC',
+    'We will sponsor H-1B visas for qualified candidates.'
+  );
+  assert.equal(bumped.rating, 3);
+});

@@ -23,6 +23,7 @@ export function JobFiltersBar({ filters, onChange, total, visible }: Props) {
     filters.jobType !== 'all',
     filters.hasApplicants !== 'all',
     filters.hasPosted !== 'all',
+    filters.minRating !== 'all',
     filters.sort !== 'action',
   ].filter(Boolean).length;
 
@@ -65,6 +66,7 @@ export function JobFiltersBar({ filters, onChange, total, visible }: Props) {
 
         <select value={filters.sort} onChange={(e) => set({ sort: e.target.value as JobFilters['sort'] })} className={inputClass}>
           <option value="action">Sort: Action first</option>
+          <option value="rating">Sort: Rating high → low</option>
           <option value="priority">Sort: FAANG first</option>
           <option value="newest">Sort: Newest added</option>
           <option value="oldest">Sort: Oldest added</option>
@@ -88,6 +90,18 @@ export function JobFiltersBar({ filters, onChange, total, visible }: Props) {
           <option value="all">All priorities</option>
           <option value="faang">FAANG / MANGO only</option>
           <option value="standard">Standard only</option>
+        </select>
+
+        <select
+          value={filters.minRating}
+          onChange={(e) => set({ minRating: e.target.value })}
+          className={inputClass}
+          title="Minimum H1B / company quality stars"
+        >
+          <option value="all">Rating: any</option>
+          <option value="3">Rating: 3★+</option>
+          <option value="4">Rating: 4★+</option>
+          <option value="5">Rating: 5★ only</option>
         </select>
 
         <select value={filters.jobType} onChange={(e) => set({ jobType: e.target.value })} className={inputClass}>

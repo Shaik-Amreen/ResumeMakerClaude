@@ -89,6 +89,9 @@ export interface Job {
   source?: JobSource;
   platform?: JobSource;
   priority?: 'faang' | 'standard';
+  /** 1–5 H1B + new-grad company quality */
+  companyRating?: number;
+  companyRatingReason?: string;
   status: JobStatus;
   matchScore?: number;
   keywordMatchScore?: number;

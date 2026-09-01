@@ -1,6 +1,7 @@
 import Job from '../models/Job';
 import { sourceQualityRank } from '../data/candidateTargeting';
 import { isFaangMangoCompany } from '../data/priorityCompanies';
+import { resolveCompanyRating } from '../data/h1bCompanyRatings';
 import { inferJobType, isEligibleJob, isInternshipTitle, isSoftwareRole } from './eligibility';
 import { findDuplicateJob } from './jobDedup';
 import { shouldSkipJobDescription } from './jobSkipRules';
@@ -127,6 +128,7 @@ export async function saveJobIfNew(payload: ScrapedJobPayload): Promise<string |
 
   const priority = payload.priority ?? (isFaangMangoCompany(company) ? 'faang' : 'standard');
   const postedAt = payload.postedAt ?? resolvePostedAt(payload.posted);
+  const companyRate = resolveCompanyRating(company, jobDescription);
 
   const job = await new Job({
     title,
@@ -144,6 +146,8 @@ export async function saveJobIfNew(payload: ScrapedJobPayload): Promise<string |
     linkedinPosted: payload.posted,
     source,
     priority,
+    companyRating: companyRate.rating,
+    companyRatingReason: companyRate.reason,
     pipelinePhase: payload.pipelinePhase,
     status: 'scraped',
     approvalNote:

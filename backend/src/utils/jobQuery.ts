@@ -1,6 +1,7 @@
 import path from 'path';
 import type { IJob } from '../models/Job';
 import { resolvePostedAt } from './parsePostedDate';
+import { resolveCompanyRating } from '../data/h1bCompanyRatings';
 
 export type JobRecord = Pick<
   IJob,
@@ -11,6 +12,8 @@ export type JobRecord = Pick<
   | 'source'
   | 'status'
   | 'priority'
+  | 'companyRating'
+  | 'companyRatingReason'
   | 'jobType'
   | 'createdAt'
 > & {
@@ -94,6 +97,17 @@ export function normalizeJob<T extends Record<string, unknown>>(job: T): T & {
     errorMessage = errorMessage.replace(/\s*—\s*/g, ' : ').replace(/—/g, ' - ');
   }
 
+  let companyRating = job.companyRating as number | undefined;
+  let companyRatingReason = job.companyRatingReason as string | undefined;
+  if (companyRating == null || companyRating < 1 || companyRating > 5) {
+    const resolved = resolveCompanyRating(
+      String(job.company || ''),
+      String(job.jobDescription || '')
+    );
+    companyRating = resolved.rating;
+    companyRatingReason = resolved.reason;
+  }
+
   return {
     ...job,
     approvalNote,
@@ -104,6 +118,8 @@ export function normalizeJob<T extends Record<string, unknown>>(job: T): T & {
     platform,
     postedOnPlatform,
     pdfUrl,
+    companyRating,
+    companyRatingReason,
   };
 }
 
@@ -194,6 +210,20 @@ export function sortJobs(jobs: JobRecord[], sortBy: string): JobRecord[] {
         if (aPri !== bPri) return aPri - bPri;
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
+    case 'rating':
+      return list.sort((a, b) => {
+        const aR =
+          Number(a.companyRating) ||
+          resolveCompanyRating(String(a.company || ''), String(a.jobDescription || '')).rating;
+        const bR =
+          Number(b.companyRating) ||
+          resolveCompanyRating(String(b.company || ''), String(b.jobDescription || '')).rating;
+        if (bR !== aR) return bR - aR;
+        const aPri = a.priority === 'faang' ? 0 : 1;
+        const bPri = b.priority === 'faang' ? 0 : 1;
+        if (aPri !== bPri) return aPri - bPri;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
     case 'newest':
     default:
       return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -210,9 +240,12 @@ export function filterJobs(
     jobType?: string;
     hasApplicants?: string;
     hasPosted?: string;
+    minRating?: string | number;
   }
 ): JobRecord[] {
   const q = (opts.q || '').trim().toLowerCase();
+  const minRating = Number(opts.minRating);
+  const hasMinRating = Number.isFinite(minRating) && minRating >= 1;
 
   return jobs.filter((job) => {
     if (q) {
@@ -228,6 +261,12 @@ export function filterJobs(
     if (opts.hasApplicants === 'no' && jobApplicants(job)) return false;
     if (opts.hasPosted === 'yes' && !jobPosted(job) && !job.postedAt) return false;
     if (opts.hasPosted === 'no' && (jobPosted(job) || job.postedAt)) return false;
+    if (hasMinRating) {
+      const rating =
+        Number(job.companyRating) ||
+        resolveCompanyRating(String(job.company || ''), String(job.jobDescription || '')).rating;
+      if (rating < minRating) return false;
+    }
     return true;
   });
 }

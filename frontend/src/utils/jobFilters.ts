@@ -104,6 +104,7 @@ export function formatScrapedOn(job: Job): string {
 export type SortOption =
   | 'action'
   | 'priority'
+  | 'rating'
   | 'newest'
   | 'oldest'
   | 'company'
@@ -121,6 +122,7 @@ export interface JobFilters {
   jobType: string;
   hasApplicants: string;
   hasPosted: string;
+  minRating: string;
   sort: SortOption;
 }
 
@@ -132,6 +134,7 @@ export const DEFAULT_FILTERS: JobFilters = {
   jobType: 'fulltime',
   hasApplicants: 'all',
   hasPosted: 'all',
+  minRating: 'all',
   sort: 'action',
 };
 
@@ -212,6 +215,10 @@ export function filterAndSortJobs(jobs: Job[], filters: JobFilters): Job[] {
     if (filters.hasApplicants === 'no' && jobApplicants(job)) return false;
     if (filters.hasPosted === 'yes' && !jobPosted(job) && !job.postedAt) return false;
     if (filters.hasPosted === 'no' && (jobPosted(job) || job.postedAt)) return false;
+    if (filters.minRating !== 'all') {
+      const min = Number(filters.minRating);
+      if (Number.isFinite(min) && (job.companyRating ?? 0) < min) return false;
+    }
     return true;
   });
 
@@ -259,6 +266,17 @@ export function filterAndSortJobs(jobs: Job[], filters: JobFilters): Job[] {
       break;
     case 'newest':
       list = list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      break;
+    case 'rating':
+      list = list.sort((a, b) => {
+        const aR = a.companyRating ?? 0;
+        const bR = b.companyRating ?? 0;
+        if (bR !== aR) return bR - aR;
+        const aPri = a.priority === 'faang' ? 0 : 1;
+        const bPri = b.priority === 'faang' ? 0 : 1;
+        if (aPri !== bPri) return aPri - bPri;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
       break;
     case 'priority':
     default:

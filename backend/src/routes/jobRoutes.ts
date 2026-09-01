@@ -91,11 +91,37 @@ router.get('/', async (req: Request, res: Response) => {
       jobType: req.query.jobType as string,
       hasApplicants: req.query.hasApplicants as string,
       hasPosted: req.query.hasPosted as string,
+      minRating: req.query.minRating as string,
     });
     const sorted = sortJobs(filtered, (req.query.sort as string) || 'priority');
     res.json(sorted.map((j) => normalizeJob(j)));
   } catch (error) {
     res.status(500).json({ message: 'Error fetching jobs', error });
+  }
+});
+
+router.post('/backfill-company-ratings', async (_req: Request, res: Response) => {
+  try {
+    const { resolveCompanyRating } = await import('../data/h1bCompanyRatings');
+    const jobs = await Job.find({
+      $or: [
+        { companyRating: { $exists: false } },
+        { companyRating: null },
+        { companyRating: { $lt: 1 } },
+        { companyRating: { $gt: 5 } },
+      ],
+    }).select({ company: 1, jobDescription: 1, companyRating: 1 });
+    let updated = 0;
+    for (const job of jobs) {
+      const resolved = resolveCompanyRating(String(job.company || ''), String(job.jobDescription || ''));
+      job.companyRating = resolved.rating;
+      job.companyRatingReason = resolved.reason;
+      await job.save();
+      updated += 1;
+    }
+    res.json({ message: `Backfilled company ratings for ${updated} job(s)`, updated });
+  } catch (error) {
+    res.status(500).json({ message: 'Error backfilling company ratings', error: String(error) });
   }
 });
 

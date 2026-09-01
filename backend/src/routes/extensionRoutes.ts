@@ -530,6 +530,43 @@ router.get('/jobs/:id/cover-letter.pdf', async (req: Request, res: Response) => 
   }
 });
 
+/** Generate tailored cover letter for matched tracker job (same LLM as tracker Workspace). */
+router.post('/jobs/:id/generate-cover-letter', async (req: Request, res: Response) => {
+  try {
+    const job = await Job.findById(req.params.id);
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+
+    const { generateOutreachArtifacts } = await import('../services/outreachService');
+    await generateOutreachArtifacts(String(job._id));
+
+    const refreshed = await Job.findById(job._id)
+      .select({ title: 1, company: 1, coverLetterDraft: 1 })
+      .lean()
+      .exec();
+    const draft = String(refreshed?.coverLetterDraft || '').trim();
+    if (!draft) {
+      return res.status(500).json({ message: 'Cover letter generation produced no text' });
+    }
+
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json({
+      ok: true,
+      jobId: String(job._id),
+      company: refreshed?.company,
+      title: refreshed?.title,
+      coverLetterDraft: draft,
+      coverLetterPdfUrl: `/api/extension/jobs/${job._id}/cover-letter.pdf`,
+      message: 'Cover letter ready',
+    });
+  } catch (error) {
+    console.error('extension generate-cover-letter:', error);
+    return res.status(500).json({
+      message: error instanceof Error ? error.message : 'Cover letter generation failed',
+      error: String(error),
+    });
+  }
+});
+
 router.post('/mark-applied', async (req: Request, res: Response) => {
   try {
     const jobId = String(req.body?.jobId || '');

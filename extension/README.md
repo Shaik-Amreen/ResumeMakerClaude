@@ -8,7 +8,7 @@ Local companion for ResumeMakerClaude.
 
 1. Backend on `http://127.0.0.1:5002`
 2. `chrome://extensions` → Load unpacked → this folder
-3. Reload after updates (current: **0.9.2** / attach engine v21)
+3. Reload after updates (current: **0.9.3** / attach engine v21)
 
 ## Workflow
 
@@ -38,6 +38,8 @@ For prompts Simplify cannot answer (e.g. *What makes you excited about Koah?*):
 | Attach resume | Inject matched (or latest ready) tracker PDF |
 | Attach + mark applied | Attach, then set tracker status to applied |
 | Mark applied | Update tracker status only |
+| Generate cover letter | AI tailored letter for matched tracker job |
+| Download cover letter | Save cover PDF for Additional Attachments |
 | Open in tracker | Open matched job in app |
 | Save page to tracker | If URL not matched yet |
 

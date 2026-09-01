@@ -93,6 +93,9 @@ export interface IJob extends Document {
     | 'other';
   /** FAANG + MANGOES companies get email alerts and sort to top */
   priority?: 'faang' | 'standard';
+  /** 1–5 H1B + new-grad company quality (curated seed + JD heuristics). */
+  companyRating?: number;
+  companyRatingReason?: string;
   status: JobStatus;
   /** Overall resume↔JD match % (same basis as keyword coverage today). */
   matchScore?: number;
@@ -160,6 +163,8 @@ const JobSchema: Schema = new Schema(
       default: 'linkedin',
     },
     priority: { type: String, enum: ['faang', 'standard'], default: 'standard' },
+    companyRating: { type: Number, min: 1, max: 5 },
+    companyRatingReason: { type: String },
     status: {
       type: String,
       enum: [

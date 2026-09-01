@@ -91,6 +91,10 @@ export async function askApplicationQuestion({ question, jobId, url, wordLimit }
   return postJson('/api/extension/ask-application', { question, jobId, url, wordLimit }, { timeoutMs: 45000 });
 }
 
+export async function generateCoverLetter(jobId) {
+  return postJson(`/api/extension/jobs/${jobId}/generate-cover-letter`, {}, { timeoutMs: 90000 });
+}
+
 export async function saveApplicationAnswer(question, answer) {
   return postJson('/api/extension/save-application-answer', { question, answer });
 }

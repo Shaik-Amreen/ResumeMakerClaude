@@ -503,6 +503,20 @@ export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Pr
         </h2>
         <p className="text-ink-muted mt-1.5 text-sm">
           {current.company}
+          {current.companyRating ? (
+            <span
+              className="ml-2 text-amber-700 font-bold tracking-tight"
+              title={
+                current.companyRatingReason ||
+                `H1B / company quality: ${current.companyRating}/5`
+              }
+            >
+              {'★'.repeat(current.companyRating)}
+              <span className="text-ink-faint font-normal">
+                {'☆'.repeat(Math.max(0, 5 - current.companyRating))}
+              </span>
+            </span>
+          ) : null}
           {current.location ? ` · ${current.location}` : ''}
         </p>
         <div className="flex flex-wrap gap-x-5 gap-y-2 mt-3 text-sm text-ink-muted">
