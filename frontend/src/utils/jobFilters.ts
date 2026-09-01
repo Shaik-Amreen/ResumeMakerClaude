@@ -167,6 +167,22 @@ export function isActionQueueJob(job: Job): boolean {
   return isNeedsYou(job) || isReadyToApply(job);
 }
 
+/** Local calendar day match on when the job was scraped (createdAt). */
+export function isScrapedToday(job: Job, referenceDate = new Date()): boolean {
+  const scraped = new Date(job.createdAt);
+  if (Number.isNaN(scraped.getTime())) return false;
+  return (
+    scraped.getFullYear() === referenceDate.getFullYear() &&
+    scraped.getMonth() === referenceDate.getMonth() &&
+    scraped.getDate() === referenceDate.getDate()
+  );
+}
+
+/** Default queue preset: actionable jobs scraped today. */
+export function isTodayActionQueueJob(job: Job, referenceDate = new Date()): boolean {
+  return isActionQueueJob(job) && isScrapedToday(job, referenceDate);
+}
+
 function actionRank(job: Job): number {
   if (job.status === 'pending_submit_approval') return 0;
   if (job.status === 'pending_message_approval') return 1;
@@ -200,7 +216,7 @@ export function filterAndSortJobs(jobs: Job[], filters: JobFilters): Job[] {
       // Keep closed / chrome-JD rows out of the default inbox
       if (job.status === 'invalid_job') return false;
     } else if (filters.status === 'action_queue') {
-      if (!isActionQueueJob(job)) return false;
+      if (!isTodayActionQueueJob(job)) return false;
     } else if (filters.status === 'needs_you') {
       if (!isNeedsYou(job)) return false;
     } else if (filters.status === 'ready_apply') {
@@ -295,7 +311,7 @@ export const STATUS_OPTIONS: {
   value: JobStatus | 'all' | 'action_queue' | 'needs_you' | 'ready_apply';
   label: string;
 }[] = [
-  { value: 'action_queue', label: 'Today’s queue (needs you + ready)' },
+  { value: 'action_queue', label: 'Today’s queue (scraped today · action)' },
   { value: 'all', label: 'All (hide invalid)' },
   { value: 'needs_you', label: 'Needs you (review / hold)' },
   { value: 'ready_apply', label: 'Ready to apply' },

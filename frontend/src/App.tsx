@@ -12,6 +12,7 @@ import {
   formatPostedOnPlatform,
   formatScrapedOn,
   isActionQueueJob,
+  isTodayActionQueueJob,
   isReadyToApply,
   jobApplicants,
   type JobFilters,
@@ -118,7 +119,7 @@ function App() {
   ).length;
   const applied = jobs.filter((j) => j.status === 'applied').length;
   const readyApply = jobs.filter((j) => isReadyToApply(j)).length;
-  const queueCount = jobs.filter((j) => isActionQueueJob(j)).length;
+  const queueCount = jobs.filter((j) => isTodayActionQueueJob(j)).length;
   const scrapedCount = jobs.filter((j) => j.status === 'scraped').length;
   const insights = useMemo(() => computeInsights(jobs), [jobs]);
 

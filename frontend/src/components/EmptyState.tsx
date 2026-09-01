@@ -19,7 +19,7 @@ export function EmptyState({ hasTotalJobs, onClearFilters, onRunPipeline }: Prop
         </h4>
         <p className="text-xs text-ink-muted leading-relaxed">
           {hasTotalJobs
-            ? 'Nothing needs you right now. Show All, or generate resumes for scraped roles.'
+            ? 'Nothing scraped today needs action. Use Needs you for older backlog, or Show All.'
             : 'Scrape FAANG or ATS boards, then generate resumes and apply on career pages.'}
         </p>
       </div>
