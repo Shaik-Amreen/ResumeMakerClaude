@@ -22,6 +22,8 @@ import { shouldAbortScrape, withScrapeRun } from './scrapeContext';
 import { isPipelineAbortError, pipelineJobTimeoutMs } from './pipelineAbort';
 import { generateOutreachArtifacts } from './outreachService';
 import { autoApplyToJob, isLinkedInEasyApplyUrl } from './jobApplier';
+import { isJdRichEnoughForResume } from './jdQuality';
+import { clearCompanyVerifyCache } from './companyVerifyService';
 import {
   abortTask,
   appendTaskLog,
@@ -265,7 +267,7 @@ export async function runResumesForScrapedJobs(options?: {
       jobDescription: { $exists: true, $type: 'string', $ne: '' },
     }).sort({ createdAt: -1 });
     let jobs = limit ? await query.limit(Math.max(limit * 3, limit)).exec() : await query.exec();
-    jobs = jobs.filter((j) => String(j.jobDescription || '').trim().length >= 80);
+    jobs = jobs.filter((j) => isJdRichEnoughForResume(String(j.jobDescription || '')));
     if (limit > 0) jobs = jobs.slice(0, limit);
     const jobIds = jobs.map((j) => j.id);
     traceLog(traceId, 'runResumesForScrapedJobs.selected', { count: jobIds.length, source: source || 'all' });
@@ -357,6 +359,7 @@ async function runSingleSourceScrape(
 
   scrapeRunning = true;
   clearStopRequest();
+  clearCompanyVerifyCache();
   noteManualActivity();
   startTask(task, `${label} — up to ${cap} new jobs`);
 
@@ -472,6 +475,7 @@ export async function runMasterPipeline(options?: {
 
   pipelineRunning = true;
   clearStopRequest();
+  clearCompanyVerifyCache();
   const totalCap = options?.perSourceCap ?? config.pipeline.perSourceCap;
   const jobType = 'fulltime' as const;
   let deleted = 0;
@@ -731,6 +735,7 @@ export async function runFullTimeScrapeOnly() {
   }
 
   scrapeRunning = true;
+  clearCompanyVerifyCache();
   try {
     let savedJobIds: string[] = [];
     await scrapeJobrightJobs(savedJobIds, 'fulltime');

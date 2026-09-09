@@ -4,6 +4,8 @@ import { isInternGraduationEligible } from './internGraduation';
 import { isUndergraduateOnlyJob } from './jobSkipRules';
 import { removeAllResumeFiles, removeJobResumeFiles } from './resumeFiles';
 import { isInvalidOrMissingJd } from './applyPageJdFetcher';
+import { clearCompanyVerifyCache } from './companyVerifyService';
+import { clearResumeQueue } from './resumeQueue';
 
 const SOFTWARE_TITLE =
   /\b(software|developer|swe|full[\s-]?stack|frontend|front[\s-]?end|backend|web|programming|computer\s+science)\b/i;
@@ -139,6 +141,12 @@ export async function markJobsWithInvalidJd(): Promise<number> {
 export async function deleteAllJobs(): Promise<{ deleted: number; pdfsRemoved: number }> {
   const result = await Job.deleteMany({});
   const pdfsRemoved = removeAllResumeFiles();
+  // In-memory caches that can block re-scraping the same companies/roles after a wipe
+  clearCompanyVerifyCache();
+  clearResumeQueue();
+  console.log(
+    `Deleted ${result.deletedCount ?? 0} job(s), cleared company-verify + resume queues`
+  );
   return { deleted: result.deletedCount ?? 0, pdfsRemoved };
 }
 

@@ -28,3 +28,9 @@ export function enqueueResume(jobId: string): Promise<void> {
 export function isResumeQueueIdle(): boolean {
   return queuedByJob.size === 0;
 }
+
+/** Drop pending resume tasks after jobs are wiped so stale IDs don't run. */
+export function clearResumeQueue(): void {
+  queuedByJob.clear();
+  resumeChain = Promise.resolve();
+}
