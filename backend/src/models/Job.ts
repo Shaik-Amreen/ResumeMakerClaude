@@ -96,6 +96,11 @@ export interface IJob extends Document {
   /** 1–5 H1B + new-grad company quality (curated seed + JD heuristics). */
   companyRating?: number;
   companyRatingReason?: string;
+  /** Online company verification: verified | likely_real | unknown | suspicious | staffing | spam */
+  companyVerifyStatus?: string;
+  companyVerifyReason?: string;
+  companyDomain?: string;
+  companyReviewLinks?: { label: string; url: string }[];
   status: JobStatus;
   /** Overall resume↔JD match % (same basis as keyword coverage today). */
   matchScore?: number;
@@ -165,6 +170,15 @@ const JobSchema: Schema = new Schema(
     priority: { type: String, enum: ['faang', 'standard'], default: 'standard' },
     companyRating: { type: Number, min: 1, max: 5 },
     companyRatingReason: { type: String },
+    companyVerifyStatus: { type: String },
+    companyVerifyReason: { type: String },
+    companyDomain: { type: String },
+    companyReviewLinks: [
+      {
+        label: { type: String },
+        url: { type: String },
+      },
+    ],
     status: {
       type: String,
       enum: [

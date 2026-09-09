@@ -326,6 +326,9 @@ export function shouldSkipJobDescription(
     }
   }
 
+  const companyAbout = shouldSkipCompanyAbout(`${company}\n${description}`);
+  if (companyAbout.skip) return companyAbout;
+
   const badWord = containsAny(text, rules.badWords);
   if (badWord) {
     return { skip: true, reason: `Job description contains "${badWord}"` };

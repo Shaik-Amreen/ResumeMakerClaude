@@ -92,6 +92,11 @@ export interface Job {
   /** 1–5 H1B + new-grad company quality */
   companyRating?: number;
   companyRatingReason?: string;
+  /** verified | likely_real | unknown | suspicious | staffing | spam */
+  companyVerifyStatus?: string;
+  companyVerifyReason?: string;
+  companyDomain?: string;
+  companyReviewLinks?: { label: string; url: string }[];
   status: JobStatus;
   matchScore?: number;
   keywordMatchScore?: number;
