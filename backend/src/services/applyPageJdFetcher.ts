@@ -3,24 +3,10 @@ import { attachDriver, releaseDriver } from './chromeProfile';
 import { config } from '../config';
 import { scrapeSleep } from './scrapeContext';
 import { logScrapingUrl } from './taskStatusService';
+import { cleanJobDescriptionForResume, htmlToPreformattedJd } from './cleanJobDescription';
 
 function stripHtml(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div|li|h[1-6]|tr)>/gi, '\n')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&#39;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/[ \t]+\n/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(/[ \t]{2,}/g, ' ')
-    .trim();
+  return htmlToPreformattedJd(html);
 }
 
 function decodeJsString(s: string): string {
@@ -59,7 +45,7 @@ async function fetchGreenhouseOrLever(url: string): Promise<string> {
     );
     if (res.ok) {
       const data = (await res.json()) as { content?: string };
-      if (data.content) return stripHtml(data.content);
+      if (data.content) return htmlToPreformattedJd(data.content);
     }
   }
 
@@ -70,15 +56,49 @@ async function fetchGreenhouseOrLever(url: string): Promise<string> {
       { headers: { Accept: 'application/json', 'User-Agent': 'Mozilla/5.0 (job-tracker)' } }
     );
     if (res.ok) {
-      const data = (await res.json()) as { descriptionPlain?: string; description?: string };
-      if (data.descriptionPlain) return data.descriptionPlain.trim();
-      if (data.description) return stripHtml(data.description);
+      const data = (await res.json()) as {
+        descriptionPlain?: string;
+        description?: string;
+        lists?: Array<{ text?: string; content?: string }>;
+      };
+      // Prefer HTML description (keeps section layout) over flattened plain.
+      if (data.description) {
+        const fromHtml = htmlToPreformattedJd(data.description);
+        const lists = (data.lists || [])
+          .map((l) => {
+            const title = (l.text || '').trim();
+            const body = htmlToPreformattedJd(l.content || '');
+            return [title, body].filter(Boolean).join('\n');
+          })
+          .filter(Boolean)
+          .join('\n\n');
+        const merged = [fromHtml, lists].filter(Boolean).join('\n\n').trim();
+        if (merged.length > 200) return merged;
+      }
+      if (data.descriptionPlain) return cleanJobDescriptionForResume(data.descriptionPlain);
     }
   }
 
   const ashby = url.match(/jobs\.ashbyhq\.com\/([^/]+)\/([a-f0-9-]+)/i);
   if (ashby) {
-    // Ashby public posting page often embeds JSON; fall through to HTML parser.
+    // Prefer embedded posting JSON on the public page (no auth).
+    try {
+      const html = await fetchText(url);
+      if (html) {
+        const ld = extractJsonLdJobPosting(html);
+        if (ld.length > 200) return ld;
+        const m =
+          html.match(/"descriptionPlain"\s*:\s*"((?:\\.|[^"\\])*)"/) ||
+          html.match(/"descriptionHtml"\s*:\s*"((?:\\.|[^"\\])*)"/);
+        if (m?.[1]) {
+          const decoded = decodeJsString(m[1]);
+          const plain = /</.test(decoded) ? htmlToPreformattedJd(decoded) : cleanJobDescriptionForResume(decoded);
+          if (plain.trim().length > 200) return plain.trim();
+        }
+      }
+    } catch {
+      // fall through to HTML/Selenium
+    }
   }
 
   return '';
@@ -137,18 +157,35 @@ function extractGenericHtmlJd(html: string): string {
   const ld = extractJsonLdJobPosting(html);
   if (ld.length > 120 && !isInvalidOrMissingJd(ld)) return ld;
 
-  // Main / article body heuristics
+  // Workday / Amazon-style embedded description (before generic main scrape)
+  const workday =
+    html.match(
+      /data-automation-id=["']jobPostingDescription["'][^>]*>([\s\S]*?)<\/div>/i
+    )?.[1] ||
+    html.match(/"jobDescription"\s*:\s*"((?:\\.|[^"\\])*)"/)?.[1] ||
+    html.match(/"jobPostingDescription"\s*:\s*"((?:\\.|[^"\\])*)"/)?.[1] ||
+    '';
+  if (workday) {
+    const decoded = /\\[n"\\/u]/.test(workday) ? decodeJsString(workday) : workday;
+    const plain = /</.test(decoded)
+      ? htmlToPreformattedJd(decoded)
+      : cleanJobDescriptionForResume(decoded);
+    if (plain.trim().length > 200 && !isInvalidOrMissingJd(plain)) return plain.trim();
+  }
+
+  // Main / article body heuristics — allow long FAANG postings
   const main =
     html.match(/<main[\s\S]*?<\/main>/i)?.[0] ||
     html.match(/<article[\s\S]*?<\/article>/i)?.[0] ||
-    html.match(/id=["'][^"']*job[^"']*description[^"']*["'][\s\S]{200,20000}/i)?.[0] ||
+    html.match(/id=["'][^"']*job[^"']*description[^"']*["'][\s\S]{200,80000}/i)?.[0] ||
     '';
   const text = stripHtml(main || html);
   if (text.length < 200) return '';
-  // Drop obvious chrome
+
+  // Keep full posting — do not hard-cap at 12k (that truncated long FAANG JDs).
   const cleaned = text
-    .replace(/cookie|privacy policy|sign in|create account/gi, ' ')
-    .slice(0, 12000)
+    .replace(/\b(cookie settings|accept all cookies|sign in to apply)\b/gi, ' ')
+    .slice(0, 60000)
     .trim();
   if (cleaned.length < 200 || isInvalidOrMissingJd(cleaned)) return '';
   return cleaned;
@@ -190,27 +227,76 @@ async function fetchJdWithSelenium(
       // Fall through — still attempt extract after grace period.
     }
     await scrapeSleep(2500);
+    // Expand common "Show more" / truncated JD controls (LinkedIn, Workday, Amazon).
+    try {
+      await driver.executeScript(`
+        const labels = /show more|see more|read more|view more|expand/i;
+        for (const el of document.querySelectorAll('button, a, [role="button"]')) {
+          const t = (el.innerText || el.getAttribute('aria-label') || '').trim();
+          if (labels.test(t) && t.length < 40) {
+            try { el.click(); } catch (_) {}
+          }
+        }
+      `);
+      await scrapeSleep(800);
+    } catch {
+      // ignore
+    }
     const text = (await driver.executeScript(`
       const pick = () => {
         const sels = [
+          '[data-automation-id="jobPostingDescription"]',
           '[data-test="job-description"]',
           '#job-description',
           '.job-description',
           '[class*="JobDescription"]',
+          '[class*="job-description"]',
+          '[id*="job-description"]',
+          '[id*="jobDescription"]',
           'main',
           'article',
           '[role="main"]'
         ];
+        let bestText = '';
+        let bestHtml = '';
         for (const s of sels) {
           const el = document.querySelector(s);
-          const t = (el && el.innerText || '').trim();
-          if (t && t.length > 200) return t;
+          if (!el) continue;
+          const t = (el.innerText || '').trim();
+          if (t && t.length > bestText.length) {
+            bestText = t;
+            bestHtml = el.innerHTML || '';
+          }
         }
-        return (document.body && document.body.innerText || '').trim();
+        const body = (document.body && document.body.innerText || '').trim();
+        if (bestText.length >= 400) {
+          return { text: bestText, html: bestHtml };
+        }
+        return {
+          text: body.length > bestText.length ? body : bestText,
+          html: bestHtml
+        };
       };
-      return pick().slice(0, 14000);
-    `)) as string;
-    return { text: (text || '').trim(), driver };
+      const r = pick();
+      return { text: (r.text || '').slice(0, 60000), html: (r.html || '').slice(0, 120000) };
+    `)) as { text?: string; html?: string };
+
+    // Prefer browser innerText (matches on-screen layout); fall back to HTML→pre.
+    let out = cleanJobDescriptionForResume(text?.text || '');
+    if (text?.html && text.html.length > 200) {
+      const fromHtml = htmlToPreformattedJd(text.html);
+      // Prefer the more compact / complete version — never pick the airier one just for more newlines.
+      if (
+        fromHtml.length > 200 &&
+        (fromHtml.length > out.length + 150 ||
+          (out.split('\n').filter((l) => !l.trim()).length >
+            fromHtml.split('\n').filter((l) => !l.trim()).length + 2 &&
+            fromHtml.length >= out.length * 0.85))
+      ) {
+        out = fromHtml;
+      }
+    }
+    return { text: out, driver };
   } catch (err) {
     console.warn(`Selenium JD fetch failed for ${url}:`, err instanceof Error ? err.message : err);
     if (created) {
@@ -234,7 +320,7 @@ export async function fetchJobDescriptionFromApplyUrl(
   if (!url || !/^https?:\/\//i.test(url)) return '';
 
   const accept = (text: string) => {
-    const t = (text || '').trim();
+    const t = cleanJobDescriptionForResume(text || '');
     if (t.length < 200) return '';
     if (isInvalidOrMissingJd(t)) return '';
     return t;

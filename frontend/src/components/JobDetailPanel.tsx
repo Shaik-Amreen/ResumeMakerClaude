@@ -16,6 +16,7 @@ import {
   Save,
   Download,
   Copy,
+  RefreshCw,
 } from 'lucide-react';
 import type { Job, JobStatus, ResumePhase } from '../types';
 import { api, UPLOADS_BASE } from '../api';
@@ -286,6 +287,27 @@ export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Pr
     }
   };
 
+  const refetchJdFromApplyUrl = async (regenerate: boolean) => {
+    setBusy(true);
+    setToast('');
+    try {
+      const { job: updated, message } = await api.refetchJd(current._id, regenerate);
+      setCurrent(updated);
+      setJdDraft(updated.jobDescription || '');
+      setEditingJd(false);
+      setJdDirty(false);
+      setToast(message);
+      reactToast.success(message);
+      onUpdated();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to refetch JD';
+      setToast(msg);
+      reactToast.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const recompile = async () => {
     if (!latexDraft.trim()) {
       setToast('Paste or generate LaTeX first');
@@ -517,8 +539,42 @@ export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Pr
               </span>
             </span>
           ) : null}
+          {current.companyVerifyStatus ? (
+            <span
+              className={
+                current.companyVerifyStatus === 'verified' ||
+                current.companyVerifyStatus === 'likely_real'
+                  ? 'ml-2 inline-flex items-center rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800 border border-emerald-200'
+                  : current.companyVerifyStatus === 'suspicious' ||
+                      current.companyVerifyStatus === 'staffing' ||
+                      current.companyVerifyStatus === 'spam'
+                    ? 'ml-2 inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900 border border-amber-200'
+                    : 'ml-2 inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700 border border-slate-200'
+              }
+              title={current.companyVerifyReason || current.companyVerifyStatus}
+            >
+              {current.companyVerifyStatus.replace(/_/g, ' ')}
+              {current.companyDomain ? ` · ${current.companyDomain}` : ''}
+            </span>
+          ) : null}
           {current.location ? ` · ${current.location}` : ''}
         </p>
+        {current.companyReviewLinks && current.companyReviewLinks.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+            <span className="text-ink-faint">Reviews:</span>
+            {current.companyReviewLinks.map((link) => (
+              <a
+                key={link.url}
+                href={link.url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-cedar hover:underline"
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
+        )}
         <div className="flex flex-wrap gap-x-5 gap-y-2 mt-3 text-sm text-ink-muted">
           {postedLabel && (
             <span className="inline-flex items-center gap-1.5">
@@ -735,6 +791,11 @@ export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Pr
                 </span>
               )}
             </div>
+            {isGenerating && current.approvalNote && (
+              <p className="text-[11px] text-violet-900 font-medium mb-2 leading-snug break-words">
+                {current.approvalNote.replace(/\s*—\s*/g, ' • ').replace(/—/g, ' - ')}
+              </p>
+            )}
             <ul className="space-y-1">
               {RESUME_STEPS.map((step, i) => {
                 const isFailedPhase = current.resumePhase === 'failed';
@@ -744,7 +805,21 @@ export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Pr
                 if (isDonePhase) {
                   status = 'completed';
                 } else if (isFailedPhase) {
-                  const failedIdx = activeStep >= 0 ? activeStep : current.pdfUrl ? 5 : 2;
+                  const err = (current.errorMessage || '').toLowerCase();
+                  let failedIdx = 2;
+                  if (
+                    /ollama|openrouter|omniroute|claude|empty response|generation|llm|timed out|provider/i.test(
+                      err
+                    )
+                  ) {
+                    failedIdx = 1; // Generating resume
+                  } else if (/tectonic|latex|compile|pdf|page/i.test(err)) {
+                    failedIdx = 2;
+                  } else if (/match|keyword/i.test(err)) {
+                    failedIdx = 3;
+                  } else if (current.pdfUrl) {
+                    failedIdx = 5;
+                  }
                   if (i < failedIdx) status = 'completed';
                   else if (i === failedIdx) status = 'failed';
                   else status = 'pending';
@@ -865,6 +940,17 @@ export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Pr
               >
                 <Copy size={13} /> Copy
               </button>
+              {!editingJd && (
+                <button
+                  type="button"
+                  disabled={busy || !current.url}
+                  onClick={() => refetchJdFromApplyUrl(false)}
+                  title="Fetch the full employer/ATS posting from the apply URL"
+                  className="text-xs text-emerald-700 hover:text-emerald-600 inline-flex items-center gap-1 disabled:opacity-40"
+                >
+                  <RefreshCw size={13} /> Refetch JD
+                </button>
+              )}
               {!editingJd ? (
                 <button
                   type="button"
@@ -912,20 +998,21 @@ export function JobDetailPanel({ job, onUpdated, onDeleted, onGateComplete }: Pr
                   setJdDraft(e.target.value);
                   setJdDirty(true);
                 }}
-                rows={14}
-                placeholder="Paste the full job description here…"
-                className="w-full bg-white border border-violet-200 rounded-xl px-3 py-3 text-sm text-ink leading-relaxed focus:outline-none focus:ring-1 focus:ring-violet-300 resize-y min-h-[12rem]"
+                rows={18}
+                spellCheck={false}
+                placeholder="Paste the full job description here (layout preserved)…"
+                className="w-full bg-white border border-violet-200 rounded-xl px-3 py-3 text-[13px] font-sans text-ink leading-snug focus:outline-none focus:ring-1 focus:ring-violet-300 resize-y min-h-[16rem] whitespace-pre"
               />
               <p className="text-[11px] text-ink-faint">
-                Saves the JD, then regenerates the resume so LaTeX/PDF match this description.
+                Saves the JD as shown on the posting, then regenerates the resume so LaTeX/PDF match this description.
               </p>
             </div>
           ) : (
-            <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm text-ink-muted max-h-[min(40vh,22rem)] overflow-y-auto whitespace-pre-wrap leading-relaxed">
+            <pre className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-[13px] font-sans text-ink max-h-[min(55vh,32rem)] overflow-auto whitespace-pre-wrap break-words leading-snug m-0">
               {current.jobDescription?.trim()
                 ? current.jobDescription
                 : 'No job description available for this listing.'}
-            </div>
+            </pre>
           )}
         </section>
 

@@ -1,6 +1,6 @@
 import { GITHUB_INTERNSHIP_LISTS } from '../data/faangPriorityPortals';
 import { isFaangMangoCompany } from '../data/priorityCompanies';
-import { saveJobIfNew, type ScrapeSource } from './scrapeUtils';
+import { saveJobIfNew, gateCompanyForScrape, type ScrapeSource } from './scrapeUtils';
 import { isDuplicateJob } from './jobDedup';
 import { shouldAbortScrape } from './scrapeContext';
 import { appendTaskLog, incrementScraped, logScrapingUrl, setTaskProgress } from './taskStatusService';
@@ -175,6 +175,11 @@ export async function scrapeGithubInternshipLists(
       }
 
       if (await isDuplicateJob(row.url, title, company)) continue;
+
+      // FIRST: verify company before fetching employer JD
+      if (!(await gateCompanyForScrape(company))) {
+        continue;
+      }
 
       console.log(`  ↪ Fetching JD: ${title} @ ${company}`);
       logScrapingUrl(row.url, `${title} @ ${company}`);

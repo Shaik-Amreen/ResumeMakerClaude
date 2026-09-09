@@ -3,10 +3,11 @@ import { config } from '../config';
 import { resolvePortalTarget } from '../utils/scrapeLimits';
 import { isFaangMangoCompany } from '../data/priorityCompanies';
 import { attachDriver, releaseDriver } from './chromeProfile';
-import { saveJobIfNew, type ScrapeSource } from './scrapeUtils';
+import { saveJobIfNew, gateCompanyForScrape, type ScrapeSource } from './scrapeUtils';
 import { isDuplicateJob } from './jobDedup';
 import { shouldAbortScrape, scrapeSleep } from './scrapeContext';
 import { appendTaskLog, incrementScraped, logScrapingUrl, setTaskProgress } from './taskStatusService';
+import { hydrateBestJobDescription } from './jdQuality';
 
 /**
  * "Career portals" in the pipeline = Google Jobs search (US), not company career sites.
@@ -146,7 +147,7 @@ async function readDetailFromPage(driver: WebDriver): Promise<{
       }
     }
 
-    return { title, company, location, description: description.slice(0, 12000), applyUrl, posted };
+    return { title, company, location, description: description.slice(0, 60000), applyUrl, posted };
   `);
 
   return (
@@ -272,7 +273,6 @@ async function scrapeGoogleSearch(
       const title = details.title?.trim();
       const company = details.company?.trim();
       const location = details.location?.trim() || 'United States';
-      const description = details.description?.trim();
       const pageUrl = await driver.getCurrentUrl();
       const url = normalizeApplyUrl(details.applyUrl, pageUrl);
 
@@ -281,14 +281,33 @@ async function scrapeGoogleSearch(
         `🔗 Google ${i + 1}/${limit}: ${title || '?'} @ ${company || '?'} — ${(url || pageUrl).slice(0, 100)}`
       );
 
-      if (!title || !company || !description) {
-        console.log('  ↳ Skipped — missing title/company/description');
+      if (!title || !company) {
+        console.log('  ↳ Skipped — missing title/company');
         continue;
       }
 
       if (await isDuplicateJob(url, title, company)) {
         console.log('  ↳ Duplicate — skip');
         continue;
+      }
+
+      // FIRST: verify company before employer JD hydrate
+      if (!(await gateCompanyForScrape(company))) {
+        continue;
+      }
+
+      const hydrated = await hydrateBestJobDescription({
+        boardText: details.description?.trim() || '',
+        applyUrl: details.applyUrl && !/google\.com/i.test(details.applyUrl) ? details.applyUrl : url,
+        allowSelenium: true,
+      });
+      const description = hydrated.text || details.description?.trim() || '';
+      if (!description) {
+        console.log('  ↳ Skipped — missing description (board + employer hydrate failed)');
+        continue;
+      }
+      if (hydrated.source === 'employer') {
+        appendTaskLog(`Google JD from employer (${description.length} chars)`);
       }
 
       const id = await saveJobIfNew({

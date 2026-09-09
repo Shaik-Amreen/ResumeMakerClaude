@@ -1,10 +1,12 @@
 import { config } from '../config';
 import { isFaangMangoCompany } from '../data/priorityCompanies';
-import { saveJobIfNew, type ScrapeSource } from './scrapeUtils';
+import { saveJobIfNew, gateCompanyForScrape, type ScrapeSource } from './scrapeUtils';
 import { isDuplicateJob } from './jobDedup';
 import { shouldAbortScrape } from './scrapeContext';
 import { appendTaskLog, incrementScraped, setTaskProgress } from './taskStatusService';
 import type { JobType } from '../models/Job';
+import { hydrateBestJobDescription } from './jdQuality';
+import { htmlToPreformattedJd } from './cleanJobDescription';
 
 /**
  * Direct ATS board scraping — no browser automation needed.
@@ -23,28 +25,8 @@ interface NormalizedAtsJob {
   postedAt?: Date;
 }
 
-function decodeEntities(text: string): string {
-  return text
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&#39;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/&nbsp;/g, ' ');
-}
-
 function stripHtml(html: string): string {
-  // Greenhouse content is sometimes double HTML-encoded, so decode twice before stripping tags.
-  const decoded = decodeEntities(decodeEntities(html));
-  return decoded
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div|li|h[1-6])>/gi, '\n')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/[ \t]+/g, ' ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  return htmlToPreformattedJd(html);
 }
 
 async function fetchJson<T>(url: string): Promise<T | null> {
@@ -139,7 +121,24 @@ async function saveAtsJobs(
       return;
     }
     if (savedIds.length >= target) return;
-    if (!job.title || !job.company || !job.jobDescription || !job.url) continue;
+    if (!job.title || !job.company || !job.url) continue;
+
+    // FIRST: verify company before ATS JD hydrate
+    if (!(await gateCompanyForScrape(job.company))) {
+      continue;
+    }
+
+    // Always prefer full posting from apply URL (same appearance as live ATS page).
+    const hydrated = await hydrateBestJobDescription({
+      boardText: job.jobDescription || '',
+      applyUrl: job.url,
+      allowSelenium: false,
+    });
+    const jobDescription = hydrated.text || job.jobDescription || '';
+    if (hydrated.source === 'employer') {
+      console.log(`  ↳ ATS JD from employer posting (${jobDescription.length} chars)`);
+    }
+    if (!jobDescription) continue;
 
     if (await isDuplicateJob(job.url, job.title, job.company)) continue;
 
@@ -147,7 +146,7 @@ async function saveAtsJobs(
       title: job.title,
       company: job.company,
       url: job.url,
-      jobDescription: job.jobDescription,
+      jobDescription,
       location: job.location || 'United States',
       postedAt: job.postedAt,
       source,

@@ -2,9 +2,10 @@ import { By, until, WebDriver, WebElement } from 'selenium-webdriver';
 import { config } from '../config';
 import { scrapeRunTarget } from '../utils/scrapeLimits';
 import { attachDriver, releaseDriver } from './chromeProfile';
-import { saveJobIfNew } from './scrapeUtils';
+import { saveJobIfNew, gateCompanyForScrape } from './scrapeUtils';
 import { shouldAbortScrape, scrapeSleep } from './scrapeContext';
 import { appendTaskLog, incrementScraped, setTaskProgress } from './taskStatusService';
+import { hydrateBestJobDescription, isLikelyEmployerApplyUrl } from './jdQuality';
 
 function orangeProfile() {
   const { linkedin } = config;
@@ -99,6 +100,11 @@ async function scrapeIndeedSearch(
       console.log(`[Indeed ${i + 1}/${limit}] ${title || '?'} @ ${company || '?'}`);
       setTaskProgress(i + 1, limit, `Indeed ${i + 1}/${limit}`);
 
+      // FIRST: verify company before opening Indeed detail
+      if (!company || !(await gateCompanyForScrape(company))) {
+        continue;
+      }
+
       let jobUrl = '';
       try {
         const link = await card.findElement(By.css('h2.jobTitle a, a.jcs-JobTitle, a[data-jk]'));
@@ -130,17 +136,41 @@ async function scrapeIndeedSearch(
       ]);
 
       const pageUrl = await driver.getCurrentUrl();
+      // Prefer employer career URL when Indeed exposes "Apply on company site".
+      const companyApplyUrl = (await driver.executeScript(`
+        const links = Array.from(document.querySelectorAll('a[href]'));
+        const hit = links.find((a) => {
+          const t = (a.innerText || a.getAttribute('aria-label') || '').toLowerCase();
+          const href = a.href || '';
+          if (/indeed\\.com|indeedapply/i.test(href)) return false;
+          return /apply on company|company site|apply now|view job/i.test(t) && /^https?:/i.test(href);
+        });
+        return hit ? hit.href : '';
+      `)) as string;
+
       const applicants = await driver.executeScript(`
         const t = document.body.innerText || '';
         const m = t.match(/(?:Over\\s+)?[\\d,]+\\+?\\s+applicants?/i);
         return m ? m[0] : '';
       `);
 
+      const applyUrl =
+        companyApplyUrl && isLikelyEmployerApplyUrl(companyApplyUrl)
+          ? companyApplyUrl.split('?')[0]
+          : pageUrl.split('?')[0] || jobUrl.split('?')[0];
+
+      const hydrated = await hydrateBestJobDescription({
+        boardText: description,
+        applyUrl: isLikelyEmployerApplyUrl(applyUrl) ? applyUrl : undefined,
+        allowSelenium: true,
+      });
+      const jobDescription = hydrated.text || description;
+
       const id = await saveJobIfNew({
         title,
         company,
-        url: pageUrl.split('?')[0] || jobUrl.split('?')[0],
-        jobDescription: description,
+        url: applyUrl,
+        jobDescription,
         location: location || undefined,
         posted: posted || undefined,
         applicants: typeof applicants === 'string' && applicants ? applicants : undefined,

@@ -5,11 +5,11 @@ import { scrapeRunTarget } from '../utils/scrapeLimits';
 import { isEligibleJob, isSoftwareRole } from './eligibility';
 import { isDuplicateJob } from './jobDedup';
 import { shouldSkipJobDescription } from './jobSkipRules';
-import { saveJobIfNew, type ScrapeSource } from './scrapeUtils';
+import { saveJobIfNew, gateCompanyForScrape, type ScrapeSource } from './scrapeUtils';
 import { shouldAbortScrape, scrapeSleep } from './scrapeContext';
 import { appendTaskLog, incrementScraped, logScrapingUrl, setTaskProgress } from './taskStatusService';
 import { isUsJobLocation } from './usLocation';
-import { cleanJobDescriptionForResume } from './cleanJobDescription';
+import { hydrateBestJobDescription } from './jdQuality';
 
 const API_BASE = 'https://api.scoutify.com';
 const APP_ORIGIN = 'https://app.scoutify.com';
@@ -177,13 +177,18 @@ export async function scrapeScoutifyJobs(
 
       const title = (hit.title || '').trim();
       const company = (hit.company?.name || '').trim();
-      const applyUrl = (hit.url || '').trim();
-      if (!title || !company || !applyUrl) continue;
+      const feedUrl = (hit.url || '').trim();
+      if (!title || !company || !feedUrl) continue;
       if (!isFullTimeListing(hit)) continue;
       if (!isSoftwareRole(title, title)) continue;
 
       const locationHint = (hit.location_display || '').trim() || 'United States';
-      if (await isDuplicateJob(applyUrl, title, company)) continue;
+      if (await isDuplicateJob(feedUrl, title, company)) continue;
+
+      // FIRST: verify company before detail fetch
+      if (!(await gateCompanyForScrape(company))) {
+        continue;
+      }
 
       console.log(`  ↪ Detail: ${title} @ ${company}`);
       const detail = await fetchJobDetail(hit.id);
@@ -193,9 +198,18 @@ export async function scrapeScoutifyJobs(
         continue;
       }
 
-      const description = cleanJobDescriptionForResume(
-        detail.description || detail.description_html || ''
-      );
+      const boardText = detail.description || detail.description_html || '';
+      const applyUrl = (detail.url || feedUrl).trim();
+      // Scoutify API text is often truncated — always hydrate from employer ATS when possible.
+      const hydrated = await hydrateBestJobDescription({
+        boardText,
+        applyUrl,
+        allowSelenium: true,
+      });
+      const description = hydrated.text || '';
+      if (hydrated.source === 'employer') {
+        appendTaskLog(`Scoutify JD from employer (${description.length} chars) for ${title}`);
+      }
       if (!description || description.length < 200) {
         console.log(`  ↳ Skipped — thin JD`);
         continue;
@@ -222,7 +236,7 @@ export async function scrapeScoutifyJobs(
       const id = await saveJobIfNew({
         title,
         company: detail.company?.name || company,
-        url: (detail.url || applyUrl).trim(),
+        url: applyUrl,
         jobDescription: description,
         location: loc,
         posted: postedRaw ? String(postedRaw).slice(0, 10) : undefined,

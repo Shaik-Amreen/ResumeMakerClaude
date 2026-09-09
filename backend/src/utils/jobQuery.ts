@@ -2,6 +2,7 @@ import path from 'path';
 import type { IJob } from '../models/Job';
 import { resolvePostedAt } from './parsePostedDate';
 import { resolveCompanyRating } from '../data/h1bCompanyRatings';
+import { normalizePreformattedJd } from '../services/cleanJobDescription';
 
 export type JobRecord = Pick<
   IJob,
@@ -97,6 +98,9 @@ export function normalizeJob<T extends Record<string, unknown>>(job: T): T & {
     errorMessage = errorMessage.replace(/\s*—\s*/g, ' : ').replace(/—/g, ' - ');
   }
 
+  // Compact airy JDs (extra blank lines between bullets) for display parity with live postings
+  const jobDescription = normalizePreformattedJd(String(job.jobDescription || ''));
+
   let companyRating = job.companyRating as number | undefined;
   let companyRatingReason = job.companyRatingReason as string | undefined;
   if (companyRating == null || companyRating < 1 || companyRating > 5) {
@@ -110,6 +114,7 @@ export function normalizeJob<T extends Record<string, unknown>>(job: T): T & {
 
   return {
     ...job,
+    jobDescription: jobDescription || job.jobDescription,
     approvalNote,
     errorMessage,
     applicants,

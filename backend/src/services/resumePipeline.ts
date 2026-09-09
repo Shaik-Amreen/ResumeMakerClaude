@@ -16,6 +16,7 @@ import {
   mergeLlmAndRegexMatch,
   hasEnoughLinkedProjects,
   countLinkedFeaturedProjects,
+  injectMissingJdKeywords,
 } from './resumeAgent/jdMatch';
 import { getAmazonTemplateLatex, applyJdHeaderTagline } from './resumeAgent/amazonLatexGuard';
 import { isInternshipTitle } from './eligibility';
@@ -23,6 +24,8 @@ import { sendEmailNotification } from './notifier';
 import type { JobType } from '../models/Job';
 import { makeTraceId, traceError, traceLog } from './debugTrace';
 import { isPipelineAbortError, throwIfAborted } from './pipelineAbort';
+import { appendTaskLog } from './taskStatusService';
+import { isJdRichEnoughForResume, MIN_JD_CHARS_RESUME } from './jdQuality';
 
 const MAX_PAGE_REPAIRS = 3;
 const MIN_LINKED_PROJECTS = 3;
@@ -41,6 +44,7 @@ type ResumeCtx = {
   jobType?: JobType;
   traceId?: string;
   abortSignal?: AbortSignal;
+  onLlmRoute?: (label: string) => void | Promise<void>;
 };
 
 export type RunResumePipelineOptions = {
@@ -208,6 +212,19 @@ export async function runResumePipeline(
     return;
   }
 
+  if (!isJdRichEnoughForResume(job.jobDescription || '')) {
+    const jdLen = String(job.jobDescription || '').trim().length;
+    traceLog(traceId, 'pipeline.skip-thin-jd', { jdLen });
+    job.status = 'scraped';
+    job.resumePhase = 'failed';
+    job.pendingAction = null;
+    job.errorMessage = `Job description too thin for quality tailoring (${jdLen} chars; need ~${MIN_JD_CHARS_RESUME}+).`;
+    job.approvalNote =
+      `JD too thin (${jdLen} chars) for a strong resume. Use Refetch JD from the apply URL, or paste the full posting, then Generate.`;
+    await job.save();
+    return;
+  }
+
   const ctx: ResumeCtx = {
     jobDescription: job.jobDescription,
     title: job.title,
@@ -215,6 +232,13 @@ export async function runResumePipeline(
     jobType: 'fulltime',
     traceId,
     abortSignal: options?.signal,
+    onLlmRoute: (label) => {
+      job.approvalNote = `Using ${label}…`;
+      appendTaskLog(`🧠 ${job.title} @ ${job.company} — ${label}`);
+      void job.save().catch((err) => {
+        console.warn('Could not persist LLM model note:', err instanceof Error ? err.message : err);
+      });
+    },
   };
 
   try {
@@ -296,11 +320,42 @@ export async function runResumePipeline(
     await job.save();
     traceLog(traceId, 'pipeline.match.start');
 
-    const regexMatch = scoreResumeAgainstJd(job.jobDescription, latex);
-    const { match, skillGaps, resumeMatchScore } = mergeLlmAndRegexMatch(
+    let regexMatch = scoreResumeAgainstJd(job.jobDescription, latex);
+    let { match, skillGaps, resumeMatchScore } = mergeLlmAndRegexMatch(
       generated.llmMatch,
       regexMatch
     );
+
+    // Fold fabricatable missing JD keywords into Experience + Skills, then recompile once.
+    if (match.missing.length) {
+      const beforeInject = latex;
+      latex = injectMissingJdKeywords(latex, match.missing);
+      if (latex !== beforeInject) {
+        console.log(
+          `  💉 Injected missing JD evidence (${match.missing.slice(0, 6).join(', ')}) into Experience/Skills`
+        );
+        job.resumePhase = 'compiling';
+        job.approvalNote = `[${elapsed(pipelineStart)}] Injected JD keywords · recompiling 1-page PDF…`;
+        await job.save();
+        throwIfAborted(options?.signal);
+        fitted = await compileAndFitOnePage(ctx, latex, job.id, async (note) => {
+          job.resumePhase = 'compiling';
+          job.approvalNote = `[${elapsed(pipelineStart)}] ${note}`;
+          await job.save();
+        });
+        latex = fitted.latex;
+        job.latexResume = latex;
+        job.pdfPath = fitted.pdfPath;
+        await job.save();
+
+        regexMatch = scoreResumeAgainstJd(job.jobDescription, latex);
+        ({ match, skillGaps, resumeMatchScore } = mergeLlmAndRegexMatch(
+          generated.llmMatch,
+          regexMatch
+        ));
+      }
+    }
+
     applyMatchFieldsToJob(job, match, { skillGaps, resumeMatchScore });
     job.latexResume = latex;
     job.pdfPath = fitted.pdfPath;

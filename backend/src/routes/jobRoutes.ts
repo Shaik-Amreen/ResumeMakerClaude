@@ -7,7 +7,11 @@ import { config } from '../config';
 import { resumeAgentLabel } from '../services/resumeAgent';
 import { sanitizeResumeLatex } from '../services/resumeAgent/sanitizeLatex';
 import { applyJdHeaderTagline } from '../services/resumeAgent/amazonLatexGuard';
-import { cleanJobDescriptionForResume } from '../services/cleanJobDescription';
+import { cleanJobDescriptionForResume, looksTruncatedJd } from '../services/cleanJobDescription';
+import { hydrateBestJobDescription, isJdRichEnoughForResume, scoreJdQuality } from '../services/jdQuality';
+import { isInvalidOrMissingJd } from '../services/applyPageJdFetcher';
+import { clearCompanyVerifyCache } from '../services/companyVerifyService';
+import { clearResumeQueue } from '../services/resumeQueue';
 import {
   applyMatchFieldsToJob,
   scoreResumeAgainstJd,
@@ -142,11 +146,27 @@ router.post('/delete-all', async (_req: Request, res: Response) => {
     }
     const result = await deleteAllJobs();
     res.json({
-      message: `Deleted ${result.deleted} job(s) and ${result.pdfsRemoved} PDF file(s).`,
+      message: `Deleted ${result.deleted} job(s) and ${result.pdfsRemoved} PDF file(s). Cleared company-verify + resume caches so prior listings can be scraped again.`,
       ...result,
+      cachesCleared: true,
     });
   } catch (error) {
     res.status(500).json({ message: 'Error deleting jobs', error });
+  }
+});
+
+/** Clear in-memory scrape caches without deleting jobs (company verify, resume queue). */
+router.post('/clear-scrape-caches', async (_req: Request, res: Response) => {
+  try {
+    clearCompanyVerifyCache();
+    clearResumeQueue();
+    res.json({
+      message:
+        'Cleared company-verify cache and resume queue. Dedup uses DB only — empty jobs means prior postings can be saved again.',
+      cachesCleared: true,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error clearing caches', error });
   }
 });
 
@@ -613,6 +633,89 @@ router.get('/:id/cover-letter.pdf', async (req: Request, res: Response) => {
     console.error('cover-letter.pdf:', error);
     return res.status(500).json({
       message: error instanceof Error ? error.message : 'Failed to build cover letter PDF',
+    });
+  }
+});
+
+/**
+ * Re-fetch the full employer/ATS job description from the stored apply URL.
+ * Prefer this over board preview text before generating a resume.
+ */
+router.post('/:id/refetch-jd', async (req: Request, res: Response) => {
+  try {
+    const job = await Job.findById(req.params.id);
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+
+    const applyUrl = String(job.url || '').trim();
+    if (!applyUrl) {
+      return res.status(400).json({ message: 'Job has no apply URL to refetch from.' });
+    }
+
+    const beforeScore = scoreJdQuality(job.jobDescription || '');
+    const beforeText = String(job.jobDescription || '');
+    const hydrated = await hydrateBestJobDescription({
+      boardText: beforeText,
+      applyUrl,
+      allowSelenium: true,
+    });
+
+    if (!hydrated.text || isInvalidOrMissingJd(hydrated.text)) {
+      return res.status(422).json({
+        message:
+          'Could not fetch a usable full JD from the apply URL. Paste the posting manually, or open the link and copy the description.',
+        source: hydrated.source,
+        boardScore: hydrated.boardScore,
+        employerScore: hydrated.employerScore,
+      });
+    }
+
+    const improved =
+      scoreJdQuality(hydrated.text) > beforeScore + 20 ||
+      hydrated.source === 'employer' ||
+      (looksTruncatedJd(beforeText) && hydrated.text.length > beforeText.length + 40) ||
+      hydrated.text.length > beforeText.length + 200;
+    if (!improved && hydrated.text.length <= beforeText.length + 40) {
+      return res.json({
+        job: normalizeJob(job.toObject() as unknown as Record<string, unknown>),
+        message: `JD unchanged (already best available, ${hydrated.text.length} chars).`,
+        source: hydrated.source,
+      });
+    }
+
+    job.jobDescription = hydrated.text;
+    job.errorMessage = undefined;
+    const rich = isJdRichEnoughForResume(hydrated.text);
+    const regenerate = req.body?.regenerate === true;
+
+    if (regenerate && rich) {
+      job.status = 'resume_generating';
+      job.resumePhase = 'saving_jd';
+      job.pendingAction = null;
+      job.approvalNote = `JD refetched (${hydrated.source}, ${hydrated.text.length} chars) — generating resume…`;
+      await job.save();
+      enqueueSingleOllamaResume(job.id);
+      return res.json({
+        job: normalizeJob(job.toObject() as unknown as Record<string, unknown>),
+        message: `JD refetched from ${hydrated.source} (${hydrated.text.length} chars). Resume generation started.`,
+        source: hydrated.source,
+      });
+    }
+
+    job.status = 'scraped';
+    job.resumePhase = rich ? 'idle' : 'failed';
+    job.approvalNote = rich
+      ? `JD refetched (${hydrated.source}, ${hydrated.text.length} chars). Ready to generate resume.`
+      : `JD refetched but still thin (${hydrated.text.length} chars). Paste the full posting if needed.`;
+    await job.save();
+    return res.json({
+      job: normalizeJob(job.toObject() as unknown as Record<string, unknown>),
+      message: job.approvalNote,
+      source: hydrated.source,
+    });
+  } catch (error) {
+    console.error('refetch-jd:', error);
+    return res.status(500).json({
+      message: error instanceof Error ? error.message : 'Failed to refetch JD',
     });
   }
 });

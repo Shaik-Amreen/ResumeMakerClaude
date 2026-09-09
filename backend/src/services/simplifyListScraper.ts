@@ -5,11 +5,12 @@ import { scrapeRunTarget } from '../utils/scrapeLimits';
 import { isEligibleJob, isSoftwareRole } from './eligibility';
 import { isDuplicateJob } from './jobDedup';
 import { shouldSkipJobDescription } from './jobSkipRules';
-import { saveJobIfNew, type ScrapeSource } from './scrapeUtils';
+import { saveJobIfNew, gateCompanyForScrape, type ScrapeSource } from './scrapeUtils';
 import { shouldAbortScrape, scrapeSleep } from './scrapeContext';
 import { appendTaskLog, incrementScraped, logScrapingUrl, setTaskProgress } from './taskStatusService';
 import { isUsJobLocation } from './usLocation';
-import { cleanJobDescriptionForResume } from './cleanJobDescription';
+import { cleanJobDescriptionForResume, htmlToPreformattedJd } from './cleanJobDescription';
+import { hydrateBestJobDescription } from './jdQuality';
 
 /**
  * Public scoped Typesense key embedded in simplify.jobs frontend (search-only).
@@ -46,17 +47,7 @@ interface SimplifyJobDetail {
 }
 
 function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div|li|h[1-6]|tr)>/gi, '\n')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/[ \t]+/g, ' ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  return htmlToPreformattedJd(html);
 }
 
 async function typesenseSearch(filterBy: string, page: number, perPage: number): Promise<{
@@ -230,6 +221,11 @@ export async function scrapeSimplifyNewGradLists(
         // Citizenship / sponsorship heuristics before spending a detail fetch
         if (await isDuplicateJob(`https://simplify.jobs/p/${hit.id}`, title, company)) continue;
 
+        // FIRST: verify company before detail fetch
+        if (!(await gateCompanyForScrape(company))) {
+          continue;
+        }
+
         console.log(`  ↪ Detail: ${title} @ ${company}`);
         const detail = await fetchJobDetail(hit.id);
         await scrapeSleep(200);
@@ -238,8 +234,8 @@ export async function scrapeSimplifyNewGradLists(
           continue;
         }
 
-        const description = buildDescription(detail, hit);
-        if (!description || description.length < 200) {
+        const boardDescription = buildDescription(detail, hit);
+        if (!boardDescription || boardDescription.length < 200) {
           console.log(`  ↳ Skipped — thin JD`);
           continue;
         }
@@ -247,22 +243,33 @@ export async function scrapeSimplifyNewGradLists(
         const loc =
           (detail.locations || []).map((l) => l.value).filter(Boolean).join(', ') || locationHint;
 
-        if (!isUsJobLocation(loc, description)) {
+        if (!isUsJobLocation(loc, boardDescription)) {
           console.log(`  ↳ Skipped — not a U.S. location`);
           continue;
         }
-        const skip = shouldSkipJobDescription(title, company, description);
+        const skip = shouldSkipJobDescription(title, company, boardDescription);
         if (skip.skip) {
           console.log(`  ↳ Skipped — ${skip.reason}`);
           continue;
         }
-        if (!isEligibleJob(jobType, title, description)) {
+        if (!isEligibleJob(jobType, title, boardDescription)) {
           console.log(`  ↳ Skipped — not eligible for ${modeLabel}`);
           continue;
         }
 
         const applyUrl = await resolveApplyUrl(hit.id, detail.url);
         logScrapingUrl(applyUrl, `${title} @ ${company}`);
+
+        // Prefer full employer posting over Simplify's reconstructed JD.
+        const hydrated = await hydrateBestJobDescription({
+          boardText: boardDescription,
+          applyUrl,
+          allowSelenium: true,
+        });
+        const description = hydrated.text || boardDescription;
+        if (hydrated.source === 'employer') {
+          appendTaskLog(`Simplify JD from employer (${description.length} chars) for ${title}`);
+        }
 
         const id = await saveJobIfNew({
           title,

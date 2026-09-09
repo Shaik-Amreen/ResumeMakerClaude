@@ -2,25 +2,17 @@ import { By, WebDriver } from 'selenium-webdriver';
 import { config } from '../config';
 import { FAANG_PRIORITY_PORTALS } from '../data/faangPriorityPortals';
 import { attachDriver, releaseDriver } from './chromeProfile';
-import { saveJobIfNew, type ScrapeSource } from './scrapeUtils';
+import { saveJobIfNew, gateCompanyForScrape, type ScrapeSource } from './scrapeUtils';
 import { isDuplicateJob } from './jobDedup';
 import { shouldAbortScrape, scrapeSleep } from './scrapeContext';
 import { appendTaskLog, incrementScraped, logScrapingUrl, setTaskProgress } from './taskStatusService';
 import { scrapeRunTarget } from '../utils/scrapeLimits';
 import { unlimitedScrapeTarget } from '../utils/scrapeLimits';
+import { hydrateBestJobDescription } from './jdQuality';
+import { htmlToPreformattedJd } from './cleanJobDescription';
 
 function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div|li|h[1-6])>/gi, '\n')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/[ \t]+/g, ' ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  return htmlToPreformattedJd(html);
 }
 
 function orangeProfile() {
@@ -80,7 +72,7 @@ async function fetchAmazonJobs(query: string): Promise<PortalJob[]> {
         title: (j.title || '').trim(),
         company: j.company_name?.trim() || 'Amazon',
         url: abs,
-        jobDescription: desc || `${j.title} at Amazon. Software engineering role.`,
+        jobDescription: desc,
         location: j.location || 'United States',
         posted: j.posted_date,
       };
@@ -144,13 +136,13 @@ async function readJobPage(driver: WebDriver, company: string): Promise<PortalJo
   `)) as { title: string; description: string; location: string; url: string };
 
   if (!data?.title || data.title.length < 4) return null;
+  const description = data.description?.trim() || '';
+  if (description.length < 200) return null;
   return {
     title: data.title.trim(),
     company,
     url: data.url || (await driver.getCurrentUrl()),
-    jobDescription:
-      data.description?.trim() ||
-      `${data.title} — software engineering role at ${company}.`,
+    jobDescription: description,
     location: data.location || 'United States',
   };
 }
@@ -165,13 +157,22 @@ async function savePortalJobs(
   for (const job of jobs) {
     if (shouldAbortScrape() || savedIds.length >= target) return;
     if (!job.title || !job.url) continue;
+    if (!(await gateCompanyForScrape(job.company))) continue;
     if (await isDuplicateJob(job.url, job.title, job.company)) continue;
+
+    const hydrated = await hydrateBestJobDescription({
+      boardText: job.jobDescription,
+      applyUrl: job.url,
+      allowSelenium: true,
+    });
+    const jobDescription = hydrated.text || job.jobDescription;
+    if (!jobDescription || jobDescription.length < 200) continue;
 
     const id = await saveJobIfNew({
       title: job.title,
       company: job.company,
       url: job.url,
-      jobDescription: job.jobDescription,
+      jobDescription,
       location: job.location || 'United States',
       posted: job.posted,
       source,

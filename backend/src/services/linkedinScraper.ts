@@ -6,7 +6,7 @@ import { syncOrangeSession } from './cookieSync';
 import { inferJobType, isSoftwareRole } from './eligibility';
 import { isDuplicateJob } from './jobDedup';
 import { isUndergraduateOnlyJob } from './jobSkipRules';
-import { saveJobIfNew } from './scrapeUtils';
+import { saveJobIfNew, gateCompanyForScrape } from './scrapeUtils';
 import { shouldAbortScrape } from './scrapeContext';
 import {
   appendTaskLog,
@@ -14,6 +14,7 @@ import {
   logScrapingUrl,
   setTaskProgress,
 } from './taskStatusService';
+import { hydrateBestJobDescription } from './jdQuality';
 
 function orangeProfile() {
   const { linkedin } = config;
@@ -270,6 +271,59 @@ async function readLinkedInMeta(driver: WebDriver, pane: WebElement) {
   };
 }
 
+async function expandLinkedInDescription(driver: WebDriver, pane: WebElement | WebDriver) {
+  try {
+    await driver.executeScript(
+      `
+      const root = arguments[0] || document;
+      const buttons = [...root.querySelectorAll('button, a')];
+      const seeMore = buttons.find((b) =>
+        /^(see more|show more|…see more|see more)$/i.test((b.innerText || b.textContent || '').trim())
+        || /see more|show more/i.test(b.getAttribute('aria-label') || '')
+      );
+      if (seeMore) seeMore.click();
+      const footer = root.querySelector(
+        '.jobs-description__footer button, .jobs-description-content__footer button, button.jobs-description__footer-button'
+      );
+      if (footer) footer.click();
+      `,
+      pane === driver ? null : pane
+    );
+    await driver.sleep(600);
+  } catch {
+    // optional — collapsed JD is still better than nothing
+  }
+}
+
+async function readLinkedInCompanyApplyUrl(
+  driver: WebDriver,
+  pane: WebElement | WebDriver
+): Promise<string | undefined> {
+  try {
+    const href = (await driver.executeScript(
+      `
+      const root = arguments[0] || document;
+      const links = [...root.querySelectorAll('a[href]')];
+      const company = links.find((a) =>
+        /company website|apply on company|offsite apply|external apply/i.test(
+          (a.innerText || a.textContent || a.getAttribute('aria-label') || '')
+        )
+      );
+      if (company?.href) return company.href;
+      const offsite = root.querySelector(
+        'a[href*="linkedin.com/jobs/view"] ~ a[href^="http"], a.jobs-apply-button--company-link, a[data-control-name="jobdetails_topcard_inapply"]'
+      );
+      return offsite?.href || '';
+      `,
+      pane === driver ? null : pane
+    )) as string;
+    if (href && !/linkedin\.com/i.test(href)) return href.split('?')[0];
+  } catch {
+    // optional
+  }
+  return undefined;
+}
+
 async function readDetailPane(driver: WebDriver, pane: WebElement | WebDriver) {
   const title = await readTextIn(pane, [
     '.job-details-jobs-unified-top-card__job-title',
@@ -289,11 +343,15 @@ async function readDetailPane(driver: WebDriver, pane: WebElement | WebDriver) {
     pane === driver
       ? await readLinkedInMetaFromPage(driver)
       : await readLinkedInMeta(driver, pane as WebElement);
+
+  await expandLinkedInDescription(driver, pane);
+
   const description = await readTextIn(pane, [
     '.jobs-description__content',
     '#job-details',
     '.jobs-box__html-content',
   ]);
+  const companyApplyUrl = await readLinkedInCompanyApplyUrl(driver, pane);
   const recruiterName = await readTextIn(pane, [
     '.jobs-poster__name',
     '.hirer-card__hirer-information',
@@ -312,6 +370,7 @@ async function readDetailPane(driver: WebDriver, pane: WebElement | WebDriver) {
     company,
     location,
     description,
+    companyApplyUrl,
     recruiterName,
     recruiterProfileUrl,
     linkedinApplicants: meta.applicants,
@@ -382,6 +441,11 @@ async function scrapeSearchPage(
         continue;
       }
 
+      // FIRST: verify company before opening detail pane / employer JD hydrate
+      if (!(await gateCompanyForScrape(fromCard.company || ''))) {
+        continue;
+      }
+
       const pane = await openJobListing(driver, card, {
         title: fromCard.title,
         url: fromCard.url,
@@ -390,11 +454,17 @@ async function scrapeSearchPage(
 
       const title = details.title || fromCard.title;
       const company = details.company || fromCard.company;
-      const description = details.description;
       const url =
         fromCard.url ||
         normalizeJobUrl(await driver.getCurrentUrl()) ||
         (await driver.getCurrentUrl()).split('?')[0];
+
+      const hydrated = await hydrateBestJobDescription({
+        boardText: details.description,
+        applyUrl: details.companyApplyUrl,
+        allowSelenium: true,
+      });
+      const description = hydrated.text || details.description;
 
       if (!title || !company || !description) {
         console.warn(

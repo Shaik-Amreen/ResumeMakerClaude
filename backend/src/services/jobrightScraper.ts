@@ -4,16 +4,17 @@ import { scrapeRunTarget } from '../utils/scrapeLimits';
 import { attachDriver, releaseDriver } from './chromeProfile';
 import { isDuplicateJob } from './jobDedup';
 import { isUndergraduateOnlyJob } from './jobSkipRules';
-import { saveJobIfNew } from './scrapeUtils';
+import { saveJobIfNew, gateCompanyForScrape } from './scrapeUtils';
 import { shouldAbortScrape } from './scrapeContext';
 import { appendTaskLog, incrementScraped, logScrapingUrl, setTaskProgress } from './taskStatusService';
 import {
   isExternalCareerUrl,
   normalizeCareerApplyUrl,
   resolveJobrightCareerUrl,
+  readJobrightJdText,
 } from './jobrightApplyLink';
 import { detectAts } from './atsDetector';
-import { fetchJobDescriptionFromApplyUrl } from './applyPageJdFetcher';
+import { hydrateBestJobDescription } from './jdQuality';
 
 function searchUrls(_kind: 'internship' | 'fulltime' = 'fulltime'): string[] {
   const list = config.jobright.fullTimeSearches?.length
@@ -217,7 +218,7 @@ async function readJobrightDetail(driver: WebDriver): Promise<{
     let description = '';
     const main = document.querySelector('main');
     if (main) description = (main.innerText || '').trim();
-    if (description.length < 200) description = text.slice(0, 12000);
+    if (description.length < 200) description = text.slice(0, 60000);
     let posted = (text.match(/\\d+\\s+(minute|hour|day|week|month)s?\\s+ago/i) || [])[0] || '';
     let applicants = (text.match(/(?:Less than\\s+)?[\\d,]+\\+?\\s+applicants?/i) || [])[0] || '';
     let company = '';
@@ -304,44 +305,56 @@ export async function scrapeJobrightJobs(
         continue;
       }
 
+      // FIRST: verify company before opening listing / hydrating employer JD
+      if (!(await gateCompanyForScrape(card.company || ''))) {
+        continue;
+      }
+
       try {
         logScrapingUrl(card.href, `Jobright ${i + 1}/${queue.length} ${card.title}`);
         await driver.get(card.href);
         await driver.sleep(2800);
 
         const detail = await readJobrightDetail(driver);
+        const paneJd = await readJobrightJdText(driver);
 
-        // Click Apply Now → capture employer career / ATS URL (Greenhouse, Lever, Ashby, …).
+        // Ctrl/Cmd+click APPLY WITH AUTOFILL → employer career / ATS URL.
         let careerUrl: string | null = null;
         try {
-          const resolved = await resolveJobrightCareerUrl(driver, { waitMs: 9000 });
+          const resolved = await resolveJobrightCareerUrl(driver, { waitMs: 14000 });
           careerUrl = resolved.careerUrl;
           if (careerUrl) {
-            console.log(`  ↳ Apply Now → ${careerUrl.slice(0, 100)} (${resolved.method})`);
-            appendTaskLog(`Jobright Apply Now → ${careerUrl.slice(0, 90)}`);
+            console.log(`  ↳ Apply Autofill → ${careerUrl.slice(0, 100)} (${resolved.method})`);
+            appendTaskLog(`Jobright Apply Autofill → ${careerUrl.slice(0, 90)}`);
           } else {
-            console.log(`  ↳ Apply Now: no external URL (${resolved.method})`);
+            console.log(`  ↳ Apply Autofill: no external URL (${resolved.method})`);
+            appendTaskLog(`Jobright Apply Autofill missed (${resolved.method})`);
           }
         } catch (err) {
-          console.warn('  ↳ Apply Now resolve failed:', err);
+          console.warn('  ↳ Apply Autofill resolve failed:', err);
         }
 
-        // Prefer employer URL for apply; keep Jobright JD (usually full) unless thin.
-        let jobDescription = detail.description || '';
+        // Prefer employer ATS/career JD whenever we have an external apply URL.
+        const boardText =
+          (paneJd && paneJd.length > (detail.description || '').length
+            ? paneJd
+            : detail.description) || '';
         const applyUrl =
           careerUrl && isExternalCareerUrl(careerUrl)
             ? normalizeCareerApplyUrl(careerUrl)
             : normalizeCareerApplyUrl(await driver.getCurrentUrl());
 
-        if (careerUrl && isExternalCareerUrl(careerUrl) && jobDescription.length < 500) {
-          try {
-            const fromCareer = await fetchJobDescriptionFromApplyUrl(careerUrl);
-            if (fromCareer && fromCareer.length > jobDescription.length) {
-              jobDescription = fromCareer;
-            }
-          } catch {
-            // keep Jobright JD
-          }
+        const hydrated = await hydrateBestJobDescription({
+          boardText,
+          applyUrl:
+            careerUrl && isExternalCareerUrl(careerUrl) ? careerUrl : undefined,
+          allowSelenium: true,
+        });
+        const jobDescription = hydrated.text || boardText;
+        if (hydrated.source === 'employer') {
+          appendTaskLog(
+            `Jobright JD from employer (${jobDescription.length} chars) for ${card.title}`
+          );
         }
 
         // Dedup against the real career URL when we have it.

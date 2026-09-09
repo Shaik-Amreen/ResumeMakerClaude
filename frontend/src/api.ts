@@ -147,6 +147,12 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jobDescription, regenerate }),
     }),
+  refetchJd: (id: string, regenerate = false) =>
+    request<{ job: Job; message: string; source?: string }>(`/jobs/${id}/refetch-jd`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ regenerate }),
+    }),
   uploadPdf: (id: string, file: File) => {
     const form = new FormData();
     form.append('resume', file);
