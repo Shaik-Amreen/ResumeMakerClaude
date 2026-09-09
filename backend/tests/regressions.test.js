@@ -560,6 +560,90 @@ Education: B.S. or M.S. Computer Science.`;
   assert.ok(fullKws.some((k) => /docker/i.test(k)));
 });
 
+test('injectMissingJdKeywords puts C#, REST APIs, and Azure into Experience + Skills', () => {
+  const {
+    injectMissingJdKeywords,
+    scoreResumeAgainstJd,
+  } = require('../dist/services/resumeAgent/jdMatch');
+
+  const base = `
+\\section{\\textbf{Work Experience}}
+\\vspace{2pt}
+\\textbf{Software Engineer} \\hfill \\uline{\\textbf{Associated Students, Inc. - CSULB}} \\hfill \\textbf{02/2025 - Present}
+\\begin{itemize}[itemsep=2pt, topsep=2pt, leftmargin=10pt]
+  \\item Built campus portals with React and Node.js.
+\\end{itemize}
+\\textbf{Software Engineer} \\hfill \\uline{\\textbf{Infobell IT Solutions Pvt Ltd}} \\hfill \\textbf{01/2023 - 01/2025}
+\\begin{itemize}[itemsep=2pt, topsep=2pt, leftmargin=10pt]
+  \\item Led full-stack delivery for commerce platforms.
+\\end{itemize}
+\\section{\\textbf{Skills}}
+\\vspace{2pt}
+\\textbf{Languages:} Java, Python, TypeScript \\\\
+\\textbf{Backend:} Spring Boot, Express.js, GraphQL, PostgreSQL \\\\
+`;
+
+  const jd = `
+Requirements: C#, REST APIs, Azure, CI/CD, microservices.
+Build backend services and APIs for cloud platforms.
+`;
+
+  let latex = injectMissingJdKeywords(base, ['C#', 'REST APIs', 'Azure']);
+  assert.match(latex, /C\\#/);
+  assert.match(latex, /REST APIs/);
+  assert.match(latex, /Azure/i);
+  assert.match(latex, /\\item[^\n]*C\\#/);
+  assert.match(latex, /\\item[^\n]*REST APIs/);
+  assert.match(latex, /\\textbf\{Languages:\}[^\\]*C\\#/);
+
+  // REST/GraphQL wording still counts as REST APIs coverage
+  const restOnly = scoreResumeAgainstJd(
+    'Must know REST APIs and CI/CD.',
+    '\\section{Skills}\\textbf{Backend:} REST/GraphQL APIs, CI/CD \\\\'
+  );
+  assert.equal(restOnly.missing.some((m) => /rest/i.test(m)), false);
+
+  const scored = scoreResumeAgainstJd(jd, latex);
+  assert.equal(scored.missing.some((m) => /^c#$/i.test(m)), false);
+  assert.equal(scored.missing.some((m) => /rest/i.test(m)), false);
+  assert.equal(scored.missing.some((m) => /azure/i.test(m)), false);
+});
+
+test('Go keyword does not false-match play.google.com; inject adds Go and Rust', () => {
+  const {
+    scoreResumeAgainstJd,
+    injectMissingJdKeywords,
+  } = require('../dist/services/resumeAgent/jdMatch');
+
+  const latex = `
+\\section{\\textbf{Work Experience}}
+\\begin{itemize}[itemsep=2pt, topsep=2pt, leftmargin=10pt]
+  \\item Built campus portals with React and Node.js.
+\\end{itemize}
+\\section{\\textbf{Skills}}
+\\textbf{Languages:} Python, Java, TypeScript \\\\
+\\href{https://play.google.com/store/apps/details?id=x}{\\textbf{Android App}}
+`;
+  const score = scoreResumeAgainstJd(
+    'Requirements: Python, Go, Rust. Build backend services.',
+    latex
+  );
+  assert.ok(score.matched.includes('Python'));
+  assert.equal(score.matched.some((m) => /^go$/i.test(m)), false, 'must not match google.com as Go');
+  assert.ok(score.missing.some((m) => /^go$/i.test(m)));
+  assert.ok(score.missing.some((m) => /rust/i.test(m)));
+
+  const injected = injectMissingJdKeywords(latex, ['Go', 'Rust']);
+  assert.match(injected, /\bGo\b/);
+  assert.match(injected, /\bRust\b/);
+  const after = scoreResumeAgainstJd(
+    'Requirements: Python, Go, Rust. Build backend services.',
+    injected
+  );
+  assert.equal(after.missing.some((m) => /^go$/i.test(m)), false);
+  assert.equal(after.missing.some((m) => /rust/i.test(m)), false);
+});
+
 test('model MATCH_REPORT JSON parses keyword + resume scores and skill gaps', () => {
   const { extractMatchReportFromModelResponse } = require('../dist/services/resumeAgent/extractLatex');
   const raw = `
@@ -1265,7 +1349,7 @@ test('Jobright Apply Now helpers parse external career URLs and reject jobright 
     normalizeCareerApplyUrl(
       'https://jobs.ashbyhq.com/acme/uuid/application?utm_source=jobright&jr_id=abc'
     ),
-    'https://jobs.ashbyhq.com/acme/uuid/application'
+    'https://jobs.ashbyhq.com/acme/uuid/application?jr_id=abc'
   );
   assert.equal(
     normalizeCareerApplyUrl(
@@ -1284,6 +1368,34 @@ test('stored job URLs strip XMLNAME and tracking for View on / apply', () => {
   assert.equal(clean.includes('utm_source'), false);
   assert.match(clean, /2026-2027-Information-Technology/);
   assert.match(clean, /R000072400/);
+});
+
+test('extension resolve matches Comeet/career page jr_id to Jobright tracker URL', () => {
+  const {
+    normalizeForMatch,
+    scoreJobAgainstUrl,
+    jobrightIdFromUrl,
+  } = require('../dist/routes/extensionRoutes');
+
+  const jrId = '6a9691adb22f636c81413407';
+  assert.equal(
+    jobrightIdFromUrl(`https://www.comeet.com/jobs/vastdata/43.001/x/F1.261?jr_id=${jrId}`),
+    jrId
+  );
+  assert.equal(jobrightIdFromUrl(`https://jobright.ai/jobs/info/${jrId}`), jrId);
+
+  const page = normalizeForMatch(
+    `https://www.comeet.com/jobs/vastdata/43.001/top-graduate-software-engineer---rtp/F1.261?jr_id=${jrId}`
+  );
+  assert.ok(page);
+  assert.equal(
+    scoreJobAgainstUrl(`https://jobright.ai/jobs/info/${jrId}`, page, 'VAST Data'),
+    100
+  );
+  assert.ok(
+    scoreJobAgainstUrl('https://jobright.ai/jobs/info/aaaaaaaaaaaaaaaaaaaaaaaa', page, 'VAST Data') <
+      70
+  );
 });
 
 test('extension resolve matches Greenhouse job-boards URL to boards tracker URL', () => {
@@ -1305,6 +1417,45 @@ test('extension resolve matches Greenhouse job-boards URL to boards tracker URL'
   assert.ok(
     scoreJobAgainstUrl('https://job-boards.greenhouse.io/reddit/jobs/8139781', page, 'Reddit') < 70
   );
+});
+
+test('extension resolve matches Workday path variants by requisition id', () => {
+  const {
+    normalizeForMatch,
+    scoreJobAgainstUrl,
+    workdayReqId,
+    workdayCompanySlug,
+  } = require('../dist/routes/extensionRoutes');
+
+  assert.equal(
+    workdayReqId(
+      '/jobs/job/San-Jose-California-United-States-of-America/Software-Engineer---Recent-Graduate_R0127237'
+    ),
+    'R0127237'
+  );
+  assert.equal(workdayCompanySlug('paypal.wd1.myworkdayjobs.com'), 'paypal');
+  assert.equal(workdayCompanySlug('paypal.wd5.myworkdayjobs.com'), 'paypal');
+
+  const stored =
+    'https://paypal.wd1.myworkdayjobs.com/jobs/job/San-Jose-California-United-States-of-America/Software-Engineer---Recent-Graduate_R0127237';
+  const pages = [
+    'https://paypal.wd1.myworkdayjobs.com/en-US/PayPal_External/job/San-Jose/Software-Engineer---Recent-Graduate_R0127237/apply',
+    'https://paypal.wd5.myworkdayjobs.com/jobs/job/Software-Engineer---Recent-Graduate_R0127237',
+    'https://paypal.wd1.myworkdayjobs.com/wday/cxs/paypal/jobs/job/R0127237',
+  ];
+  for (const pageUrl of pages) {
+    const page = normalizeForMatch(pageUrl);
+    assert.ok(page, pageUrl);
+    assert.ok(
+      scoreJobAgainstUrl(stored, page, 'PayPal') >= 95,
+      `expected strong match for ${pageUrl}`
+    );
+  }
+  const other = normalizeForMatch(
+    'https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite/job/x/Software-Engineer_R9999999'
+  );
+  assert.ok(other);
+  assert.ok(scoreJobAgainstUrl(stored, other, 'PayPal') < 70);
 });
 
 test('application Q&A uses answer bank on exact match', async () => {

@@ -1,10 +1,10 @@
 /**
- * Resolve Jobright "Apply Now" → real employer career / ATS URL.
+ * Resolve Jobright "Apply With Autofill" → real employer career / ATS URL.
  *
- * Jobright UI (chunk 94621): window.open(jobResult.applyLink || jobResult.originalUrl, "_blank")
- * Listing SSR often leaves applyLink as a jobright.ai URL — the live button opens the external site.
+ * Jobright UI: plain click often stays on Jobright autofill / internal detail.
+ * Ctrl/Cmd+click (or window.open of applyLink/originalUrl) opens the external career page.
  */
-import { By, WebDriver } from 'selenium-webdriver';
+import { By, Key, WebDriver, WebElement } from 'selenium-webdriver';
 
 const JOBRIGHT_HOST = /(?:^|\.)jobright\.ai$/i;
 
@@ -67,7 +67,6 @@ export function normalizeCareerApplyUrl(url: string): string {
       'utm_campaign',
       'utm_content',
       'utm_term',
-      'jr_id',
     ]) {
       u.searchParams.delete(key);
     }
@@ -147,11 +146,13 @@ async function readNextDataCareerUrl(driver: WebDriver): Promise<string | null> 
 }
 
 async function findApplyNowElement(driver: WebDriver) {
-  // Prefer class match — Jobright uses index_applyButton* for both
-  // "APPLY NOW" and "APPLY WITH AUTOFILL".
+  // Prefer "APPLY WITH AUTOFILL" — Ctrl/Cmd+click opens the real career portal.
+  // Generic applyButton class also matches APPLY NOW (Jobright-internal autofill).
   const xpaths = [
-    '//*[contains(@class, "applyButton") and (self::button or self::a)]',
     '//button[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "apply with autofill")]',
+    '//*[contains(@class, "applyButton") and contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "autofill")]',
+    '//a[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "apply with autofill")]',
+    '//*[contains(@class, "applyButton") and (self::button or self::a)]',
     '//button[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "apply now")]',
     '//button[.//span[contains(translate(., "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "apply now")]]',
     '//a[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "apply now")]',
@@ -171,65 +172,124 @@ async function findApplyNowElement(driver: WebDriver) {
   return null;
 }
 
-/**
- * Click Jobright Apply Now and capture the employer career/ATS URL from the new tab.
- * Leaves the driver on the original Jobright tab.
- */
-export async function resolveJobrightCareerUrl(
-  driver: WebDriver,
-  options?: { waitMs?: number }
-): Promise<{ careerUrl: string | null; method: string }> {
-  const waitMs = options?.waitMs ?? 8000;
+/** Install hooks so we can read the URL Jobright passes to window.open / <a target=_blank>. */
+async function installOpenCapture(driver: WebDriver): Promise<void> {
+  await driver.executeScript(`
+    (function () {
+      if (window.__jrOpenHookInstalled) return;
+      window.__jrOpenHookInstalled = true;
+      window.__jrCapturedOpens = [];
+      const push = (url) => {
+        if (!url || typeof url !== 'string') return;
+        window.__jrCapturedOpens.push(String(url));
+      };
+      const origOpen = window.open.bind(window);
+      window.open = function (url, name, specs) {
+        push(url);
+        try { return origOpen(url, name, specs); } catch (e) {
+          try { return origOpen(url, '_blank'); } catch (_) { return null; }
+        }
+      };
+      document.addEventListener('click', function (ev) {
+        const t = ev.target && ev.target.closest ? ev.target.closest('a[href]') : null;
+        if (t && t.href) push(t.href);
+      }, true);
+    })();
+  `);
+}
 
-  const fromData = await readNextDataCareerUrl(driver);
-  if (fromData) {
-    return { careerUrl: normalizeCareerApplyUrl(fromData), method: 'next_data' };
-  }
-
-  // Sometimes Apply Now is already an <a href="https://…">
+async function readCapturedOpens(driver: WebDriver): Promise<string[]> {
   try {
-    const href = (await driver.executeScript(`
-      const nodes = [...document.querySelectorAll('a[href], button, [role="button"]')];
-      for (const n of nodes) {
-        const text = (n.innerText || n.textContent || '').toLowerCase();
-        if (!text.includes('apply')) continue;
-        const href = n.href || n.getAttribute('href') || '';
-        if (href && /^https?:/i.test(href) && !/jobright\\.ai/i.test(href)) return href;
-      }
-      return null;
-    `)) as string | null;
-    if (href && isExternalCareerUrl(href)) {
-      return { careerUrl: normalizeCareerApplyUrl(href), method: 'anchor_href' };
-    }
+    const urls = (await driver.executeScript(`
+      return Array.isArray(window.__jrCapturedOpens) ? window.__jrCapturedOpens.slice() : [];
+    `)) as string[];
+    return Array.isArray(urls) ? urls : [];
   } catch {
-    // continue to click path
+    return [];
   }
+}
 
-  const before = await driver.getAllWindowHandles();
-  const original = await driver.getWindowHandle();
-  const btn = await findApplyNowElement(driver);
-  if (!btn) {
-    return { careerUrl: null, method: 'no_button' };
+function firstExternalFromList(urls: string[]): string | null {
+  for (const raw of urls) {
+    const cleaned = normalizeCareerApplyUrl((raw || '').split('#')[0]);
+    if (isExternalCareerUrl(cleaned)) return cleaned;
   }
+  return null;
+}
 
+/**
+ * Ctrl/Cmd+click APPLY WITH AUTOFILL — Jobright opens the employer career page in a new tab.
+ * Plain click often stays on Jobright's internal autofill / detail flow.
+ */
+async function modifierClickApply(driver: WebDriver, btn: WebElement): Promise<string> {
+  await driver.executeScript('arguments[0].scrollIntoView({block:"center"});', btn);
+  await driver.sleep(350);
+
+  // Preferred: synthetic click with both modifiers (works on Mac + Windows).
   try {
-    await driver.executeScript('arguments[0].scrollIntoView({block:"center"});', btn);
-    await driver.sleep(400);
-    // JS click first — Ant Design / React handlers reliably open window.open;
-    // native Selenium click often no-ops on these buttons.
+    await driver.executeScript(
+      `
+      const el = arguments[0];
+      const opts = { bubbles: true, cancelable: true, view: window, ctrlKey: true, metaKey: true, button: 0 };
+      el.dispatchEvent(new MouseEvent('pointerdown', opts));
+      el.dispatchEvent(new MouseEvent('mousedown', opts));
+      el.dispatchEvent(new MouseEvent('pointerup', opts));
+      el.dispatchEvent(new MouseEvent('mouseup', opts));
+      el.dispatchEvent(new MouseEvent('click', opts));
+      `,
+      btn
+    );
+    return 'modifier_js';
+  } catch {
+    // fall through
+  }
+
+  // Selenium chord: COMMAND on macOS, CONTROL elsewhere.
+  try {
+    const mod = process.platform === 'darwin' ? Key.COMMAND : Key.CONTROL;
+    await driver.actions({ async: true }).keyDown(mod).click(btn).keyUp(mod).perform();
+    return 'modifier_actions';
+  } catch {
+    // last resort: plain click (may only open Jobright autofill)
     try {
       await driver.executeScript('arguments[0].click();', btn);
     } catch {
       await btn.click();
     }
-  } catch (err) {
-    console.warn('Jobright Apply Now click failed:', err);
-    return { careerUrl: null, method: 'click_failed' };
+    return 'plain_click';
   }
+}
 
+async function captureUrlFromNewTab(
+  driver: WebDriver,
+  original: string,
+  before: string[],
+  waitMs: number
+): Promise<{ careerUrl: string | null; method: string }> {
   const deadline = Date.now() + waitMs;
   let newHandle: string | null = null;
   while (Date.now() < deadline && !newHandle) {
+    const captured = firstExternalFromList(await readCapturedOpens(driver));
+    if (captured) {
+      // Close any extra tabs Jobright opened, stay on original.
+      const afterEarly = await driver.getAllWindowHandles();
+      for (const h of afterEarly) {
+        if (h === original) continue;
+        try {
+          await driver.switchTo().window(h);
+          await driver.close();
+        } catch {
+          // ignore
+        }
+      }
+      try {
+        await driver.switchTo().window(original);
+      } catch {
+        // ignore
+      }
+      return { careerUrl: captured, method: 'window_open_hook' };
+    }
+
     const after = await driver.getAllWindowHandles();
     const added = after.filter((h) => !before.includes(h));
     if (added.length) {
@@ -240,7 +300,6 @@ export async function resolveJobrightCareerUrl(
   }
 
   if (!newHandle) {
-    // Same-tab navigation fallback
     const current = (await driver.getCurrentUrl()).split('#')[0];
     if (isExternalCareerUrl(current)) {
       return { careerUrl: normalizeCareerApplyUrl(current), method: 'same_tab_nav' };
@@ -250,7 +309,6 @@ export async function resolveJobrightCareerUrl(
 
   try {
     await driver.switchTo().window(newHandle);
-    // Wait for redirect to settle past about:blank / jobright interstitial
     const settleUntil = Date.now() + waitMs;
     let careerUrl: string | null = null;
     while (Date.now() < settleUntil) {
@@ -259,13 +317,14 @@ export async function resolveJobrightCareerUrl(
         careerUrl = normalizeCareerApplyUrl(url);
         break;
       }
+      // Jobright sometimes lands on an interstitial then redirects
       await driver.sleep(300);
     }
     await driver.close();
     await driver.switchTo().window(original);
     return {
       careerUrl,
-      method: careerUrl ? 'apply_now_tab' : 'new_tab_not_external',
+      method: careerUrl ? 'autofill_modclick_tab' : 'new_tab_not_external',
     };
   } catch (err) {
     try {
@@ -274,8 +333,81 @@ export async function resolveJobrightCareerUrl(
     } catch {
       // ignore
     }
-    console.warn('Jobright Apply Now tab capture failed:', err);
+    console.warn('Jobright Apply Autofill tab capture failed:', err);
     return { careerUrl: null, method: 'tab_error' };
+  }
+}
+
+/**
+ * Resolve Jobright "APPLY WITH AUTOFILL" → employer career / ATS URL.
+ * Prefer Ctrl/Cmd+click (opens real career page); plain click often stays on Jobright.
+ * Leaves the driver on the original Jobright tab.
+ */
+export async function resolveJobrightCareerUrl(
+  driver: WebDriver,
+  options?: { waitMs?: number }
+): Promise<{ careerUrl: string | null; method: string }> {
+  const waitMs = options?.waitMs ?? 12000;
+
+  const fromData = await readNextDataCareerUrl(driver);
+  if (fromData) {
+    return { careerUrl: normalizeCareerApplyUrl(fromData), method: 'next_data' };
+  }
+
+  // Live page may expose external href after hydration
+  try {
+    const href = (await driver.executeScript(`
+      const nodes = [...document.querySelectorAll('a[href], button, [role="button"]')];
+      for (const n of nodes) {
+        const text = (n.innerText || n.textContent || '').toLowerCase();
+        if (!/apply/.test(text)) continue;
+        const href = n.href || n.getAttribute('href') || '';
+        if (href && /^https?:/i.test(href) && !/jobright\\.ai/i.test(href)) return href;
+      }
+      return null;
+    `)) as string | null;
+    if (href && isExternalCareerUrl(href)) {
+      return { careerUrl: normalizeCareerApplyUrl(href), method: 'anchor_href' };
+    }
+  } catch {
+    // continue
+  }
+
+  const before = await driver.getAllWindowHandles();
+  const original = await driver.getWindowHandle();
+  const btn = await findApplyNowElement(driver);
+  if (!btn) {
+    return { careerUrl: null, method: 'no_button' };
+  }
+
+  try {
+    await installOpenCapture(driver);
+    const clickMethod = await modifierClickApply(driver, btn);
+    const captured = await captureUrlFromNewTab(driver, original, before, waitMs);
+    if (captured.careerUrl) {
+      return {
+        careerUrl: captured.careerUrl,
+        method: `${clickMethod}+${captured.method}`,
+      };
+    }
+    // If modifier click failed to open external URL, try one plain click as last resort
+    if (clickMethod !== 'plain_click') {
+      const before2 = await driver.getAllWindowHandles();
+      try {
+        await driver.executeScript('arguments[0].click();', btn);
+      } catch {
+        await btn.click();
+      }
+      const second = await captureUrlFromNewTab(driver, original, before2, Math.min(waitMs, 8000));
+      if (second.careerUrl) {
+        return { careerUrl: second.careerUrl, method: `plain_fallback+${second.method}` };
+      }
+      return { careerUrl: null, method: second.method };
+    }
+    return { careerUrl: null, method: captured.method };
+  } catch (err) {
+    console.warn('Jobright Apply Autofill resolve failed:', err);
+    return { careerUrl: null, method: 'click_failed' };
   }
 }
 

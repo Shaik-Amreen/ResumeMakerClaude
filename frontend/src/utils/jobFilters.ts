@@ -192,6 +192,28 @@ function actionRank(job: Job): number {
   return 5;
 }
 
+/** Scraped/added time; falls back to ObjectId timestamp when createdAt is missing. */
+export function createdAtMs(job: Job): number {
+  const t = new Date(job.createdAt).getTime();
+  if (Number.isFinite(t)) return t;
+  const id = String(job._id || '');
+  if (/^[a-f0-9]{24}$/i.test(id)) return parseInt(id.slice(0, 8), 16) * 1000;
+  return 0;
+}
+
+function compareNewestAdded(a: Job, b: Job): number {
+  const d = createdAtMs(b) - createdAtMs(a);
+  if (d !== 0) return d;
+  return String(b._id || '').localeCompare(String(a._id || ''));
+}
+
+function postedSortMs(job: Job, missing: number): number {
+  const posted = jobPostedAt(job)?.getTime();
+  if (posted != null && Number.isFinite(posted)) return posted;
+  const created = createdAtMs(job);
+  return created > 0 ? created : missing;
+}
+
 function parseApplicantCount(text?: string): number {
   if (!text) return 999999;
   const t = text.toLowerCase();
@@ -244,11 +266,11 @@ export function filterAndSortJobs(jobs: Job[], filters: JobFilters): Job[] {
         const aR = actionRank(a);
         const bR = actionRank(b);
         if (aR !== bR) return aR - bR;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return compareNewestAdded(a, b);
       });
       break;
     case 'oldest':
-      list = list.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      list = list.sort((a, b) => compareNewestAdded(b, a));
       break;
     case 'company':
       list = list.sort((a, b) => a.company.localeCompare(b.company));
@@ -257,18 +279,13 @@ export function filterAndSortJobs(jobs: Job[], filters: JobFilters): Job[] {
       list = list.sort((a, b) => a.title.localeCompare(b.title));
       break;
     case 'posted_newest':
-      list = list.sort((a, b) => {
-        const aT = jobPostedAt(a)?.getTime() ?? 0;
-        const bT = jobPostedAt(b)?.getTime() ?? 0;
-        return bT - aT;
-      });
+      list = list.sort((a, b) => postedSortMs(b, 0) - postedSortMs(a, 0));
       break;
     case 'posted_oldest':
-      list = list.sort((a, b) => {
-        const aT = jobPostedAt(a)?.getTime() ?? Number.MAX_SAFE_INTEGER;
-        const bT = jobPostedAt(b)?.getTime() ?? Number.MAX_SAFE_INTEGER;
-        return aT - bT;
-      });
+      list = list.sort(
+        (a, b) =>
+          postedSortMs(a, Number.MAX_SAFE_INTEGER) - postedSortMs(b, Number.MAX_SAFE_INTEGER)
+      );
       break;
     case 'applicants_low':
       list = list.sort(
@@ -281,7 +298,7 @@ export function filterAndSortJobs(jobs: Job[], filters: JobFilters): Job[] {
       );
       break;
     case 'newest':
-      list = list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      list = list.sort(compareNewestAdded);
       break;
     case 'rating':
       list = list.sort((a, b) => {
@@ -291,7 +308,7 @@ export function filterAndSortJobs(jobs: Job[], filters: JobFilters): Job[] {
         const aPri = a.priority === 'faang' ? 0 : 1;
         const bPri = b.priority === 'faang' ? 0 : 1;
         if (aPri !== bPri) return aPri - bPri;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return compareNewestAdded(a, b);
       });
       break;
     case 'priority':
@@ -300,7 +317,7 @@ export function filterAndSortJobs(jobs: Job[], filters: JobFilters): Job[] {
         const aPri = a.priority === 'faang' ? 0 : 1;
         const bPri = b.priority === 'faang' ? 0 : 1;
         if (aPri !== bPri) return aPri - bPri;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return compareNewestAdded(a, b);
       });
   }
 

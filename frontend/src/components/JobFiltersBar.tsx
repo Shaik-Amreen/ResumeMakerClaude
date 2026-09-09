@@ -68,8 +68,8 @@ export function JobFiltersBar({ filters, onChange, total, visible }: Props) {
           <option value="action">Sort: Action first</option>
           <option value="rating">Sort: Rating high → low</option>
           <option value="priority">Sort: FAANG first</option>
-          <option value="newest">Sort: Newest added</option>
-          <option value="oldest">Sort: Oldest added</option>
+          <option value="newest">Sort: Newest scraped</option>
+          <option value="oldest">Sort: Oldest scraped</option>
           <option value="posted_newest">Sort: Posted newest</option>
           <option value="posted_oldest">Sort: Posted oldest</option>
           <option value="applicants_low">Sort: Fewest applicants</option>

@@ -8,13 +8,34 @@ import { Router, Request, Response } from 'express';
 import Job from '../models/Job';
 import { applicationProfile, formatDesiredSalaryRange } from '../data/applicationProfile';
 import { resumeProfile } from '../data/resumeProfile';
-import { sanitizeStoredJobUrl } from '../services/jobrightApplyLink';
+import { sanitizeStoredJobUrl, extractJobrightJobId } from '../services/jobrightApplyLink';
 import { config } from '../config';
 
 const router = Router();
 
 const TRACKER_BASE =
   process.env.FRONTEND_URL?.replace(/\/$/, '') || 'http://127.0.0.1:5173';
+
+/**
+ * Jobright listing id from a career-page URL (jr_id=…) or jobright.ai/jobs/info/{id}.
+ * Comeet/Greenhouse/etc. often keep jr_id after Apply Autofill.
+ */
+function jobrightIdFromUrl(urlOrPath: string): string | null {
+  const text = String(urlOrPath || '');
+  try {
+    const u = new URL(text);
+    for (const key of ['jr_id', 'jrId', 'jobright_id', 'jobrightId']) {
+      const v = u.searchParams.get(key);
+      if (v && /^[a-f0-9]{16,}$/i.test(v)) return v.toLowerCase();
+    }
+  } catch {
+    /* not absolute */
+  }
+  const fromPath = extractJobrightJobId(text);
+  if (fromPath) return fromPath.toLowerCase();
+  const q = text.match(/[?&#]jr_id=([a-f0-9]{16,})/i);
+  return q ? q[1].toLowerCase() : null;
+}
 
 function parseExperienceLine(line: string) {
   const raw = String(line || '').trim();
@@ -180,12 +201,6 @@ function hostFamily(host: string): string {
   return h;
 }
 
-/** boards.greenhouse.io and job-boards.greenhouse.io are the same ATS board. */
-function atsHostsEquivalent(a: string, b: string): boolean {
-  if (a === b) return true;
-  return hostFamily(a) === 'greenhouse' && hostFamily(b) === 'greenhouse';
-}
-
 /** Stable key for Greenhouse board URLs: `{companySlug}:{jobId}`. */
 function greenhouseBoardKey(pathname: string, rawUrl?: string): string | null {
   const fromPath = pathname.match(/\/([^/]+)\/jobs\/(\d+)/i);
@@ -203,6 +218,39 @@ function greenhouseBoardKey(pathname: string, rawUrl?: string): string | null {
   return null;
 }
 
+/**
+ * Workday requisition id from URL/path — e.g. R0127237, JR-0000123440, REQ23875, R-251398.
+ * These sit in the last path segment (often after `_`), not as bare numeric path parts.
+ */
+function workdayReqId(urlOrPath: string): string | null {
+  const text = String(urlOrPath || '');
+  const m = text.match(/(?:^|[_/-])((?:JR|REQ|R)[-_]?\d{4,10})(?:[/?#._-]|$)/i);
+  if (!m) return null;
+  return m[1].toUpperCase().replace(/_/g, '-');
+}
+
+/** `paypal` from `paypal.wd1.myworkdayjobs.com`. */
+function workdayCompanySlug(host: string): string | null {
+  const m = String(host || '')
+    .toLowerCase()
+    .match(/^([a-z0-9-]+)\.wd\d+\.myworkdayjobs\.com$/i);
+  return m ? m[1] : null;
+}
+
+/** boards.greenhouse.io / job-boards… and paypal.wd1 / paypal.wd5 are equivalent ATS hosts. */
+function atsHostsEquivalent(a: string, b: string): boolean {
+  if (a === b) return true;
+  const fa = hostFamily(a);
+  const fb = hostFamily(b);
+  if (fa === 'greenhouse' && fb === 'greenhouse') return true;
+  if (fa === 'workday' && fb === 'workday') {
+    const sa = workdayCompanySlug(a);
+    const sb = workdayCompanySlug(b);
+    if (sa && sb && sa === sb) return true;
+  }
+  return false;
+}
+
 function scoreJobAgainstUrl(
   jobUrl: string,
   target: NonNullable<ReturnType<typeof normalizeForMatch>>,
@@ -213,9 +261,24 @@ function scoreJobAgainstUrl(
   if (job.key === target.key) return 100;
   if (job.raw === target.raw) return 100;
 
+  // Jobright → employer ATS: same jr_id bridges jobright.ai listing ↔ Comeet/GH/Lever apply page.
+  const jrJob = jobrightIdFromUrl(job.raw) || jobrightIdFromUrl(jobUrl);
+  const jrTarget = jobrightIdFromUrl(target.raw);
+  if (jrJob && jrTarget && jrJob === jrTarget) return 100;
+
   const ghJob = greenhouseBoardKey(job.path, job.raw);
   const ghTarget = greenhouseBoardKey(target.path, target.raw);
   if (ghJob && ghTarget && ghJob === ghTarget) return 100;
+
+  // Workday: same company tenant + same requisition id (paths often differ by location / en-US / apply).
+  const wdSlugJob = workdayCompanySlug(job.host);
+  const wdSlugTarget = workdayCompanySlug(target.host);
+  const wdReqJob = workdayReqId(job.path) || workdayReqId(job.raw);
+  const wdReqTarget = workdayReqId(target.path) || workdayReqId(target.raw);
+  if (wdReqJob && wdReqTarget && wdReqJob === wdReqTarget) {
+    if (wdSlugJob && wdSlugTarget && wdSlugJob === wdSlugTarget) return 100;
+    if (hostFamily(job.host) === 'workday' && hostFamily(target.host) === 'workday') return 95;
+  }
 
   const sameHost = job.host === target.host || atsHostsEquivalent(job.host, target.host);
   // Same host + path contained either way
@@ -227,6 +290,8 @@ function scoreJobAgainstUrl(
     const idA = job.path.match(/\/([a-f0-9]{16,}|[0-9]{5,})(?:\/|$)/i)?.[1];
     const idB = target.path.match(/\/([a-f0-9]{16,}|[0-9]{5,})(?:\/|$)/i)?.[1];
     if (idA && idB && idA === idB) return 95;
+    // Same Workday company host but different req → weak host-only signal
+    if (wdSlugJob && wdSlugTarget && wdSlugJob === wdSlugTarget) return 30;
     return 25;
   }
   // Same employer family (TikTok careers ↔ ByteDance tracker URL)
@@ -390,14 +455,65 @@ router.get('/resolve', async (req: Request, res: Response) => {
       ashby: /^https?:\/\/([^/]*\.)?ashbyhq\./i,
     };
 
+    // Jobright Apply Autofill leaves jr_id= on Comeet/GH/etc. — match tracker Jobright listing.
+    const pageJrId = jobrightIdFromUrl(target.raw);
+    if (pageJrId) {
+      const escapedId = pageJrId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const byJr = await Job.find(
+        { url: { $regex: new RegExp(escapedId, 'i') } },
+        RESOLVE_PROJECTION
+      )
+        .limit(20)
+        .lean()
+        .exec();
+      let bestJr: ResolveJobRow | null = null;
+      let bestJrScore = 0;
+      for (const job of byJr) {
+        const s = scoreJobAgainstUrl(String(job.url || ''), target, String(job.company || ''));
+        if (s > bestJrScore) {
+          bestJrScore = s;
+          bestJr = job;
+        }
+      }
+      if (bestJr && bestJrScore >= 70) {
+        const payload = {
+          ...jobResumePayload(bestJr, bestJrScore),
+          pageUrl: target.raw,
+        };
+        const jdDoc = await Job.findById(bestJr._id).select({ jobDescription: 1 }).lean().exec();
+        const jd = String(jdDoc?.jobDescription || '');
+        const citizenOnly =
+          /u\.?s\.?\s*citizen|citizens?\s+only|must be.*(citizen|green card)|clearance required|no sponsorship|without sponsorship/i.test(
+            jd
+          );
+        const needsSponsor =
+          /^yes$/i.test(String(applicationProfile.requireVisa).trim()) ||
+          /^yes$/i.test(String(applicationProfile.nowRequireSponsorship).trim()) ||
+          /^yes$/i.test(String(applicationProfile.futureRequireSponsorship).trim());
+        payload.citizenshipOnlyWarning = citizenOnly;
+        payload.sponsorshipConflict = citizenOnly && needsSponsor;
+        return res.json(payload);
+      }
+    }
+
     // Fast path: exact / near-exact URL, then same-host candidates — never scan every JD.
     // Greenhouse uses both boards.* and job-boards.* — always score across the family.
+    // Workday paths vary (en-US, location slug, /apply) — match by company tenant + requisition id.
     const escapedHost = target.host.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const hostPrefix = new RegExp(`^https?://(www\\.)?${escapedHost}(/|$)`, 'i');
     let jobs: ResolveJobRow[] = [];
 
     if (family === 'greenhouse' && familyHosts.greenhouse) {
       jobs = await Job.find({ url: { $regex: familyHosts.greenhouse } }, RESOLVE_PROJECTION)
+        .limit(120)
+        .lean()
+        .exec();
+    } else if (family === 'workday') {
+      const slug = workdayCompanySlug(target.host);
+      const workdayRe = slug
+        ? new RegExp(`^https?://${slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.wd\\d+\\.myworkdayjobs\\.com`, 'i')
+        : familyHosts.workday;
+      jobs = await Job.find({ url: { $regex: workdayRe } }, RESOLVE_PROJECTION)
         .limit(120)
         .lean()
         .exec();
@@ -780,4 +896,12 @@ router.post('/save-application-answer', async (req: Request, res: Response) => {
 });
 
 export default router;
-export { normalizeForMatch, hostFamily, greenhouseBoardKey, scoreJobAgainstUrl };
+export {
+  normalizeForMatch,
+  hostFamily,
+  greenhouseBoardKey,
+  workdayReqId,
+  workdayCompanySlug,
+  jobrightIdFromUrl,
+  scoreJobAgainstUrl,
+};

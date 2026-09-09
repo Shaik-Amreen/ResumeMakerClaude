@@ -40,7 +40,7 @@ import {
   Hand,
 } from 'lucide-react';
 import { ToastContainer, toast } from 'react-toastify';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const WINDOW_LABELS: Record<string, string> = {
   job_cycle: '24/7 · Full-time / new-grad pipeline',
@@ -68,6 +68,8 @@ function App() {
   const [panelBusy, setPanelBusy] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
   const [answersOpen, setAnswersOpen] = useState(false);
+  const listScrollRef = useRef<HTMLDivElement>(null);
+  const prevSortRef = useRef(filters.sort);
 
   const loadJobs = useCallback(async () => {
     try {
@@ -86,6 +88,14 @@ function App() {
   }, []);
 
   const visibleJobs = useMemo(() => filterAndSortJobs(jobs, filters), [jobs, filters]);
+
+  // Sort changes reorder the list; jump to top + first row so the new order is visible.
+  useEffect(() => {
+    if (prevSortRef.current === filters.sort) return;
+    prevSortRef.current = filters.sort;
+    listScrollRef.current?.scrollTo({ top: 0 });
+    if (visibleJobs[0]) setSelectedId(visibleJobs[0]._id);
+  }, [filters.sort, visibleJobs]);
 
   useEffect(() => {
     loadJobs();
@@ -429,7 +439,10 @@ function App() {
               total={jobs.length}
               visible={visibleJobs.length}
             />
-            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-white/40">
+            <div
+              ref={listScrollRef}
+              className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-white/40"
+            >
               {loading ? (
                 <div className="p-10 text-center text-ink-muted text-sm space-y-3">
                   <Loader2 className="inline animate-spin text-cedar" size={22} />
