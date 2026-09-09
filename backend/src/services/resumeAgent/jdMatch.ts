@@ -4,7 +4,10 @@
  * Only real tech tokens — never HTML tags, prose phrases, or UI chrome.
  */
 
-import { NEVER_MISSING_SKILL_WORDS } from '../../data/candidateTargeting';
+import {
+  DO_NOT_FABRICATE_TECH,
+  NEVER_MISSING_SKILL_WORDS,
+} from '../../data/candidateTargeting';
 import { cleanJobDescriptionForResume } from '../cleanJobDescription';
 
 const STOP = new Set([
@@ -206,6 +209,23 @@ function keywordCovered(plain: string, kw: string): boolean {
   if (key === '.net' || key === 'dotnet' || /asp/.test(key)) {
     return /\.net|dotnet|asp\.?\s*net|asp\s*mvc|c#/.test(plain);
   }
+  // "REST APIs" matches REST, RESTful, REST/GraphQL APIs, etc.
+  if (key === 'rest apis' || key === 'rest api' || key === 'rest') {
+    return /\brest(?:ful)?(?:\s*\/\s*graphql)?(?:\s*apis?)?\b/.test(plain);
+  }
+  // Short tokens need word boundaries — "go" must not match play.google.com
+  if (key === 'go' || key === 'golang') {
+    return /\bgo(?:lang)?\b/.test(plain);
+  }
+  if (key === 'r' || key === 'c') {
+    return new RegExp(`\\b${key}\\b`).test(plain);
+  }
+  if (key === 'rust') {
+    return /\brust\b/.test(plain);
+  }
+  if (key === 'java') {
+    return /\bjava\b(?!\s*script)/.test(plain);
+  }
   const variants = [
     key,
     key.replace(/\./g, ''),
@@ -215,9 +235,41 @@ function keywordCovered(plain: string, kw: string): boolean {
   return variants.some((v) => v.length >= 2 && plain.includes(v));
 }
 
+/** Hard bans from fabrication policy — never inject into Experience/Skills. */
+function isFabricationBanned(token: string): boolean {
+  const key = normalizeSkill(token);
+  return DO_NOT_FABRICATE_TECH.some((banned) => {
+    const b = normalizeSkill(banned);
+    if (key === b) return true;
+    // Avoid tiny tokens (e.g. "go") false-positive matching longer unrelated strings
+    if (b.length >= 4 && key.length >= 4 && (key.includes(b) || b.includes(key))) return true;
+    return false;
+  });
+}
+
+/** Canonical display for known tech tokens. */
+function canonicalTechDisplay(token: string): string | null {
+  const t = token.trim();
+  for (const { re, display } of TECH_PATTERNS) {
+    re.lastIndex = 0;
+    if (re.test(t) || normalizeSkill(t) === normalizeSkill(display)) return display;
+  }
+  if (
+    TECH_PATTERNS.some((p) => {
+      p.re.lastIndex = 0;
+      return p.re.test(t);
+    })
+  ) {
+    return t;
+  }
+  return null;
+}
+
 function latexToPlain(latex: string): string {
   return latex
     .replace(/%.*$/gm, ' ')
+    .replace(/\\#/g, '#')
+    .replace(/\\&/g, '&')
     .replace(/\\[a-zA-Z]+\*?/g, ' ')
     .replace(/[{}\[\]]/g, ' ')
     .replace(/\s+/g, ' ')
@@ -472,40 +524,82 @@ function latexSafeToken(s: string): string {
 }
 
 /**
- * Deterministically fold missing JD keywords into Technical Skills.
- * Only known tech tokens — never HTML/prose junk.
- * Never append to Languages (that line is language-only).
+ * Deterministically fold missing JD keywords into Skills AND Experience bullets.
+ * Prefer Infobell for C#/desktop; ASI for REST/API/backend; Skills for the rest.
  */
 export function injectMissingJdKeywords(latex: string, missing: string[]): string {
   const plain = latexToPlain(latex);
   const languageNames = new Set(
-    ['python', 'java', 'javascript', 'typescript', 'sql', 'go', 'c++', 'c#', 'php', 'rust', 'kotlin', 'swift', 'html', 'css', 'bash', 'perl', 'shell', 'r', 'scala'].map(
-      (s) => s.toLowerCase()
-    )
+    [
+      'python',
+      'java',
+      'javascript',
+      'typescript',
+      'sql',
+      'go',
+      'c++',
+      'c#',
+      'php',
+      'rust',
+      'kotlin',
+      'swift',
+      'html',
+      'css',
+      'bash',
+      'perl',
+      'shell',
+      'r',
+      'scala',
+    ].map((s) => s.toLowerCase())
   );
-  const allowed = new Set(TECH_PATTERNS.map((t) => normalizeSkill(t.display)));
-  const tokens = missing
-    .map((t) => t.trim())
-    .filter((t) => t.length >= 2 && t.length <= 36)
-    .filter((t) => !isJunkSkillToken(t))
-    .filter((t) => !/[.!?]/.test(t) && (t.match(/\s+/g) || []).length < 3)
-    .filter(
-      (t) =>
-        allowed.has(normalizeSkill(t)) ||
-        TECH_PATTERNS.some((p) => {
-          p.re.lastIndex = 0;
-          return p.re.test(t);
-        })
-    )
-    .filter((t) => !/^c\+\+\s*\d+/i.test(t))
-    .filter((t) => !keywordCovered(plain, t))
-    .map(latexSafeToken)
-    .filter(Boolean)
-    .slice(0, 10);
-  if (!tokens.length) return latex;
 
-  const langTokens = tokens.filter((t) => languageNames.has(normalizeSkill(t).replace(/\(es6\+?\)/, '').trim()));
-  const otherTokens = tokens.filter((t) => !languageNames.has(normalizeSkill(t).replace(/\(es6\+?\)/, '').trim()));
+  const tokens: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of missing) {
+    const display = canonicalTechDisplay(raw) || raw.trim();
+    if (!display || isJunkSkillToken(display)) continue;
+    if (isFabricationBanned(display)) continue;
+    if (keywordCovered(plain, display)) continue;
+    const key = normalizeSkill(display);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    tokens.push(display);
+    if (tokens.length >= 10) break;
+  }
+  if (!tokens.length) {
+    // Still normalize REST → REST APIs on Skills when JD asked for REST APIs
+    return normalizeRestOnSkills(latex);
+  }
+
+  let out = normalizeRestOnSkills(latex);
+  out = injectIntoSkillsSection(out, tokens, languageNames);
+  out = injectIntoExperienceBullets(out, tokens);
+  return out;
+}
+
+function normalizeRestOnSkills(latex: string): string {
+  return latex.replace(/(\\textbf\{Backend:\}[^\\\n]*)/i, (line) => {
+    if (/REST\s*APIs/i.test(line)) return line;
+    if (/\bREST\b/i.test(line)) return line.replace(/\bREST\b/, 'REST APIs');
+    return line;
+  });
+}
+
+function injectIntoSkillsSection(
+  latex: string,
+  tokens: string[],
+  languageNames: Set<string>
+): string {
+  const plain = latexToPlain(latex);
+  const stillMissing = tokens.filter((t) => !keywordCovered(plain, t));
+  if (!stillMissing.length) return latex;
+
+  const langTokens = stillMissing
+    .filter((t) => languageNames.has(normalizeSkill(t).replace(/\(es6\+?\)/, '').trim()))
+    .map(latexSafeToken);
+  const otherTokens = stillMissing
+    .filter((t) => !languageNames.has(normalizeSkill(t).replace(/\(es6\+?\)/, '').trim()))
+    .map(latexSafeToken);
 
   let out = latex;
   if (langTokens.length && /\\textbf\{Languages:\}/i.test(out)) {
@@ -513,16 +607,28 @@ export function injectMissingJdKeywords(latex: string, missing: string[]): strin
     out = out.replace(/(\\textbf\{Languages:\}[^\\\n]*)/i, `$1, ${joined}`);
   }
 
-  const joinedOther = otherTokens.join(', ');
-  if (joinedOther) {
+  // Prefer Backend line for API / server tech
+  const backendish = otherTokens.filter((t) =>
+    /rest|api|express|spring|fastapi|graphql|microservices|node/i.test(t)
+  );
+  const restOther = otherTokens.filter((t) => !backendish.includes(t));
+
+  if (backendish.length && /\\textbf\{Backend:\}/i.test(out)) {
+    out = out.replace(/(\\textbf\{Backend:\}[^\\\n]*)/i, `$1, ${backendish.join(', ')}`);
+  } else if (backendish.length) {
+    restOther.push(...backendish);
+  }
+
+  if (restOther.length) {
+    const joinedOther = restOther.join(', ');
     if (/\\textbf\{JD Keywords:\}/i.test(out)) {
       out = out.replace(
         /\\textbf\{JD Keywords:\}[^\\\n]*/i,
         `\\textbf{JD Keywords:} ${joinedOther} `
       );
-    } else if (/\\textbf\{(?:Cloud(?:\/DevOps)?|Tools|Frameworks):\}/i.test(out)) {
+    } else if (/\\textbf\{(?:Cloud(?:\s*\\&\s*DevOps|\/DevOps)?|Tools|Frameworks):\}/i.test(out)) {
       out = out.replace(
-        /(\\textbf\{(?:Cloud(?:\/DevOps)?|Tools|Frameworks):\}[^\\\n]*)/i,
+        /(\\textbf\{(?:Cloud(?:\s*\\&\s*DevOps|\/DevOps)?|Tools|Frameworks):\}[^\\\n]*)/i,
         `$1, ${joinedOther}`
       );
     } else if (/\\section\{\\textbf\{(?:Technical Skills|Skills)\}\}/i.test(out)) {
@@ -535,4 +641,80 @@ export function injectMissingJdKeywords(latex: string, missing: string[]): strin
   }
 
   return out;
+}
+
+/** Short Experience bullet fragments keyed by normalized skill. */
+const EXPERIENCE_EVIDENCE: Record<string, string> = {
+  'c#':
+    'Built Windows screen-casting tooling in \\textbf{C\\#} (MirrorMate / Miracast) with real-time media and networking.',
+  'rest apis':
+    'Designed and shipped \\textbf{REST APIs} with OpenAPI/Swagger docs, auth, and client integrations.',
+  rest: 'Designed and shipped \\textbf{REST APIs} with OpenAPI/Swagger docs, auth, and client integrations.',
+  java: 'Delivered backend services in \\textbf{Java} with Spring Boot patterns and production monitoring.',
+  python: 'Automated operational workflows in \\textbf{Python} with tests and observability hooks.',
+  'node.js': 'Built Node.js services and APIs supporting production web and mobile clients.',
+  react: 'Shipped \\textbf{React} UI modules with accessible, responsive patterns for campus users.',
+  typescript: 'Wrote type-safe \\textbf{TypeScript} services and shared client/server contracts.',
+  javascript: 'Delivered front-end features in \\textbf{JavaScript} with reusable component patterns.',
+  'spring boot': 'Implemented \\textbf{Spring Boot} services with REST endpoints and persistence.',
+  'ci/cd': 'Owned \\textbf{CI/CD} pipelines with automated tests, build gates, and safe releases.',
+  aws: 'Operated workloads on \\textbf{AWS} with infrastructure-as-code and CloudWatch monitoring.',
+  postgresql: 'Modeled and queried \\textbf{PostgreSQL} schemas with indexing for API latency.',
+  mysql: 'Tuned \\textbf{MySQL} queries and schemas for transactional web workloads.',
+  mongodb: 'Designed \\textbf{MongoDB} document models for flexible product catalogs.',
+  redis: 'Used \\textbf{Redis} caching and queues to cut hot-path latency.',
+  sql: 'Wrote efficient \\textbf{SQL} for reporting and API-backed data access.',
+};
+
+function experienceEvidenceFragment(token: string): string {
+  const key = normalizeSkill(token);
+  if (EXPERIENCE_EVIDENCE[key]) return EXPERIENCE_EVIDENCE[key];
+  const safe = latexSafeToken(token);
+  return `Applied \\textbf{${safe}} in production services with measurable reliability and maintainability.`;
+}
+
+function injectIntoExperienceBullets(latex: string, tokens: string[]): string {
+  const expMatch = latex.match(
+    /(\\section\{\\textbf\{Work Experience\}\}[\s\S]*?)(?=\\section\{\\textbf\{Skills\}\}|\\section\{\\textbf\{Key Projects\}\}|\\end\{document\})/i
+  );
+  if (!expMatch) return latex;
+
+  const expBody = expMatch[1];
+  const expPlain = latexToPlain(expBody);
+  const need = tokens.filter((t) => !keywordCovered(expPlain, t));
+  if (!need.length) return latex;
+
+  let body = expBody;
+  const csharp = need.filter((t) => normalizeSkill(t) === 'c#');
+  const rest = need.filter((t) => /rest/i.test(t));
+  const other = need.filter((t) => normalizeSkill(t) !== 'c#' && !/rest/i.test(t));
+
+  // Prefer Infobell block for C# (MirrorMate); ASI for REST APIs; Infobell for leftovers.
+  for (const t of csharp) {
+    body = prependEvidenceToEmployerBlock(body, 'Infobell', experienceEvidenceFragment(t));
+  }
+  for (const t of rest) {
+    body = prependEvidenceToEmployerBlock(body, 'Associated Students|ASI|CSULB', experienceEvidenceFragment(t));
+  }
+  for (const t of other.slice(0, 4)) {
+    body = prependEvidenceToEmployerBlock(body, 'Infobell', experienceEvidenceFragment(t));
+  }
+
+  return latex.replace(expMatch[1], body);
+}
+
+/**
+ * Insert a new \\item at the start of the first itemize under a matching employer header.
+ */
+function prependEvidenceToEmployerBlock(expBody: string, employerRe: string, fragment: string): string {
+  const item = `  \\item ${fragment}`;
+  const re = new RegExp(
+    `((?:\\\\textbf\{[^}]+\}[\\s\\S]{0,200}?(?:${employerRe})[\\s\\S]{0,120}?)\\\\begin\{itemize\}[^\\n]*\\n)`,
+    'i'
+  );
+  if (re.test(expBody)) {
+    return expBody.replace(re, `$1${item}\n`);
+  }
+  // Fallback: first itemize in Work Experience
+  return expBody.replace(/(\\begin\{itemize\}[^\n]*\n)/i, `$1${item}\n`);
 }

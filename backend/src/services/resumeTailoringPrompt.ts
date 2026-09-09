@@ -25,6 +25,8 @@ export interface ResumeJobContext {
   jobType?: JobType;
   traceId?: string;
   abortSignal?: AbortSignal;
+  /** Fired as soon as the live model id is known (and again if OmniRoute reroutes). */
+  onLlmRoute?: (label: string) => void | Promise<void>;
 }
 
 export function buildResumeSystemPrompt(ctx: ResumeJobContext): string {
@@ -79,12 +81,11 @@ export function buildResumeSystemPrompt(ctx: ResumeJobContext): string {
     'EACH \\item = ONE complete printed line (target 80–95 plain chars, hard max 95). Ends with period — never mid-phrase cut, never an orphan word wrapped to a second line.',
     'FILL THE PAGE FULLY: The resume MUST span 100% of the page height without leaving empty white space at the bottom. Use 4 rich bullets for Amazon, 4 for ASI, 4 for Infobell, and 4–5 detailed Key Projects to ensure a dense, highly professional, recruiter-ready 1-page layout.',
     'VOICE: human template style (built/wrote/shipped/used…). NO AI traces (leveraged/utilized/spearheaded/cutting-edge/seamless/…).',
-    'ADAPTABLE & EVIDENCE (RULE 1): Required JD skills you CAN evidence (Java/AWS/Python/React/Node/Spring/REST/TS/JS/CI-CD/DBs/OS/architecture/networking when coursework-backed) MUST appear in Experience or ≤2 Key Project bullets — Skills-only does not count for those.',
-    'DO-NOT-FABRICATE TECH (see FABRICATION_POLICY.md): Kubernetes/production K8s, Kafka/production Kafka, Terraform, Go (ban entirely), Rust, C++, .NET, Azure, GCP, Spark/Hadoop, TF/PyTorch/production ML training, MLOps, Blockchain, Salesforce, SAP, Rails, native Swift/Kotlin, security clearance, Docker, microservices, GraphQL — Skills line only if already supported; NEVER invent Experience/Project production bullets for these.',
+    'ADAPTABLE & EVIDENCE (RULE 1): Required JD skills MUST appear in Experience or ≤2 Key Project bullets — Skills-only does not count. Screening-first: fold in any missing JD tech (Go/Rust/Azure/K8s/etc.) with plausible Experience/Project evidence.',
     'VERIFIED EVIDENCE: Forecasting → Amazon AI assistant skill; OS/Architecture/Networking → CloudSync/RenderSync (within 2-project cap); Java/AWS/Python/React/Node/Spring/REST/SQL/CI/CD → Amazon/ASI/Infobell + projects when already true.',
-    'SAME-CONCEPT SWAP OK for allowed stack (Postgres↔MySQL, Express↔Fastify). Do not swap banned tech into fabricated project stacks. Never invent Go.',
+    'SAME-CONCEPT SWAP OK (Postgres↔MySQL, Express↔Fastify). Add JD-required stack into Experience/Projects when missing.',
     'FABRICATION POLICY: NEVER invent employers/titles/dates/schools/contact/URLs. Headers LOCKED: Amazon Intern 05/2026-08/2026 Bellevue; ASI 02/2025-Present; Infobell 01/2023-01/2025.',
-    'OPEN: Skills (allowed tech); Certs; ≤2 projects (CloudSync + RenderSync) — except do-not-fabricate list.',
+    'OPEN: Skills; Certs; ≤2 projects (CloudSync + RenderSync) — may add JD-required tech into those surfaces.',
     'Employers ONLY: Amazon → ASI → Infobell.',
     'Copying the template skills/projects unchanged is a FAILURE only when they miss allowed JD-required skills.',
     '',

@@ -161,40 +161,11 @@ export const NEVER_MISSING_SKILL_WORDS = [
   'environments',
 ];
 
-/** Do not fabricate these even in the 2 open projects. */
-export const DO_NOT_FABRICATE_TECH = [
-  'Kubernetes',
-  'production Kubernetes',
-  'Kafka',
-  'production Kafka',
-  'Terraform',
-  'Go',
-  'Golang',
-  'Rust',
-  'C++',
-  '.NET',
-  'Azure',
-  'GCP',
-  'Spark',
-  'Hadoop',
-  'Scala',
-  'TensorFlow',
-  'PyTorch',
-  'LLM training',
-  'production ML model training',
-  'MLOps',
-  'Blockchain',
-  'Web3',
-  'Salesforce',
-  'SAP',
-  'Ruby on Rails',
-  'Swift',
-  'Kotlin',
-  'security clearance',
-  'Docker',
-  'microservices',
-  'GraphQL',
-];
+/**
+ * Screening-first: empty — inject + tailor may add any JD keyword into Experience/Skills.
+ * Re-add tokens here only if you want hard bans again.
+ */
+export const DO_NOT_FABRICATE_TECH: string[] = [];
 
 /** Preferred resume tech emphasis order (top → bottom). */
 export const MUST_HAVE_TECH_PRIORITY = [
