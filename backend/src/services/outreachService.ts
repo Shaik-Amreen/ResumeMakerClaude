@@ -3,6 +3,8 @@ import Job from '../models/Job';
 import type { ContactSuggestion } from '../models/Job';
 import { config } from '../config';
 import { cleanJobDescriptionForResume } from './cleanJobDescription';
+import { buildOllamaChatRequest, readOllamaChatContent } from './ollamaService';
+import { openRouterChatCompletion } from './resumeAgent/openRouterProvider';
 
 const CANDIDATE = {
   name: 'Karthik Kovi',
@@ -49,15 +51,13 @@ function fallbackContacts(company: string, title: string): ContactSuggestion[] {
   ];
 }
 
-import { openRouterChatCompletion } from './resumeAgent/openRouterProvider';
-
 async function callOllamaForText(system: string, user: string): Promise<string> {
   if (config.resumeAgent.provider === 'openrouter') {
     try {
       return await openRouterChatCompletion([
         { role: 'system', content: system },
         { role: 'user', content: user },
-      ]);
+      ], { work: 'Outreach' });
     } catch {
       /* fallback to local Ollama if OpenRouter fails */
     }
@@ -73,15 +73,15 @@ async function callOllamaForText(system: string, user: string): Promise<string> 
   const res = (await undiciFetch(`${config.ollama.apiUrl}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: config.ollama.model,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-      stream: false,
-      keep_alive: config.ollama.keepAlive,
-    }),
+    body: JSON.stringify(
+      buildOllamaChatRequest(
+        [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
+        { numPredict: 1024, temperature: 0.3 }
+      )
+    ),
     dispatcher: agent,
   })) as Response;
 
@@ -90,8 +90,11 @@ async function callOllamaForText(system: string, user: string): Promise<string> 
     throw new Error(`Ollama outreach error: ${text.slice(0, 300)}`);
   }
 
-  const data = (await res.json()) as { message?: { content?: string } };
-  return (data.message?.content || '').trim();
+  const data = (await res.json()) as {
+    message?: { content?: string; thinking?: string };
+    done_reason?: string;
+  };
+  return readOllamaChatContent(data);
 }
 
 function parseContactJson(raw: string): ContactSuggestion[] {

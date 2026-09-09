@@ -1,5 +1,9 @@
 import { openRouterChatCompletion } from './resumeAgent/openRouterProvider';
 import { config } from '../config';
+import { appendTaskLog } from './taskStatusService';
+import { logLlmInUse } from './resumeAgent/llmRoute';
+
+let lastScrapeFilterLabel = '';
 
 export interface AiJobFilterResult {
   eligible: boolean;
@@ -46,7 +50,15 @@ export async function evaluateJobWithAI(
         temperature: 0.1, 
         model: config.scraperAi.model,
         apiKey: config.scraperAi.apiKey,
-        baseUrl: config.scraperAi.baseUrl
+        baseUrl: config.scraperAi.baseUrl,
+        work: 'Scrape AI filter',
+        silent: true,
+        onModel: (info) => {
+          if (info.label === lastScrapeFilterLabel) return;
+          lastScrapeFilterLabel = info.label;
+          logLlmInUse('Scrape AI filter', info.label);
+          appendTaskLog(`🧠 Scrape filter — ${info.label}`);
+        },
       }
     );
 

@@ -6,7 +6,11 @@ import {
   buildPasteToLatexUserPrompt,
   type PasteResumeContext,
 } from '../resumeTailoringPrompt';
-import { generateResumeWithOllamaApi } from '../ollamaService';
+import {
+  buildOllamaChatRequest,
+  generateResumeWithOllamaApi,
+  readOllamaChatContent,
+} from '../ollamaService';
 import {
   generateResumeWithOpenRouter,
   openRouterChatCompletion,
@@ -50,9 +54,14 @@ export async function generateResumeLatex(ctx: ResumeJobContext): Promise<Resume
   const traceId = ctx.traceId || makeTraceId('resume-agent');
   traceLog(traceId, 'agent.generate.dispatch', { provider });
 
+  const notify = (label: string) => {
+    void ctx.onLlmRoute?.(label);
+  };
+
   if (provider === 'claude-code') {
     try {
       traceLog(traceId, 'agent.claude-code.start');
+      notify(`Claude Code (${config.resumeAgent.claudeCode.model})`);
       return await generateResumeWithClaudeCode(ctx);
     } catch (err) {
       if (isPipelineAbortError(err)) throw err;
@@ -60,11 +69,13 @@ export async function generateResumeLatex(ctx: ResumeJobContext): Promise<Resume
       traceError(traceId, 'agent.claude-code.failed', err);
       try {
         traceLog(traceId, 'agent.openrouter.fallback.start');
+        notify(`OmniRoute fallback (${config.resumeAgent.openRouter.model})`);
         return await generateResumeWithOpenRouter(ctx);
       } catch (orErr) {
         console.warn(`⚠️ OpenRouter/OmniRoute generation failed (${errMessage(orErr).slice(0, 150)}) — falling back to free local Ollama…`);
         traceError(traceId, 'agent.openrouter.fallback.failed', orErr);
         traceLog(traceId, 'agent.ollama.fallback.start');
+        notify(`Ollama (${config.ollama.model})`);
         return await generateResumeWithOllamaApi(ctx);
       }
     }
@@ -78,12 +89,14 @@ export async function generateResumeLatex(ctx: ResumeJobContext): Promise<Resume
       console.warn(`⚠️ OpenRouter/OmniRoute generation failed (${errMessage(err).slice(0, 150)}) — falling back to free local Ollama…`);
       traceError(traceId, 'agent.openrouter.failed', err);
       traceLog(traceId, 'agent.ollama.fallback.start');
+      notify(`Ollama (${config.ollama.model})`);
       return await generateResumeWithOllamaApi(ctx);
     }
   }
 
   if (provider === 'ollama') {
     traceLog(traceId, 'agent.ollama.start');
+    notify(`Ollama (${config.ollama.model})`);
     return await generateResumeWithOllamaApi(ctx);
   }
 
@@ -124,21 +137,18 @@ async function reviseWithOllama(ctx: ResumeJobContext, latex: string, instructio
   const res = (await undiciFetch(`${config.ollama.apiUrl}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: config.ollama.model,
-      messages,
-      stream: false,
-      keep_alive: config.ollama.keepAlive,
-    }),
+    body: JSON.stringify(buildOllamaChatRequest(messages)),
     dispatcher: agent,
   })) as Response;
 
   if (!res.ok) {
     throw new Error(`Ollama revise error: ${(await res.text()).slice(0, 400)}`);
   }
-  const data = (await res.json()) as { message?: { content?: string } };
-  const content = data.message?.content || '';
-  if (!content.trim()) throw new Error('Ollama revise returned empty response.');
+  const data = (await res.json()) as {
+    message?: { content?: string; thinking?: string };
+    done_reason?: string;
+  };
+  const content = readOllamaChatContent(data);
   const revised = extractLatexFromModelResponse(content);
   traceLog(traceId, 'ollama.revise.done', { latexChars: revised.length });
   return revised;
@@ -173,7 +183,15 @@ async function reviseWithOpenRouter(
         ].join('\n'),
       },
     ],
-    { temperature: Math.min(0.35, openRouter.temperature), traceId, signal: ctx.abortSignal }
+    {
+      temperature: Math.min(0.35, openRouter.temperature),
+      traceId,
+      signal: ctx.abortSignal,
+      work: 'Resume revise',
+      onModel: (info) => {
+        void ctx.onLlmRoute?.(info.label);
+      },
+    }
   );
   const revised = extractLatexFromModelResponse(content);
   traceLog(traceId, 'openrouter.revise.done', { latexChars: revised.length });
@@ -198,6 +216,7 @@ export async function reviseResumeLatex(
   if (provider === 'claude-code') {
     try {
       traceLog(traceId, 'agent.revise.claude-code.start');
+      void ctx.onLlmRoute?.(`Claude Code (${config.resumeAgent.claudeCode.model})`);
       return await reviseResumeWithClaudeCode(ctx, latex, instruction);
     } catch (err) {
       if (isPipelineAbortError(err)) throw err;
@@ -205,11 +224,13 @@ export async function reviseResumeLatex(
       traceError(traceId, 'agent.revise.claude-code.failed', err);
       try {
         traceLog(traceId, 'agent.revise.openrouter.fallback.start');
+        void ctx.onLlmRoute?.(`OmniRoute fallback (${config.resumeAgent.openRouter.model})`);
         return await reviseWithOpenRouter(ctx, latex, instruction);
       } catch (orErr) {
         console.warn(`⚠️ OpenRouter revise failed (${errMessage(orErr).slice(0, 150)}) — falling back to local Ollama…`);
         traceError(traceId, 'agent.revise.openrouter.fallback.failed', orErr);
         traceLog(traceId, 'agent.revise.ollama.fallback.start');
+        void ctx.onLlmRoute?.(`Ollama (${config.ollama.model})`);
         return await reviseWithOllama(ctx, latex, instruction);
       }
     }
@@ -223,12 +244,14 @@ export async function reviseResumeLatex(
       console.warn(`⚠️ OpenRouter revise failed (${errMessage(err).slice(0, 150)}) — falling back to local Ollama…`);
       traceError(traceId, 'agent.revise.openrouter.failed', err);
       traceLog(traceId, 'agent.revise.ollama.fallback.start');
+      void ctx.onLlmRoute?.(`Ollama (${config.ollama.model})`);
       return await reviseWithOllama(ctx, latex, instruction);
     }
   }
 
   if (provider === 'ollama') {
     traceLog(traceId, 'agent.revise.ollama.start');
+    void ctx.onLlmRoute?.(`Ollama (${config.ollama.model})`);
     return await reviseWithOllama(ctx, latex, instruction);
   }
 
@@ -260,32 +283,30 @@ async function chatWithOllamaRaw(systemPrompt: string, userPrompt: string): Prom
   const res = (await undiciFetch(`${config.ollama.apiUrl}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: config.ollama.model,
-      messages: [
+    body: JSON.stringify(
+      buildOllamaChatRequest([
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
-      ],
-      stream: false,
-      keep_alive: config.ollama.keepAlive,
-    }),
+      ])
+    ),
     dispatcher: agent,
   })) as Response;
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Ollama API error: ${text.slice(0, 400)}`);
   }
-  const data = (await res.json()) as { message?: { content?: string } };
-  const content = data.message?.content || '';
-  if (!content.trim()) throw new Error('Ollama returned an empty response.');
-  return extractLatexFromModelResponse(content);
+  const data = (await res.json()) as {
+    message?: { content?: string; thinking?: string };
+    done_reason?: string;
+  };
+  return extractLatexFromModelResponse(readOllamaChatContent(data));
 }
 
 async function chatWithOpenRouterRaw(systemPrompt: string, userPrompt: string): Promise<string> {
   const content = await openRouterChatCompletion([
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userPrompt },
-  ]);
+  ], { work: 'Paste to LaTeX' });
   return extractLatexFromModelResponse(content);
 }
 

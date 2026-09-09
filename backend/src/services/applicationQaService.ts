@@ -8,6 +8,7 @@ import { cleanJobDescriptionForResume } from './cleanJobDescription';
 import { lookupAnswer, upsertAnswer } from './answerBankService';
 import { formatResumeProfileForPrompt } from '../data/resumeProfile';
 import { openRouterChatCompletion } from './resumeAgent/openRouterProvider';
+import { buildOllamaChatRequest, readOllamaChatContent } from './ollamaService';
 import { Agent, fetch as undiciFetch } from 'undici';
 
 const CANDIDATE = {
@@ -22,7 +23,7 @@ async function callTextLlm(system: string, user: string, timeoutMs = 20_000): Pr
       return await openRouterChatCompletion([
         { role: 'system', content: system },
         { role: 'user', content: user },
-      ]);
+      ], { work: 'Application Q&A' });
     } catch {
       /* fallback to local Ollama */
     }
@@ -37,15 +38,15 @@ async function callTextLlm(system: string, user: string, timeoutMs = 20_000): Pr
   const res = (await undiciFetch(`${config.ollama.apiUrl}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: config.ollama.model,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-      stream: false,
-      keep_alive: config.ollama.keepAlive,
-    }),
+    body: JSON.stringify(
+      buildOllamaChatRequest(
+        [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
+        { numPredict: 1024, temperature: 0.3 }
+      )
+    ),
     dispatcher: agent,
   })) as Response;
 
@@ -54,8 +55,11 @@ async function callTextLlm(system: string, user: string, timeoutMs = 20_000): Pr
     throw new Error(`LLM error: ${text.slice(0, 300)}`);
   }
 
-  const data = (await res.json()) as { message?: { content?: string } };
-  return (data.message?.content || '').trim();
+  const data = (await res.json()) as {
+    message?: { content?: string; thinking?: string };
+    done_reason?: string;
+  };
+  return readOllamaChatContent(data);
 }
 
 function inferWordLimit(question: string, explicit?: number): number {

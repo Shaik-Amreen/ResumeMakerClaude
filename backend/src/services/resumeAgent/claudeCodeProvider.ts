@@ -12,6 +12,7 @@ import {
 import { extractLatexFromModelResponse, parseModelResumeResponse } from './extractLatex';
 import type { ResumeGenerationResult } from './openRouterProvider';
 import { makeTraceId, traceError, traceLog } from '../debugTrace';
+import { logLlmInUse } from './llmRoute';
 
 function findClaudeBinary(): string {
   const configured = config.resumeAgent.claudeCode.binary?.trim();
@@ -131,6 +132,10 @@ export async function generateResumeWithClaudeCode(
     const content = await runClaudePrint(systemPrompt, prompt, traceId, { signal: ctx.abortSignal });
     return parseModelResumeResponse(content);
   };
+
+  const label = `Claude Code (${config.resumeAgent.claudeCode.model})`;
+  logLlmInUse('Resume generate', label);
+  void ctx.onLlmRoute?.(label);
 
   let parsed: ResumeGenerationResult;
   try {

@@ -6,6 +6,7 @@ import { WebDriver } from 'selenium-webdriver';
 import { config } from '../config';
 import type { ApplicationProfile } from '../data/applicationProfile';
 import { openRouterChatCompletion } from './resumeAgent/openRouterProvider';
+import { logLlmInUse } from './resumeAgent/llmRoute';
 
 export type ApplyManagerActionType =
   | 'click'
@@ -248,6 +249,7 @@ async function callOpenRouterManager(userPrompt: string, timeoutMs: number): Pro
         maxTokens: 250,
         temperature: 0.1,
         signal: controller.signal,
+        work: 'Apply manager',
       }
     );
   } finally {
@@ -259,6 +261,7 @@ async function callOllamaManager(userPrompt: string, timeoutMs: number): Promise
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
   try {
+    logLlmInUse('Apply manager', `Ollama (${config.ollama.model})`);
     const res = await fetch(`${config.ollama.apiUrl}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -266,6 +269,7 @@ async function callOllamaManager(userPrompt: string, timeoutMs: number): Promise
         model: config.ollama.model,
         stream: false,
         keep_alive: config.ollama.keepAlive,
+        think: false,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userPrompt },
